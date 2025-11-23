@@ -1,0 +1,16 @@
+# --- Dependencies (Too big to upload) ---
+node_modules/
+*/node_modules/
+
+# --- Security (NEVER upload these) ---
+.env
+.DS_Store
+
+# --- Build Outputs ---
+dist/
+build/
+
+# --- User Uploaded Images ---
+# We want to keep the folder structure, but ignore the actual photos
+backend/public/uploads/*
+!backend/public/uploads/.gitkeep

@@ -1,0 +1,145 @@
+.list-container {
+  max-width: 1200px;
+  margin: 30px auto;
+  padding: 0 20px;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.list-header h2 {
+  margin: 0;
+  color: #1e293b;
+}
+
+.btn-add {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-add:hover { background: #1d4ed8; }
+
+/* SEARCH BAR */
+.search-bar-container {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+  background: white;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  outline: none;
+}
+
+.filter-select {
+  padding: 10px 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+}
+
+/* TABLE */
+.table-wrapper {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+.pdl-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pdl-table th {
+  background: #f8fafc;
+  text-align: left;
+  padding: 15px;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.pdl-table td {
+  padding: 15px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.table-avatar {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+}
+
+.name-col {
+  font-weight: 600;
+  color: #334155;
+}
+
+/* STATUS BADGES */
+.status-badge {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-badge.sentenced {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.status-badge.detained {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+}
+
+/* RISK DOTS */
+.risk-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  background: #22c55e; /* Default low */
+}
+
+.risk-dot.high { background: #ef4444; }
+
+.btn-view {
+  background: white;
+  border: 1px solid #cbd5e1;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.btn-view:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}

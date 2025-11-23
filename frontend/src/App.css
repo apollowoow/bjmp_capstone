@@ -1,0 +1,156 @@
+/* ============================
+   1. GLOBAL RESET & LAYOUT
+   ============================ */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f1f5f9; /* Light Gray Background */
+  font-size: 16px; /* Ensures text isn't microscopic */
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+.app-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ============================
+   2. SIDEBAR STYLING
+   ============================ */
+.sidebar {
+  width: 280px; /* Made it slightly wider for better visibility */
+  height: 100%;
+  background-color: #1e293b; /* Dark Blue */
+  color: white;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.sidebar h2 {
+  text-align: center;
+  margin: 0 0 30px 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #475569;
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar a {
+  color: #cbd5e1;
+  text-decoration: none;
+  padding: 14px 16px; /* Bigger touch targets */
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s;
+  display: block;
+}
+
+.sidebar a:hover {
+  background-color: #334155;
+  color: white;
+  transform: translateX(5px); /* Small animation on hover */
+}
+
+/* ============================
+   3. DASHBOARD & PAGE STYLING
+   (This fixes the "Small Text" issue)
+   ============================ */
+.content-area {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+  background-color: #f8fafc;
+}
+
+.page-title {
+  font-size: 2rem; /* Large Title */
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 15px;
+}
+
+/* The Grid Layout for Stats */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* auto-grid */
+  gap: 25px;
+  margin-top: 20px;
+}
+
+/* The White Cards */
+.stat-card {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.stat-card h3 {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat-number {
+  font-size: 3.5rem; /* Huge Numbers */
+  font-weight: 800;
+  margin: 15px 0;
+  color: #0f172a;
+}
+
+.stat-label {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 0.875rem;
+}
+
+/* ============================
+   4. TABLES (For PDL List)
+   ============================ */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.data-table th {
+  background-color: #1e293b;
+  color: white;
+  padding: 15px;
+  text-align: left;
+}
+
+.data-table td {
+  padding: 15px;
+  border-bottom: 1px solid #e2e8f0;
+}
