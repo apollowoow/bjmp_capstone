@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import API_BASE_URL from "../apiConfig";
 import "./dashboard.css"; 
 
 const Dashboard = () => {
@@ -33,7 +34,7 @@ const Dashboard = () => {
         }
 
         // 👇 UPDATED URL to match your new route file
-        const response = await fetch("http://localhost:5000/api/dashboard/stats", {
+        const response = await fetch(`${API_BASE_URL}/api/dashboard/stats`, {
           method: "GET",
           headers: { 
             "Content-Type": "application/json",

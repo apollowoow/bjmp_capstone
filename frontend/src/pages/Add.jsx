@@ -1,233 +1,249 @@
-import { useState } from "react";
+import React, { useState , useRef} from "react";
 import { useNavigate } from "react-router-dom";
-import "./add.css"; 
+import API_BASE_URL from "../apiConfig";
+import "./add.css";
 
 const Add = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
   const initialFormState = {
-    firstName: "", lastName: "", middleName: "", birthday: "",
-    gender: "", cellBlock: "", caseStatus: "", caseNumber: "", caseName: "",
-    educationalLevel: "", admissionDate: "",     
-    dateConvicted: "", sentenceYears: "",
-    courtName: "", nextHearingDate: ""
+    firstName: "",
+    lastName: "",
+    middleName: "",
+    birthday: "",
+    gender: "",
+    cellBlock: "",
+    caseStatus: "Detained",
+    caseNumber: "",
+    caseName: "",
+    rfidNumber: "",
+    educationalLevel: "",
+    admissionDate: "",
+    dateCommitedPNP: "",
+    sentenceYears: "0",
+    sentenceMonths: "0",
+    sentenceDays: "0",
   };
 
   const [formData, setFormData] = useState(initialFormState);
-  const [workHistory, setWorkHistory] = useState([""]); 
+  const [workHistory, setWorkHistory] = useState([""]);
   const [message, setMessage] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-
-  // 👇 1. NEW STATE FOR IMAGE
   const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null); // Optional: To show the image before uploading
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // 🛡️ RFID HARDWARE GUARD
+    // Limits input to 10 digits to prevent "double-typing" from scanner
+    if (name === "rfidNumber") {
+      const cleanedRFID = value.trim().slice(0, 10);
+      setFormData((prev) => ({ ...prev, [name]: cleanedRFID }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
-  // 👇 2. NEW HANDLER FOR FILE INPUT
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file)); // Create a temporary preview URL
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
-  
-  const handleWorkChange = (index, value) => {
-    const newWork = [...workHistory];
-    newWork[index] = value;
-    setWorkHistory(newWork);
-  };
-  const addWorkField = () => setWorkHistory([...workHistory, ""]);
-  const removeWorkField = (index) => setWorkHistory(workHistory.filter((_, i) => i !== index));
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
     setShowConfirmModal(true);
   };
 
-  // ---------------------------------------------------------
-  // 👇 UPDATED SAVE FUNCTION (Using FormData)
-  // ---------------------------------------------------------
+  // Inside confirmSave function in Add.jsx
   const confirmSave = async () => {
-    setShowConfirmModal(false); 
-    setMessage("Submitting...");
-    
-    // 👇 A. CREATE FORMDATA OBJECT
-    // We cannot use standard JSON for file uploads. We must use FormData.
-    const dataToSend = new FormData();
+    setShowConfirmModal(false);
+    setMessage("📡 Syncing with BJMP Database...");
 
-    // Append all text fields
-    Object.keys(formData).forEach(key => {
+    const dataToSend = new FormData();
+    
+    // These keys MUST match the ones we destructure in Node.js
+    Object.keys(formData).forEach((key) => {
       dataToSend.append(key, formData[key]);
     });
 
-    // Append Work Experience (Loop and append same key for array)
-    workHistory.forEach(job => {
-      if (job.trim() !== "") {
-        dataToSend.append('workExperience', job);
-      }
-    });
-
-    // Append the File (Key must be 'profile_photo' to match Multer)
-    if (selectedFile) {
-      dataToSend.append('profile_photo', selectedFile);
-    }
+    // Photo handling
+    if (selectedFile) dataToSend.append("profile_photo", selectedFile);
 
     try {
       const token = localStorage.getItem("token");
-
-      if (!token) {
-        alert("Session expired. Please log in.");
-        navigate("/"); 
-        return;
-      }
-
-      // 👇 B. SEND REQUEST (Note the Headers change!)
-      const response = await fetch("http://localhost:5000/api/pdl", {
+      const response = await fetch(`${API_BASE_URL}/api/pdl`, {
         method: "POST",
-        headers: { 
-            // ❌ DO NOT SET 'Content-Type': 'application/json'
-            // ✅ Let the browser set the boundary automatically for FormData
-            "Authorization": `Bearer ${token}` 
-        },
-        body: dataToSend, // Send the FormData object, not JSON.stringify
+        headers: { Authorization: `Bearer ${token}` },
+        body: dataToSend, // Sending the split data
       });
 
       const data = await response.json();
-      
       if (response.ok) {
-        setMessage(`✅ ${data.message}`);
-        // Reset Form
-        setFormData(initialFormState);
-        setWorkHistory([""]);
-        setSelectedFile(null); // Clear file
-        setPreviewUrl(null);   // Clear preview
-        window.scrollTo(0, 0);
+        setMessage(`✅ Registered: ${formData.firstName} ${formData.lastName}`);
+        setFormData(initialFormState); // Reset form
+        setPreviewUrl(null);
+        setSelectedFile(null);
       } else {
-        if (response.status === 401 || response.status === 403) {
-            setMessage("❌ Authorization Failed. Please log in again.");
-        } else {
-            setMessage(`❌ Error: ${data.error}`);
-        }
+        setMessage(`❌ Error: ${data.error}`);
       }
     } catch (error) {
-      console.error(error);
-      setMessage("❌ Failed to connect to server");
+      setMessage("❌ Failed to reach server.");
     }
   };
 
   return (
-    <div className="add-container">
-      <div className="form-header">
-        <h2>📋 New Inmate Record</h2>
-        <p>Fill in the details below. Additional fields will appear based on Case Status.</p>
-      </div>
+    <div className="pdl-add">
+      <header className="pdl-add__header">
+        <div className="pdl-add__header-title">
+          <h2>📋 PDL Admission Portal</h2>
+          <span className="pdl-add__badge">AI-Enhanced System</span>
+        </div>
+        <p>Register new inmate and initialize automated time allowance tracking.</p>
+      </header>
 
-      <div className="form-content">
-        <form onSubmit={handleFormSubmit} className="form-grid">
+      <div className="pdl-add__content">
+        <form onSubmit={handleFormSubmit} className="pdl-add__form">
           
-          {/* 👇 3. NEW IMAGE INPUT SECTION */}
-          <h3 className="section-title">PDL Profile Photo</h3>
-          <div className="full-width photo-upload-container">
-              {previewUrl ? (
-                <img 
-                  src={previewUrl} 
-                  alt="Preview" 
-                  className="photo-preview" 
-                />
-              ) : (
-                // Optional: A placeholder circle if no image is selected
-                <div className="photo-preview" style={{background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>
-                  <span>No Photo</span>
+          {/* PHOTO SECTION WITH CUSTOM BUTTON */}
+          <section className="pdl-add__section pdl-add__section--photo full-width">
+            <div className="pdl-add__photo-container">
+              <div className="pdl-add__photo-preview">
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Preview" />
+                ) : (
+                  <div className="pdl-add__photo-placeholder">No Photo</div>
+                )}
+              </div>
+              <div className="pdl-add__photo-controls">
+                <label className="pdl-add__label">PDL Profile Picture</label>
+                <div className="pdl-add__file-wrapper">
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} // 👈 Attach the ref here
+                    onChange={handleFileChange} 
+                    style={{ display: 'none' }} 
+                    id="pdl-photo-input"
+                  />
+                  <label htmlFor="pdl-photo-input" className="pdl-add__file-button">
+                    <span className="pdl-add__file-icon">📸</span>
+                    {selectedFile ? "Change Photo" : "Upload Photo"}
+                  </label>
+                  {selectedFile && (
+                    <span className="pdl-add__file-name">
+                      Selected: <strong>{selectedFile.name}</strong>
+                    </span>
+                  )}
                 </div>
-              )}
-              <br/>
+              </div>
+            </div>
+          </section>
+
+          <h3 className="pdl-add__section-title">1. Personal Identification</h3>
+          <div className="pdl-add__group">
+            <label className="pdl-add__label">First Name</label>
+            <input className="pdl-add__input" name="firstName" value={formData.firstName} onChange={handleChange} required />
+          </div>
+          <div className="pdl-add__group">
+            <label className="pdl-add__label">Last Name</label>
+            <input className="pdl-add__input" name="lastName" value={formData.lastName} onChange={handleChange} required />
+          </div>
+          <div className="pdl-add__group">
+            <label className="pdl-add__label">Middle Name</label>
+            <input className="pdl-add__input" name="middleName" value={formData.middleName} onChange={handleChange} />
+          </div>
+          <div className="pdl-add__group">
+            <label className="pdl-add__label">Date of Birth</label>
+            <input type="date" className="pdl-add__input" name="birthday" value={formData.birthday} onChange={handleChange} required />
+          </div>
+          <div className="pdl-add__group">
+            <label className="pdl-add__label">Gender</label>
+            <select className="pdl-add__input" name="gender" value={formData.gender} onChange={handleChange} required>
+              <option value="">-- Select --</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+          
+          <div className="pdl-add__group">
+            <label className="pdl-add__label">RFID Tag (Scan Now) <span className="pdl-add__tag-hint">🔒 Hardware Locked</span></label>
+            <div className="pdl-add__rfid-box">
               <input 
-                type="file" 
-                className="input" 
-                accept="image/*" 
-                onChange={handleFileChange} 
+                className="pdl-add__input pdl-add__input--rfid" 
+                name="rfidNumber" 
+                value={formData.rfidNumber} 
+                onChange={handleChange}
+                onKeyDown={(e) => {
+                  if (formData.rfidNumber.length === 10 && e.key !== "Tab" && e.key !== "Enter") {
+                    e.preventDefault();
+                  }
+                }}
+                placeholder="Scan Tag..." 
+                required 
               />
+              <button type="button" className="pdl-add__rfid-reset" onClick={() => setFormData(p => ({...p, rfidNumber: ""}))}>Reset</button>
+            </div>
           </div>
 
-          <h3 className="section-title">Personal Information</h3>
-          <div className="form-group"><label className="label">First Name</label><input className="input" name="firstName" value={formData.firstName} onChange={handleChange} required /></div>
-          <div className="form-group"><label className="label">Last Name</label><input className="input" name="lastName" value={formData.lastName} onChange={handleChange} required /></div>
-          <div className="form-group"><label className="label">Middle Name</label><input className="input" name="middleName" value={formData.middleName} onChange={handleChange} /></div>
-          <div className="form-group"><label className="label">Birthday</label><input type="date" className="input" name="birthday" value={formData.birthday} onChange={handleChange} required /></div>
-          <div className="form-group full-width"><label className="label">Gender</label><select className="input" name="gender" value={formData.gender} onChange={handleChange} required><option value="">-- Select --</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-
-          <h3 className="section-title">Legal & Detention Status</h3>
-          <div className="form-group"><label className="label">Cell Block</label><input className="input" name="cellBlock" value={formData.cellBlock} onChange={handleChange} placeholder="e.g. Block A" required /></div>
-          <div className="form-group"><label className="label">Case Number</label><input className="input" name="caseNumber" value={formData.caseNumber} onChange={handleChange} required /></div>
-          <div className="form-group"><label className="label">Case Status</label><select className="input" name="caseStatus" value={formData.caseStatus} onChange={handleChange} required><option value="">-- Select Status --</option><option value="Detained">Detained (Pending)</option><option value="Sentenced">Sentenced (Convicted)</option><option value="Awaiting Transfer">Awaiting Transfer</option></select></div>
-          <div className="form-group"><label className="label">Case Name / Crime</label><input className="input" name="caseName" value={formData.caseName} onChange={handleChange} placeholder="e.g. Theft" required /></div>
-          <div className="form-group full-width"><label className="label">Date Admitted</label><input type="date" className="input" name="admissionDate" value={formData.admissionDate} onChange={handleChange} required /></div>
+          <h3 className="pdl-add__section-title">2. Legal & Sentence Information</h3>
+          <div className="pdl-add__group">
+            <label className="pdl-add__label">Case Number</label>
+            <input className="pdl-add__input" name="caseNumber" value={formData.caseNumber} onChange={handleChange} required />
+          </div>
+          <div className="pdl-add__group">
+            <label className="pdl-add__label">Crime / Case Name</label>
+            <input className="pdl-add__input" name="caseName" value={formData.caseName} onChange={handleChange} required />
+          </div>
+          <div className="pdl-add__group">
+            <label className="pdl-add__label">Current Case Status</label>
+            <select className="pdl-add__input" name="caseStatus" value={formData.caseStatus} onChange={handleChange} required>
+              <option value="Detained">Detained (Pending)</option>
+              <option value="Sentenced">Sentenced (Convicted)</option>
+            </select>
+          </div>
+          <div className="pdl-add__group">
+            <label className="pdl-add__label">BJMP Admission Date</label>
+            <input type="date" className="pdl-add__input" name="admissionDate" value={formData.admissionDate} onChange={handleChange} required />
+          </div>
+          <div className="pdl-add__group full-width">
+            <label className="pdl-add__label">PNP Committal Date (Optional)</label>
+            <input type="date" className="pdl-add__input" name="dateCommitedPNP" value={formData.dateCommitedPNP} onChange={handleChange} />
+            <small className="pdl-add__hint">Provide if available to calculate retroactive CPI credits.</small>
+          </div>
 
           {formData.caseStatus === "Sentenced" && (
-            <div className="full-width" style={{background: '#f0f9ff', padding: '15px', borderRadius: '8px', border: '1px solid #bae6fd', marginTop: '10px'}}>
-              <h4 style={{margin: '0 0 10px 0', color: '#0284c7'}}>⚖️ Conviction Details</h4>
-              <div className="form-grid">
-                <div className="form-group"><label className="label">Date Convicted</label><input type="date" className="input" name="dateConvicted" value={formData.dateConvicted} onChange={handleChange} required /></div>
-                <div className="form-group"><label className="label">Sentence (Years)</label><input type="number" className="input" name="sentenceYears" value={formData.sentenceYears} onChange={handleChange} placeholder="e.g. 5" required /></div>
+            <div className="pdl-add__sentence-panel full-width">
+              <h4>⚖️ Court Mandated Sentence</h4>
+              <div className="pdl-add__sentence-grid">
+                <div className="pdl-add__group"><label className="pdl-add__label">Years</label><input type="number" className="pdl-add__input" name="sentenceYears" value={formData.sentenceYears} onChange={handleChange} /></div>
+                <div className="pdl-add__group"><label className="pdl-add__label">Months</label><input type="number" className="pdl-add__input" name="sentenceMonths" value={formData.sentenceMonths} onChange={handleChange} /></div>
+                <div className="pdl-add__group"><label className="pdl-add__label">Days</label><input type="number" className="pdl-add__input" name="sentenceDays" value={formData.sentenceDays} onChange={handleChange} /></div>
               </div>
             </div>
           )}
 
-          {formData.caseStatus === "Detained" && (
-            <div className="full-width" style={{background: '#fff7ed', padding: '15px', borderRadius: '8px', border: '1px solid #fed7aa', marginTop: '10px'}}>
-              <h4 style={{margin: '0 0 10px 0', color: '#ea580c'}}>⚖️ Court Hearing Details</h4>
-              <div className="form-grid">
-                <div className="form-group"><label className="label">Court Name</label><input className="input" name="courtName" value={formData.courtName} onChange={handleChange} placeholder="e.g. RTC Branch 12" required /></div>
-                <div className="form-group"><label className="label">Next Hearing Date</label><input type="date" className="input" name="nextHearingDate" value={formData.nextHearingDate} onChange={handleChange} required /></div>
-              </div>
-            </div>
-          )}
-
-          <h3 className="section-title">Background & Experience</h3>
-          <div className="form-group full-width"><label className="label">Educational Level</label><select className="input" name="educationalLevel" value={formData.educationalLevel} onChange={handleChange}><option value="">-- Select Level --</option><option value="No Formal Education">No Formal Education</option><option value="Elementary Undergraduate">Elementary Undergraduate</option><option value="Elementary Graduate">Elementary Graduate</option><option value="High School Undergraduate">High School Undergraduate</option><option value="High School Graduate">High School Graduate</option><option value="College Undergraduate">College Undergraduate</option><option value="College Graduate">College Graduate</option></select></div>
-
-          <div className="form-group full-width">
-            <label className="label">Work Experience</label>
-            <div style={{background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
-              {workHistory.map((job, index) => (
-                <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                  <input className="input" style={{background: 'white'}} placeholder="e.g. Carpenter" value={job} onChange={(e) => handleWorkChange(index, e.target.value)} />
-                  {workHistory.length > 1 && (<button type="button" onClick={() => removeWorkField(index)} style={{background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '0 15px', cursor: 'pointer'}}>X</button>)}
-                </div>
-              ))}
-              <button type="button" onClick={addWorkField} style={{fontSize: '14px', color: '#2563eb', fontWeight: '600', background: 'transparent', border: 'none', padding: '5px 0', cursor: 'pointer'}}>+ Add Another Job</button>
-            </div>
-          </div>
-
-          <button type="submit" className="btn-submit">Save PDL Record</button>
-          {message && <div className="message">{message}</div>}
-
+          <button type="submit" className="pdl-add__submit-btn">Register New Inmate Record</button>
+          {message && <div className={`pdl-add__status ${message.includes('❌') ? 'error' : ''}`}>{message}</div>}
         </form>
       </div>
 
-      {/* === CUSTOM MODAL COMPONENT === */}
       {showConfirmModal && (
-        <div className="modal-overlay">
-          <div className="modal-box">
-            <span className="modal-icon">📝</span>
-            <div className="modal-title">Confirm Save</div>
-            <p className="modal-text">
-              Are you sure you want to create this PDL record? 
-              <br/> This will initialize their Behavior Score to 100.
-            </p>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowConfirmModal(false)}>Cancel</button>
-              <button className="btn-confirm" onClick={confirmSave}>Yes, Save Record</button>
+        <div className="pdl-add__modal-overlay">
+          <div className="pdl-add__modal">
+            <div className="pdl-add__modal-icon">📄</div>
+            <h3>Confirm Admission</h3>
+            <p>Verify that all sentencing data and RFID mappings are correct before saving.</p>
+            <div className="pdl-add__modal-actions">
+              <button className="pdl-add__btn-secondary" onClick={() => setShowConfirmModal(false)}>Review Data</button>
+              <button className="pdl-add__btn-primary" onClick={confirmSave}>Confirm & Save</button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };

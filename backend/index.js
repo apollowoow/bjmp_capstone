@@ -2,12 +2,16 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
-
+const os = require('os');
 dotenv.config();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: "*", 
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
@@ -41,4 +45,14 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+app.listen(PORT, '0.0.0.0', () => {
+    const networkInterfaces = os.networkInterfaces();
+    let laptopIp = 'localhost';
+    for (const name in networkInterfaces) {
+        for (const iface of networkInterfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) laptopIp = iface.address;
+        }
+    }
+    console.log(`🚀 Backend Live: http://${laptopIp}:${PORT}`);
+});

@@ -1,18 +1,16 @@
-// backend/controllers/authController.js
 const pool = require('../db/pool');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const config = require('../config'); // 👈 Import our central config
 const { logAction } = require('../utils/logger');
 
 const loginUser = async (req, res) => {
-  // We use a client to ensure queries are efficient
   const client = await pool.connect();
 
   try {
     const { username, password } = req.body;
 
-    // 1. FIND USER IN DB
-    // We join with roletbl to get the nice role name (e.g. "Warden")
+    // 1. Find User & Join Role
     const userQuery = `
       SELECT u.userid, u.username, u.password, u.fullname, u.roleid, r.rolename
       FROM usertbl u
@@ -27,16 +25,14 @@ const loginUser = async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // 2. CHECK PASSWORD
+    // 2. Check Password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      // Log the failed attempt for security
-      await logAction(client, user.userid, 'LOGIN_FAILED', 'usertbl', user.userid, 'Invalid password attempt');
+      await logAction(client, user.userid, 'LOGIN_FAILED', 'usertbl', user.userid, 'Invalid password');
       return res.status(401).json({ error: "Invalid Password" });
     }
 
-    // 3. FETCH PERMISSIONS (RBAC)
-    // This grabs exactly what this user is allowed to do per module
+    // 3. Fetch RBAC Permissions
     const permQuery = `
       SELECT m.modulename, rp.canview, rp.cancreate, rp.canedit, rp.candelete, rp.canapprove
       FROM rolepermissiontable rp
@@ -45,22 +41,17 @@ const loginUser = async (req, res) => {
     `;
     const permResult = await client.query(permQuery, [user.roleid]);
 
-    // 4. GENERATE JWT TOKEN
-    // This is the "Digital Badge" the frontend will save
+    // 4. Generate JWT Token
+    // ✅ Uses config.jwtSecret from your .env
     const token = jwt.sign(
-      { 
-        id: user.userid, 
-        role: user.rolename,
-        name: user.fullname
-      },
-      "YOUR_SECRET_KEY", // IMPORTANT: In a real app, put this in a .env file!
+      { id: user.userid, role: user.rolename, name: user.fullname },
+      config.jwtSecret,
       { expiresIn: "8h" }
     );
 
-    // 5. LOG SUCCESSFUL LOGIN
-    await logAction(client, user.userid, 'LOGIN', 'usertbl', user.userid, 'User logged in successfully');
+    // 5. Log Success
+    await logAction(client, user.userid, 'LOGIN', 'usertbl', user.userid, 'Successful login');
 
-    // 6. SEND RESPONSE
     res.json({
       message: "Login Successful",
       token,
@@ -69,13 +60,13 @@ const loginUser = async (req, res) => {
         username: user.username,
         fullname: user.fullname,
         role: user.rolename,
-        permissions: permResult.rows // Frontend uses this to hide/show buttons!
+        permissions: permResult.rows
       }
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Server Error" });
+    console.error("Login Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   } finally {
     client.release();
   }

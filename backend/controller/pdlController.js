@@ -1,155 +1,148 @@
 const pool = require("../db/pool");
 const { logAction } = require('../utils/logger'); 
 
+// backend/controllers/pdlController.js
+
 const getAllPDL = async (req, res) => {
   try {
-    // FIX: Changed "pdlid" to "pdltable.pdlid" in the SELECT line
-    const result = await pool.query(`
-      SELECT pdltable.pdlid, firstname, lastname, middlename, 
-             cellblock, casestatus, profile_photo_url, behaviorscoretbl.risklevel
-      FROM pdltable
-      LEFT JOIN behaviorscoretbl ON pdltable.pdlid = behaviorscoretbl.pdlid
-      ORDER BY pdltable.pdlid DESC
-    `);
-    
-    res.json(result.rows);
+    // 1. Query only from pdl_tbl using your exact column names
+    // We filter for active statuses: 'Sentenced' and 'Detained'
+    const query = `
+      SELECT 
+        pdl_id, 
+        first_name, 
+        middle_name, 
+        last_name, 
+        gender,
+        pdl_status, 
+        date_commited_pnp, 
+        date_admitted_bjmp,
+        pdl_picture,
+        crime_name,
+        case_number,
+        sentence_years,
+        sentence_months,
+        sentence_days
+      FROM pdl_tbl
+      WHERE pdl_status IN ('Sentenced', 'Detained')
+      ORDER BY pdl_id DESC
+    `;
+
+    const result = await pool.query(query);
+
+    // 2. Map to provide the full URL for the frontend photos
+    const pdlsWithFullPhotoUrl = result.rows.map(pdl => {
+      return {
+        ...pdl,
+        // This ensures the image loads on your groupmates' laptops via Wi-Fi
+        pdl_picture: pdl.pdl_picture 
+          ? `${req.protocol}://${req.get('host')}/uploads/${pdl.pdl_picture}`
+          : null 
+      };
+    });
+
+    res.json(pdlsWithFullPhotoUrl);
+
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Failed to fetch records");
+    console.error("Database Error:", err.message);
+    res.status(500).json({ error: "Server Error: Unable to fetch inmate profiling data" });
   }
 };
 
 const addPDL = async (req, res) => {
-  const client = await pool.connect(); 
-  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const client = await pool.connect();
+    
+    // Capture the IP Address for the audit log (handles proxy and direct connection)
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-  try {
-    const { 
-      firstName, lastName, middleName, birthday, gender, 
-      cellBlock, caseStatus, caseNumber, caseName,
-      educationalLevel, 
-      workExperience,
-      dateConvicted, sentenceYears, 
-      courtName, nextHearingDate,
-      admissionDate 
-    } = req.body;
+    try {
+        const { 
+            firstName, lastName, middleName, birthday, gender,
+            rfidNumber, 
+            caseNumber, 
+            caseName,   
+            caseStatus,
+            sentenceYears, sentenceMonths, sentenceDays,
+            dateCommitedPNP, admissionDate 
+        } = req.body;
 
-    // 👇 CHANGE 1: Capture the file path from Multer
-    // If a file was uploaded, create the path. If not, set to null.
-    const profile_photo_url = req.file ? `/uploads/${req.file.filename}` : null;
+        // 1. Capture the Filename from Multer
+        // 'req.file' is populated by the Multer middleware (upload.single('profile_photo'))
+        const pdlPicture = req.file ? req.file.filename : null;
 
-    const currentUserId = req.user ? req.user.id : 1; 
+        // Use the current user ID from the JWT token (middleware)
+        const currentUserId = req.user ? req.user.id : 1; 
 
-    await client.query('BEGIN'); 
+        // 2. Pre-flight duplicate check for RFID
+        const rfidCheck = await client.query("SELECT pdl_id FROM pdl_tbl WHERE rfid_number = $1", [rfidNumber]);
+        if (rfidCheck.rows.length > 0) {
+            return res.status(400).json({ error: "RFID Tag is already assigned to another PDL record." });
+        }
 
-    // 👇 CHANGE 2: Update the SQL Query to include profile_photo_url
-    const pdlQuery = `
-      INSERT INTO pdltable 
-      (firstname, lastname, middlename, birthday, gender, cellblock, casestatus, casenumber, casename, profile_photo_url)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING pdlid;
-    `;
+        await client.query('BEGIN');
 
-    // 👇 CHANGE 3: Add profile_photo_url to the values array (matches $10)
-    const pdlValues = [
-      firstName, lastName, middleName, birthday, gender, 
-      cellBlock, caseStatus, caseNumber, caseName, 
-      profile_photo_url 
-    ];
+        // 3. Calculate initial predictive release date
+        let originalReleaseDate = null;
+        if (dateCommitedPNP) {
+            const start = new Date(dateCommitedPNP);
+            // Math for sentencing: Adding years, months, and days to the PNP committal date
+            start.setFullYear(start.getFullYear() + parseInt(sentenceYears || 0));
+            start.setMonth(start.getMonth() + parseInt(sentenceMonths || 0));
+            start.setDate(start.getDate() + parseInt(sentenceDays || 0));
+            originalReleaseDate = start.toISOString().split('T')[0];
+        }
 
-    const pdlResult = await client.query(pdlQuery, pdlValues);
-    const newPdlId = pdlResult.rows[0].pdlid;
+        // 4. Insert Query with 17 Parameters (Including pdl_picture)
+        const insertQuery = `
+            INSERT INTO pdl_tbl (
+                first_name, last_name, middle_name, birthday, gender,
+                rfid_number, case_number, crime_name, pdl_status,
+                date_commited_pnp, date_admitted_bjmp,
+                sentence_years, sentence_months, sentence_days,
+                original_release_date, expected_releasedate,
+                pdl_picture
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            RETURNING pdl_id;
+        `;
 
-    // --- The rest of your logic remains exactly the same ---
+        const result = await client.query(insertQuery, [
+            firstName, lastName, middleName, birthday, gender,
+            rfidNumber, caseNumber, caseName, caseStatus,
+            dateCommitedPNP || null, admissionDate,
+            sentenceYears, sentenceMonths, sentenceDays,
+            originalReleaseDate, originalReleaseDate, // Initially they are identical
+            pdlPicture // The filename saved in 'uploads/'
+        ]);
 
-    await client.query(`
-      INSERT INTO behaviorscoretbl (pdlid, score, risklevel, remarks, lastupdated)
-      VALUES ($1, 100, 'Low', 'Initial Entry', NOW())
-    `, [newPdlId]);
+        const newPdlId = result.rows[0].pdl_id;
 
-    if (caseStatus === 'Sentenced') {
-      const convictQuery = `
-        INSERT INTO convicttbl 
-        (pdlid, dateconvicted, sentenceyears, crimecommitted, admissiondate)
-        VALUES ($1, $2, $3, $4, $5)
-      `;
-      await client.query(convictQuery, [newPdlId, dateConvicted, sentenceYears, caseName, admissionDate]);
+        // 5. Audit Logging
+        // This keeps a history of which officer added the PDL and from what IP
+        await logAction(
+            client,
+            currentUserId,
+            'CREATE_PDL',
+            'pdl_tbl',
+            newPdlId,
+            `Registered new PDL: ${firstName} ${lastName} (RFID: ${rfidNumber})`,
+            clientIp
+        );
 
-    } else if (caseStatus === 'Detained') {
-      const detaineeQuery = `
-        INSERT INTO detaineetbl 
-        (pdlid, courtname, nexthearingdate, status, admissiondate)
-        VALUES ($1, $2, $3, $4, $5)
-      `;
-      await client.query(detaineeQuery, [newPdlId, courtName, nextHearingDate, 'Pending', admissionDate]);
+        await client.query('COMMIT');
+        res.status(201).json({ 
+            message: "PDL Registered successfully!", 
+            id: newPdlId,
+            filename: pdlPicture 
+        });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("Registration Error:", err);
+        res.status(500).json({ error: "Internal Server Error during registration." });
+    } finally {
+        client.release();
     }
-
-    if (educationalLevel) {
-      await client.query(`
-        INSERT INTO edutable (pdlid, educationallevel)
-        VALUES ($1, $2)
-      `, [newPdlId, educationalLevel]);
-    }
-
-    if (workExperience && workExperience.length > 0) {
-        // Note: When sending FormData, arrays might need parsing depending on how you send them in React
-        // If workExperience comes as a string, you might need: JSON.parse(workExperience)
-        // But if you handle it correctly in frontend, this loop works.
-        const workExpArray = Array.isArray(workExperience) ? workExperience : [workExperience];
-        
-        for (const job of workExpArray) {
-            await client.query(`
-            INSERT INTO workexptbl (pdlid, workexp)
-            VALUES ($1, $2)
-            `, [newPdlId, job]);
-      }
-    }
-
-    // Log the action
-    await logAction(
-      client,
-      currentUserId,
-      'CREATE_PDL',
-      'pdltable',
-      newPdlId,
-      `Added new PDL record: ${firstName} ${lastName}`,
-      clientIp
-    );
-
-    await client.query('COMMIT'); 
-    res.json({ message: "PDL Record and Legal Details saved!", pdlId: newPdlId, photoUrl: profile_photo_url });
-
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error("Transaction Error:", error);
-    res.status(500).json({ error: "Failed to save PDL data" });
-  } finally {
-    client.release();
-  }
 };
 
-const updatePDL = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { firstName, lastName, cellBlock, caseStatus } = req.body;
 
-    const query = `
-      UPDATE pdlTable 
-      SET firstName = $1, lastName = $2, cellBlock = $3, caseStatus = $4
-      WHERE pdlID = $5
-      RETURNING *;
-    `;
-    const values = [firstName, lastName, cellBlock, caseStatus, id];
-
-    const result = await pool.query(query, values);
-
-    if (result.rows.length === 0)
-      return res.status(404).json({ message: "PDL not found" });
-
-    res.json({ message: "PDL updated successfully", data: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update PDL" });
-  }
-};
-
-module.exports = { getAllPDL, addPDL, updatePDL };
+module.exports = { getAllPDL, addPDL };

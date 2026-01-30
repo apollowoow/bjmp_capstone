@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import API_BASE_URL from "../apiConfig";
 import "./add.css"; // This file already contains the .modal-overlay styles we added earlier!
 
 const AddUser = () => {
@@ -48,7 +49,7 @@ const AddUser = () => {
       // We send currentUserId: 1 (Admin) temporarily for the log
       const payload = { ...formData, currentUserId: 1 };
 
-      const res = await axios.post("http://localhost:5000/api/users", payload);
+      const res = await axios.post(`${API_BASE_URL}/api/users`, payload);
       
       setMessage(`✅ ${res.data.message}`);
       setIsError(false);

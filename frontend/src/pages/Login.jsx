@@ -1,6 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom"; // Import navigation hook
+import API_BASE_URL from "../apiConfig";
 import "./login.css";
 
 const Login = () => {
@@ -26,7 +27,7 @@ const Login = () => {
 
         try {
             // 1. SEND CREDENTIALS TO BACKEND
-            const res = await axios.post("http://localhost:5000/api/auth/login", formData);
+            const res = await axios.post(`${API_BASE_URL}/api/auth/login`, formData);
 
             // 2. GET THE TOKEN & USER DATA
             const { token, user, message } = res.data;

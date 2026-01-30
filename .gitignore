@@ -1,16 +1,13 @@
-# --- Dependencies (Too big to upload) ---
-node_modules/
-*/node_modules/
+# Ignore local environment variables (Security)
+backend/.env
+frontend/.env
 
-# --- Security (NEVER upload these) ---
-.env
-.DS_Store
+# Ignore large dependency folders (Performance)
+backend/node_modules/
+frontend/node_modules/
 
-# --- Build Outputs ---
-dist/
-build/
-
-# --- User Uploaded Images ---
-# We want to keep the folder structure, but ignore the actual photos
+# Ignore the actual photo files (Privacy/Storage)
 backend/public/uploads/*
+
+# EXCEPT for the .gitkeep file (Preserve Folder Structure)
 !backend/public/uploads/.gitkeep
