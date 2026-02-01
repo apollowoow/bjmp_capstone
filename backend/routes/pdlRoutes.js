@@ -8,11 +8,13 @@ const pool = require("../db/pool");
 // ==========================
 // IMPORT CONTROLLERS
 // ==========================
-const { addPDL, getAllPDL, updatePDL } = require("../controller/pdlController");
+const { addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord } = require("../controller/pdlController");
 
 // ==========================
 // IMPORT MIDDLEWARE
 // ==========================
+
+
 const { authenticateToken } = require("../middleware/authMiddleware");
 
 // ==========================
@@ -69,12 +71,20 @@ const validateRFID = async (req, res, next) => {
 
 // Get all PDLs
 router.get("/getall", authenticateToken, getAllPDL);
+router.get('/get/:id', authenticateToken, getPdlById);
 
 // Add New PDL 
 // (Auth -> Upload -> Validate RFID -> Save to DB)
 router.post("/", authenticateToken, upload.single("profile_photo"), validateRFID, addPDL);
+router.put("/update/:id", authenticateToken, updatePdlJudicialRecord);
+
+
+
 
 // Update PDL
+// Ensure you have your auth middleware imported
+
+
 
 
 module.exports = router;

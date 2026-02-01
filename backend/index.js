@@ -44,6 +44,16 @@ app.get("/", (req, res) => {
   res.send("BJMP API RUNNING");
 });
 
+const sessionRoutes = require('./routes/sessionRoutes'); // Adjust path as needed
+
+// ... other middleware (cors, express.json)
+
+// 🎯 Add this line to link the W&D Session routes
+app.use('/api/sessions', sessionRoutes);
+
+// This allows the frontend to access images via http://192.168.1.43:5000/public/uploads/filename.jpg
+app.use('/public/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, '0.0.0.0', () => {
