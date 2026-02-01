@@ -30,7 +30,7 @@ const Sidebar = () => {
       <nav>
         <Link to="/dashboard">📊 Dashboard</Link>
         <Link to="/pdl">👥 Inmate Profiling</Link>
-        <Link to="/education">🎓 Education</Link>
+        <Link to="/education">⏱️ Programs & Credits</Link>
         <Link to="/incidents">⚠️ Incidents</Link>
         <hr style={{ margin: '20px 0', borderColor: '#475569' }} />
         

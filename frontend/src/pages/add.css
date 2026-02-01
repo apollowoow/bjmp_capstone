@@ -218,3 +218,127 @@
 
 .pdl-add__btn-primary { flex: 1; padding: 12px; background: var(--bjmp-blue); color: white; border: none; border-radius: 6px; cursor: pointer; }
 .pdl-add__btn-secondary { flex: 1; padding: 12px; background: white; border: 1px solid var(--bjmp-border); color: var(--bjmp-text-muted); border-radius: 6px; cursor: pointer; }
+/* 🧪 AI-CALCULATION STYLING */
+.pdl-add__input--expiry {
+  border-color: #f59e0b !important; /* Amber border for the master date */
+  background-color: #fffbeb !important;
+}
+
+.pdl-add__input--calculated {
+  background-color: #f8fafc !important; /* Light gray for read-only fields */
+  color: var(--bjmp-blue);
+  font-weight: 700;
+  border: 1px solid #cbd5e1 !important;
+  cursor: not-allowed;
+}
+
+.pdl-add__sentence-hint {
+  font-size: 0.8rem;
+  color: var(--bjmp-text-muted);
+  margin-top: -10px;
+  margin-bottom: 20px;
+  font-style: italic;
+}
+
+.pdl-alert__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85); /* Darker for focus */
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* Higher than regular modal */
+}
+
+.pdl-alert__modal {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border-top: 6px solid #f59e0b; /* Amber warning */
+}
+
+.pdl-alert__modal--error {
+  border-top-color: #ef4444; /* Red error */
+}
+
+.pdl-alert__icon {
+  font-size: 3.5rem;
+  margin-bottom: 15px;
+}
+
+.pdl-alert__title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+
+.pdl-alert__message {
+  color: #64748b;
+  line-height: 1.6;
+  font-size: 0.95rem;
+  margin-bottom: 25px;
+}
+
+.pdl-alert__close-btn {
+  width: 100%;
+  padding: 14px;
+  background: #0f172a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pdl-alert__close-btn:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+}
+
+/* 🟢 Success State for RFID */
+.pdl-add__input--success {
+  border: 2px solid #22c55e !important; /* BJMP Success Green */
+  background-color: #f0fdf4 !important;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2) !important;
+  color: #15803d !important;
+  font-weight: 700 !important;
+}
+
+/* 🔒 Locked State (Keep this if you want it disabled after success) */
+.pdl-add__input--locked {
+  cursor: not-allowed;
+  pointer-events: none; /* Prevents further clicks/edits until reset */
+}
+
+.pdl-add__warning-box {
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.pdl-add__warning-box p {
+  color: #9a3412;
+  font-size: 0.85rem;
+  margin: 0 0 8px 0;
+}
+
+.pdl-add__warning-box ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #9a3412;
+  font-size: 0.8rem;
+}
+
+.pdl-add__warning-box li {
+  margin-bottom: 4px;
+}

@@ -9,30 +9,36 @@ import PDLList from "../pages/PDLList";
 import Education from "../pages/Education";
 import Incidents from "../pages/Incidents";
 import Add from "../pages/Add";
+import Profile from "../pages/Profile"; 
+// 👇 1. IMPORT THE NEW EDIT PAGE
+import EditPdl from "../pages/EditPdl"; 
 
-// 👇 IMPORT THE GUARD
 import ProtectedRoute from "../components/ProtectedRoute";
 
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* PUBLIC ROUTE (Login) */}
+      {/* PUBLIC ROUTE */}
       <Route path="/" element={<Login />} />
 
-      {/* 👇 PROTECTED ROUTES WRAPPER */}
+      {/* PROTECTED ROUTES */}
       <Route element={<ProtectedRoute />}>
-        
-        {/* INSIDE THE WALL: The Sidebar Layout */}
         <Route element={<Layout />}>
            <Route path="/dashboard" element={<Dashboard />} />
            <Route path="/add" element={<Add />} />
            <Route path="/addUser" element={<AddUser />} />
            <Route path="/pdl" element={<PDLList />} />
+           <Route path="/profile/:id" element={<Profile />} />
+
+           {/* 👇 2. ADD THE DYNAMIC EDIT ROUTE */}
+           <Route path="/edit/:id" element={<EditPdl />} />
+
            <Route path="/education" element={<Education />} />
            <Route path="/incidents" element={<Incidents />} />
         </Route>
-
       </Route>
+      
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };

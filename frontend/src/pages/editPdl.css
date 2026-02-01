@@ -1,0 +1,375 @@
+/* ============================================================
+   CONTAINER & GRID
+   ============================================================ */
+.edit-pdl-scope {
+  background: #f8fafc;
+  min-height: 100vh;
+  padding: 40px 20px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: #1e293b;
+}
+
+.edit-pdl-scope .edit-container { max-width: 1200px; margin: 0 auto; }
+
+.edit-pdl-scope .edit-header { 
+  display: flex; 
+  align-items: center; 
+  gap: 20px; 
+  margin-bottom: 30px; 
+}
+
+.edit-pdl-scope .edit-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr; /* Slightly wider for longer dates */
+  gap: 30px;
+  align-items: start;
+}
+
+.edit-pdl-scope .card {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+}
+
+/* ============================================================
+   IDENTITY CARD (LEFT)
+   ============================================================ */
+.edit-pdl-scope .image-wrapper { position: relative; text-align: center; margin-bottom: 30px; }
+
+.edit-pdl-scope .profile-img { 
+  width: 180px; 
+  height: 180px; 
+  border-radius: 50%; 
+  object-fit: cover; 
+  border: 6px solid #fff; 
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.edit-pdl-scope .status-badge-side {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* 🎨 Status Color Logic */
+.edit-pdl-scope .status-sentenced { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.edit-pdl-scope .status-released { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.edit-pdl-scope .status-detained { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+
+.edit-pdl-scope .rfid-tag-locked {
+  background: #0f172a; 
+  color: #94a3b8; 
+  padding: 10px; 
+  border-radius: 12px;
+  position: absolute; 
+  bottom: -15px; 
+  left: 50%; 
+  transform: translateX(-50%); 
+  width: 85%;
+  font-size: 0.75rem;
+}
+
+.edit-pdl-scope .rfid-tag-locked span { display: block; color: white; font-weight: 700; font-size: 0.9rem; }
+
+.edit-pdl-scope .id-details h1 { font-size: 1.5rem; margin-bottom: 5px; color: #0f172a; }
+.edit-pdl-scope .jail-id { font-size: 0.85rem; color: #64748b; margin-bottom: 20px; }
+
+.edit-pdl-scope .spec { 
+  display: flex; 
+  justify-content: space-between; 
+  padding: 12px 0; 
+  border-bottom: 1px solid #f1f5f9; 
+}
+.edit-pdl-scope .spec span { font-size: 0.8rem; color: #64748b; font-weight: 500; }
+.edit-pdl-scope .spec strong { font-size: 0.85rem; color: #1e293b; }
+
+/* ============================================================
+   FORM CONTRELS (RIGHT)
+   ============================================================ */
+.edit-pdl-scope .section-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 25px; 
+}
+
+.edit-pdl-scope .section-header h3 { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
+
+.edit-pdl-scope .section-divider {
+  border: none;               /* 🎯 Makes the line invisible */
+  margin: 10px 0 10px 0;      /* 🎯 50px space above, 20px below */
+  height: 0;                  /* Ensures no extra height is calculated */
+  display: block;             /* Guarantees it behaves as a block element */
+  clear: both;
+}
+
+/* Optional: Add a subtle transition or specific padding to the Judicial Section
+   to ensure it feels anchored despite the invisible divider. */
+.edit-pdl-scope .judicial-input-group {
+  margin-top: 5px;
+}
+
+.edit-pdl-scope .btn-lock-toggle {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.edit-pdl-scope .btn-lock-toggle.unlocked {
+  background: #fff1f2;
+  color: #e11d48;
+  border-color: #fecdd3;
+  box-shadow: 0 0 15px rgba(225, 29, 72, 0.1);
+}
+
+.edit-pdl-scope .input-section {
+  background: #f8fafc; 
+  border: 1.5px solid #e2e8f0; 
+  padding: 25px; 
+  border-radius: 16px;
+  margin-bottom: 30px; 
+}
+
+.edit-pdl-scope .input-section.disabled,
+.edit-pdl-scope .judicial-input-group.disabled { 
+  opacity: 0.5; 
+  filter: grayscale(0.8); 
+  pointer-events: none; 
+  background: #f1f5f9;
+}
+
+.edit-pdl-scope .field label { 
+  font-size: 0.75rem; 
+  font-weight: 800; 
+  color: #64748b; 
+  text-transform: uppercase; 
+  margin-bottom: 8px;
+  display: block;
+}
+
+.edit-pdl-scope input, .edit-pdl-scope select { 
+  width: 100%;
+  padding: 14px; 
+  border: 2px solid #e2e8f0; 
+  border-radius: 12px; 
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.edit-pdl-scope input:focus { border-color: #0f172a; outline: none; background: #fff; }
+
+.edit-pdl-scope .triple-input { display: flex; gap: 15px; }
+
+/* ============================================================
+   MODALS & OVERLAYS
+   ============================================================ */
+.edit-pdl-scope .modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(15, 23, 42, 0.85); 
+  display: flex; justify-content: center; align-items: center; 
+  z-index: 9999; backdrop-filter: blur(10px);
+}
+
+.edit-pdl-scope .modal-content { 
+  background: white; 
+  max-width: 480px; 
+  width: 90%; 
+  border-radius: 28px; 
+  padding: 40px; 
+  text-align: center; /* Centers all content inside modals */
+  position: relative;
+  overflow: hidden;
+}
+
+/* 🎯 Consistency: Centering all modal buttons */
+.edit-pdl-scope .modal-actions { 
+  display: flex; 
+  justify-content: center; 
+  gap: 15px; 
+  margin-top: 35px; 
+}
+
+/* 🚫 Validation Error Specifics */
+.edit-pdl-scope .modal-content.danger-border { 
+  border-top: 8px solid #ef4444; 
+}
+
+.edit-pdl-scope .text-danger { 
+  color: #ef4444; 
+  font-size: 1.4rem; 
+  font-weight: 800; 
+  margin-bottom: 10px; 
+}
+
+.edit-pdl-scope .validation-text { 
+  font-weight: 700; 
+  color: #1e293b; 
+  font-size: 1.05rem; 
+  margin-bottom: 12px; 
+}
+
+.edit-pdl-scope .btn-modal-error { 
+  background: #ef4444; 
+  color: white; 
+  border: none; 
+  padding: 16px 40px; 
+  border-radius: 14px; 
+  font-weight: 700; 
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.edit-pdl-scope .btn-modal-error:hover { background: #dc2626; transform: translateY(-2px); }
+
+/* ⚠️ Tampering/Warning Specifics */
+.edit-pdl-scope .modal-content.warning-border { border-top: 8px solid #f59e0b; }
+.edit-pdl-scope .modal-content.tamper-danger { border-top: 8px solid #f97316; }
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.edit-pdl-scope .btn-save-finalize {
+  width: 100%;
+  padding: 18px;
+  background: #0f172a;
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.2);
+}
+
+/* ============================================================
+   BACK BUTTON STYLING
+   ============================================================ */
+.edit-pdl-scope .btn-back {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  color: #64748b;
+  border: 1.5px solid #e2e8f0;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.edit-pdl-scope .btn-back:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+  /* 🎯 The "Nudge": Moves the button slightly left on hover */
+  transform: translateX(-4px); 
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.edit-pdl-scope .btn-back:active {
+  transform: scale(0.96) translateX(-4px);
+  background: #f1f5f9;
+}
+
+/* Optional: Styling the arrow symbol specifically */
+.edit-pdl-scope .btn-back::before {
+  content: "←";
+  font-size: 1.1rem;
+  transition: transform 0.2s ease;
+}
+
+.edit-pdl-scope .btn-back:hover::before {
+  transform: translateX(-2px);
+}
+
+.edit-pdl-scope .btn-modal-cancel {
+  flex: 1; /* Shared width in a row */
+  background-color: #f1f5f9 !important; /* Soft slate */
+  color: #64748b !important;
+  border: 1.5px solid #e2e8f0 !important;
+  padding: 14px 24px !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.edit-pdl-scope .btn-modal-cancel:hover {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* 2. THE CONFIRM BUTTON (Primary/Action) */
+.edit-pdl-scope .btn-modal-confirm {
+  flex: 1.5; /* Slightly wider than cancel to emphasize action */
+  background-color: #0f172a !important; /* Deep navy */
+  color: white !important;
+  border: none !important;
+  padding: 14px 24px !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2);
+}
+
+.edit-pdl-scope .btn-modal-confirm:hover {
+  background-color: #1e293b !important;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.3);
+}
+
+/* 3. THE ERROR/DANGER BUTTON (Validation Block) */
+.edit-pdl-scope .btn-modal-error {
+  background-color: #ef4444 !important; /* Sharp Red */
+  color: white !important;
+  border: none !important;
+  padding: 16px 40px !important; /* Extra wide for the single-button modal */
+  border-radius: 14px !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.2);
+}
+
+.edit-pdl-scope .btn-modal-error:hover {
+  background-color: #dc2626 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(239, 68, 68, 0.3);
+}
+
+/* 4. THE JUDICIAL DANGER BUTTON (Specific to the authorized edit warning) */
+.edit-pdl-scope .btn-modal-danger {
+    flex: 1.5;
+    background-color: #dc2626 !important;
+    color: white !important;
+    border: none !important;
+    padding: 14px 24px !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+}
+
+.edit-pdl-scope .btn-save-finalize:hover { background: #1e293b; }

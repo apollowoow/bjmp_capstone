@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import API_BASE_URL from "../apiConfig";
-import "./add.css"; // This file already contains the .modal-overlay styles we added earlier!
+import "./addUser.css"; 
 
 const AddUser = () => {
   const [formData, setFormData] = useState({

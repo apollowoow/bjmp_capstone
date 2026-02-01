@@ -1,0 +1,816 @@
+/* ============================================================
+   📦 SCOPE & CONTAINER
+   ============================================================ */
+.education-scope {
+    background: #f8fafc;
+    min-height: 100vh;
+    padding: 40px 20px;
+    font-family: 'Inter', sans-serif;
+}
+
+.education-scope .education-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* ============================================================
+   🔝 HEADER & DASHBOARD
+   ============================================================ */
+.education-scope .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 35px;
+    background: white;
+    padding: 25px;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.education-scope .header-text h1 { font-size: 1.6rem; color: #0f172a; margin-bottom: 5px; }
+.education-scope .header-text p { color: #64748b; font-size: 0.9rem; }
+
+.education-scope .header-actions {
+    display: flex;
+    gap: 15px;
+}
+
+/* ⚖️ GCTA Button */
+.education-scope .btn-grant-gcta {
+    background: #f8fafc;
+    color: #1e293b;
+    border: 1.5px solid #e2e8f0;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.education-scope .btn-grant-gcta:hover {
+    background: #fff;
+    border-color: #3b82f6;
+    color: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+/* 🚀 Primary Session Button */
+.education-scope .btn-primary {
+    background: #0f172a;
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.education-scope .btn-primary:hover {
+    background: #1e293b;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.2);
+}
+
+/* ============================================================
+   📜 LOGS TABLE
+   ============================================================ */
+.education-scope .section.card {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    border: 1px solid #e2e8f0;
+}
+
+.education-scope .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 25px;
+}
+
+.education-scope th {
+    text-align: left;
+    padding: 16px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.education-scope td {
+    padding: 18px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.95rem;
+    color: #334155;
+}
+
+.education-scope tr:hover td { background: #f8fafc; }
+
+.badge-program {
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    border: 1px solid #bae6fd;
+}
+
+/* ============================================================
+   📡 MODALS & OVERLAYS
+   ============================================================ */
+.education-scope .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.85);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 9999; backdrop-filter: blur(8px);
+}
+
+.education-scope .modal-content {
+    background: white;
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.education-scope .modal-content {
+    /* Increased internal padding to prevent text from hitting the edges */
+    padding: 45px; 
+}
+
+.education-scope .modal-header h3 {
+    margin-bottom: 15px;
+    letter-spacing: 0.02em; /* Slightly opens up the title */
+}
+
+.education-scope .modal-body p {
+    font-size: 1.05rem;
+    line-height: 1.7; /* 🎯 This is the key fix for "compact" letters */
+    color: #334155;
+    margin-bottom: 15px;
+}
+
+.education-scope .modal-body .helper-text {
+    display: block;
+    background: #fff5f5; /* Very subtle red tint for the warning area */
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #64748b;
+    margin-top: 10px;
+    border-left: 3px solid #ef4444; /* Connects it visually to the 'Danger' theme */
+}
+
+.education-scope .modal-body code {
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 0.9rem;
+    letter-spacing: 0; /* Keeps code snippets readable */
+}
+
+/* Ensure actions have enough gap so buttons aren't squashed */
+.education-scope .modal-actions {
+    margin-top: 40px;
+    gap: 20px;
+}
+
+.education-scope .session-modal { max-width: 550px; width: 90%; border-top: 8px solid #0f172a; }
+.education-scope .danger-border { max-width: 500px; width: 90%; border-top: 8px solid #ef4444; }
+
+.text-danger { color: #ef4444 !important; font-weight: 800; }
+
+.education-scope .form-grid { display: flex; flex-direction: column; gap: 20px; text-align: left; }
+.education-scope .form-row-dual { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+.education-scope .field label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.education-scope input, .education-scope select {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 1rem;
+}
+
+.education-scope .modal-actions { display: flex; gap: 15px; margin-top: 35px; }
+
+/* ============================================================
+   🛰️ SCANNER OVERLAY
+   ============================================================ */
+.scanner-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: #020617; color: white; z-index: 10000;
+}
+
+.scanner-layout { display: grid; grid-template-columns: 380px 1fr; height: 100%; }
+
+.scanner-sidebar {
+    background: #0f172a; padding: 50px; 
+    display: flex; flex-direction: column; justify-content: space-between;
+    border-right: 1px solid #1e293b;
+}
+
+.scanner-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.danger-btn {
+    background: #450a0a !important; /* Deep Dark Red */
+    color: #fca5a5 !important;
+    border: 1px solid #7f1d1d !important;
+    padding: 14px !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+}
+
+.danger-btn:hover {
+    background: #7f1d1d !important;
+    color: white !important;
+}
+
+.live-indicator { color: #22c55e; font-weight: 800; font-size: 0.8rem; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+.live-indicator::before { content: ''; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; animation: blink 1s infinite; }
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.attendance-counter { text-align: center; }
+.count-num { font-size: 6rem; font-weight: 900; color: #3b82f6; display: block; }
+.count-label { color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+
+.btn-finish-session {
+    background: #238e47; color: white; border: none; padding: 18px;
+    border-radius: 14px; font-weight: 800; cursor: pointer;
+}
+
+.btn-finish-session:hover {
+    background: #4eca77; color: white; border: none; padding: 18px;
+    border-radius: 14px; font-weight: 800; cursor: pointer;
+}
+
+/* MAIN SCAN AREA */
+.scanner-main { display: flex; justify-content: center; align-items: center; background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); }
+
+.wait-animation { text-align: center; }
+.rfid-icon { font-size: 6rem; margin-bottom: 20px; animation: pulse 2s infinite; }
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 20px #3b82f6); }
+}
+
+.hidden-rfid-input { opacity: 0; position: absolute; pointer-events: none; }
+
+/* ============================================================
+   👤 FACE MATCH CARD (INSIDE SCANNER)
+   ============================================================ */
+/* 1. The Main Card Container */
+.face-match-card {
+    background: #1e293b; /* Dark Slate */
+    border-radius: 24px;
+    border: 1px solid #334155;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    max-width: 450px;
+    margin: 0 auto;
+    overflow: hidden; /* Keeps the header corners rounded */
+    animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 2. The Header Accent */
+.match-header {
+    background: #0f172a;
+    padding: 15px;
+    color: #f1f5f9;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 0.9rem;
+    border-bottom: 2px solid #3b82f6;
+    text-align: center;
+}
+
+/* 3. The Central Body Area */
+.match-body {
+    padding: 40px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+/* 4. The Profile Photo */
+.match-photo {
+    width: 220px;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 20px;
+    border: 4px solid #3b82f6;
+    box-shadow: 0 0 25px rgba(59, 130, 246, 0.3);
+    background-color: #0f172a;
+}
+
+/* 5. PDL Information Text */
+.match-info {
+    text-align: center;
+}
+
+.match-info h3 {
+    margin: 0;
+    font-size: 1.8rem;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.match-info p {
+    margin: 10px 0 0;
+    font-size: 1rem;
+    font-family: 'Monaco', 'Consolas', monospace;
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+    padding: 6px 15px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+/* 6. Action Buttons Container */
+.match-actions {
+    display: flex;
+    gap: 15px;
+    padding: 25px 30px 40px;
+}
+
+.btn-decline, .btn-confirm-match {
+    flex: 1;
+    padding: 16px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+
+.btn-decline {
+    background: #450a0a;
+    color: #fca5a5;
+    border: 1px solid #7f1d1d;
+}
+
+.btn-decline:hover {
+    background: #7f1d1d;
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+/* Confirm Button Styles */
+.btn-confirm-match {
+    background: #064e3b;
+    color: #6ee7b7;
+    border: 1px solid #065f46;
+}
+
+.btn-confirm-match:hover {
+    background: #059669;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4);
+}
+
+/* Subtle Animation */
+@keyframes slideInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+.match-photo { width: 200px; height: 200px; border-radius: 50%; object-fit: cover; border: 6px solid #3b82f6; margin-bottom: 20px; }
+
+.match-info h3 { font-size: 1.8rem; margin-bottom: 5px; }
+.match-warning { font-size: 0.8rem; color: #ef4444; font-weight: 700; display: block; margin-top: 15px; }
+
+
+
+.education-scope .btn-modal-cancel {
+    flex: 1;
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1.5px solid #e2e8f0;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.education-scope .btn-modal-cancel:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+/* The 'Confirm' Button (Primary/Navy) */
+.education-scope .btn-modal-confirm {
+    flex: 2; /* Wider to emphasize the primary action */
+    background: #0f172a;
+    color: white;
+    border: none;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2);
+}
+
+.education-scope .btn-modal-confirm:hover {
+    background: #1e293b;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.3);
+}
+
+/* ❌ Decline Button (Inside Face-Match Card) */
+
+
+.btn-confirm-match:active { transform: scale(0.98); }
+/* 1. The Container - Fixed Height to prevent "Pushing" */
+.recent-scans-sidebar-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    height: 380px; /* 🎯 Fixed height ensures buttons stay in place */
+    margin: 15px 0;
+    justify-content: space-between;
+}
+
+.recent-scans-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* 🎯 Tighter gap */
+}
+
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+/* 2. Shrunken Scan Item */
+.scan-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(30, 41, 59, 0.4);
+    padding: 8px 10px; /* 🎯 Reduced padding */
+    border-radius: 10px;
+    border: 1px solid #1e293b;
+    height: 52px; /* 🎯 Fixed height per row */
+}
+
+/* 3. Smaller Mini Photo */
+.mini-pdl-photo {
+    width: 36px;  /* 🎯 Smaller size */
+    height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1.5px solid #3b82f6;
+    flex-shrink: 0;
+}
+
+/* 4. Compact Text Info */
+.scan-item-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.scan-name {
+    font-size: 0.8rem; /* 🎯 Smaller font */
+    font-weight: 700;
+    color: #f1f5f9;
+    white-space: nowrap;
+}
+
+.scan-time {
+    font-size: 0.65rem; /* 🎯 Tiny status font */
+    color: #22c55e;
+}
+
+/* 5. Compact Pagination */
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-top: 1px solid #1e293b;
+    margin-top: 5px;
+}
+
+.pag-btn {
+    background: #1e293b;
+    color: white;
+    border: 1px solid #334155;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.pag-info {
+    font-size: 0.7rem;
+    color: #64748b;
+}
+
+/* ============================================================
+   🔒 SIDEBAR HEIGHT LOCKDOWN
+   ============================================================ */
+
+.scanner-sidebar {
+    background: #0f172a;
+    padding: 20px !important; /* 🎯 Gain 60px of space by reducing padding */
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* 🎯 Match exactly the screen height */
+    box-sizing: border-box; 
+    overflow: hidden;
+}
+
+/* Tighten the Counter & Info */
+.active-session-info h2 { font-size: 1.1rem !important; margin: 5px 0; }
+.count-num { font-size: 3rem !important; margin: 0; line-height: 1; }
+.count-label { font-size: 0.7rem !important; }
+
+/* 1. The Container - Now using flex: 1 to absorb remaining space */
+.recent-scans-sidebar-container {
+    flex: 1; 
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin: 20px 0; /* Increased margin for better spacing */
+    overflow: hidden;
+}
+
+.recent-scans-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* 🎯 Increased gap for a cleaner look */
+    overflow: hidden;
+}
+
+/* 2. Shrunken Scan Item (Fixed height for 5 items) */
+.scan-item {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* More breathing room */
+    background: rgba(30, 41, 59, 0.4);
+    padding: 10px 15px; /* 🎯 Increased padding */
+    border-radius: 12px;
+    border: 1px solid #1e293b;
+    height: 50px; /* 🎯 Increased from 48px to 70px to fill space */
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+
+/* 3. Larger Mini Photos */
+.mini-pdl-photo {
+    width: 48px;  /* 🎯 Increased from 32px */
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid #3b82f6;
+    flex-shrink: 0;
+}
+
+/* 4. Readable Text Info */
+.scan-item-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+
+.scan-name {
+    font-size: 1rem; /* 🎯 Increased from 0.75rem */
+    font-weight: 700;
+    color: #f1f5f9;
+}
+
+.scan-time {
+    font-size: 0.75rem; /* 🎯 Increased from 0.6rem */
+    color: #22c55e;
+    font-weight: 600;
+}
+
+/* 3. Pagination locked above buttons */
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0; /* More space above buttons */
+
+
+}
+
+/* 4. Action Buttons - Always visible at bottom */
+.scanner-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.btn-finish-session, .danger-btn {
+    padding: 12px !important;
+    font-size: 0.85rem !important;
+}
+
+/* Ensure this is at the bottom of education.css */
+
+/* ============================================================
+   💎 PREMIUM ALERT MODAL (High-Tech Dashboard Style)
+   ============================================================ */
+
+/* 1. The Overlay: Frosted Glass Effect */
+.alert-z-index {
+    z-index: 15000 !important;
+    background: rgba(2, 6, 23, 0.65) !important; /* Deep Navy Tint */
+    backdrop-filter: blur(12px) saturate(180%); /* 🎯 Creates the "Aero" glass look */
+    transition: all 0.3s ease-in-out;
+}
+
+/* 2. The Modal Card */
+.alert-modal {
+    max-width: 440px !important;
+    background: linear-gradient(165deg, #1e293b 0%, #0f172a 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important; /* Thin "jewelry" border */
+    border-radius: 28px !important;
+    padding: 45px 35px !important;
+    text-align: center;
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.7), 
+        0 0 40px rgba(0, 0, 0, 0.3);
+    animation: modalPopUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 3. The Animated Border Headers (Glow Effects) */
+.info-border    { border-top: 6px solid #3b82f6 !important; box-shadow: 0 -15px 30px -10px rgba(59, 130, 246, 0.4); }
+.warning-border { border-top: 6px solid #f59e0b !important; box-shadow: 0 -15px 30px -10px rgba(245, 158, 11, 0.4); }
+.danger-border  { border-top: 6px solid #ef4444 !important; box-shadow: 0 -15px 30px -10px rgba(239, 68, 68, 0.4); }
+.success-border { border-top: 6px solid #22c55e !important; box-shadow: 0 -15px 30px -10px rgba(34, 197, 94, 0.4); }
+
+/* 4. Text Styling */
+.alert-modal h3 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+    color: #f8fafc;
+}
+
+.alert-modal p {
+    color: #94a3b8 !important;
+    font-size: 1rem;
+    line-height: 1.7;
+    margin-bottom: 5px;
+}
+
+/* 5. Buttons: Glass & Neomorphism */
+.alert-modal .modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 35px;
+}
+
+.alert-modal .btn-modal-confirm {
+    flex: 2;
+    padding: 16px;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    background: #3b82f6; /* Default Blue */
+    color: white;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.alert-modal .btn-modal-confirm:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+}
+
+.alert-modal .btn-modal-cancel {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px;
+    border-radius: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.alert-modal .btn-modal-cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+/* 6. Theme Overrides */
+.alert-modal .danger-bg {
+    background: linear-gradient(to bottom, #ef4444, #b91c1c) !important;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3) !important;
+}
+
+.alert-modal .success-bg {
+    background: linear-gradient(to bottom, #22c55e, #15803d) !important;
+    box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3) !important;
+}
+
+/* 🎯 Animations */
+@keyframes modalPopUp {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.card-header h2 {
+    font-size: 1.1rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-refresh {
+    background: transparent;
+    border: 1px solid #1e293b;
+    color: #3b82f6;
+    padding: 8px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+
+.btn-refresh:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: #3b82f6;
+}
+
+.empty-state-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+    color: #475569;
+}
+
+.empty-state-content span {
+    font-weight: 500;
+}
+
+
