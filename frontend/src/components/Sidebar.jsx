@@ -32,6 +32,7 @@ const Sidebar = () => {
         <Link to="/pdl">👥 Inmate Profiling</Link>
         <Link to="/education">⏱️ Programs & Credits</Link>
         <Link to="/incidents">⚠️ Incidents</Link>
+        <Link to="/reports">📑 Reports</Link>
         <hr style={{ margin: '20px 0', borderColor: '#475569' }} />
         
         <Link to="/add">➕ Add New PDL</Link>

@@ -3,10 +3,13 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
 const os = require('os');
-dotenv.config();
 
+dotenv.config();
 const app = express();
 
+// ==========================
+// MIDDLEWARE
+// ==========================
 app.use(cors({
   origin: "*", 
   methods: ["GET", "POST", "PUT", "DELETE"],
@@ -14,29 +17,31 @@ app.use(cors({
 }));
 app.use(express.json());
 
-app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+// Serving static files for PDL Photos
+app.use("/public/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 // ==========================
 // ROUTE IMPORTS
 // ==========================
+const authRoutes = require("./routes/authRoutes"); 
 const pdlRoutes = require("./routes/pdlRoutes");
 const userRoutes = require("./routes/userRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
-
-// 👇 1. ADD THIS IMPORT HERE
-const authRoutes = require("./routes/authRoutes"); 
-
+const sessionRoutes = require('./routes/sessionRoutes'); 
+const reportRoutes = require("./routes/reportRoutes");
+const incidentRoutes = require("./routes/incidentRoutes"); // 🎯 1. IMPORT INCIDENT ROUTES
 
 // ==========================
 // USE ROUTES
 // ==========================
-app.use("/api/pdl", pdlRoutes);
-app.use("/api/users", userRoutes);
+app.use("/api/auth", authRoutes);       
+app.use("/api/pdl", pdlRoutes);         
+app.use("/api/users", userRoutes);       
+app.use("/api/dashboard", dashboardRoutes); 
+app.use("/api/sessions", sessionRoutes);   
+app.use("/api/reports", reportRoutes);     
+app.use("/api/incidents", incidentRoutes); // 🎯 2. REGISTER INCIDENT ROUTE
 
-// 👇 2. USE THE ROUTE HERE (This enables http://localhost:5000/api/auth/login)
-app.use("/api/auth", authRoutes);
-
-app.use("/api/dashboard", dashboardRoutes);
 // ==========================
 // ROOT & SERVER
 // ==========================
@@ -44,16 +49,7 @@ app.get("/", (req, res) => {
   res.send("BJMP API RUNNING");
 });
 
-const sessionRoutes = require('./routes/sessionRoutes'); // Adjust path as needed
-
-// ... other middleware (cors, express.json)
-
-// 🎯 Add this line to link the W&D Session routes
-app.use('/api/sessions', sessionRoutes);
-
-// This allows the frontend to access images via http://192.168.1.43:5000/public/uploads/filename.jpg
-app.use('/public/uploads', express.static(path.join(__dirname, 'public/uploads')));
-
+app.use('/public', express.static(path.join(__dirname, 'public')));
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, '0.0.0.0', () => {
@@ -61,8 +57,13 @@ app.listen(PORT, '0.0.0.0', () => {
     let laptopIp = 'localhost';
     for (const name in networkInterfaces) {
         for (const iface of networkInterfaces[name]) {
-            if (iface.family === 'IPv4' && !iface.internal) laptopIp = iface.address;
+            if (iface.family === 'IPv4' && !iface.internal) {
+                laptopIp = iface.address;
+            }
         }
     }
-    console.log(`🚀 Backend Live: http://${laptopIp}:${PORT}`);
+    console.log(`
+    🚀 Backend Live: http://${laptopIp}:${PORT}
+    📡 API Base URL: http://${laptopIp}:${PORT}/api
+    `);
 });

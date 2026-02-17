@@ -813,4 +813,70 @@
     font-weight: 500;
 }
 
+/* Overlay to dim the background */
+.status-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+/* Main Modal Container */
+.status-modal-content {
+    background: #1e2533; /* Matches your sidebar/card background */
+    color: #ffffff;
+    padding: 2rem;
+    border-radius: 12px;
+    width: 400px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    border: 1px solid #303a4d;
+}
+
+/* Dynamic Borders based on state */
+.border-green {
+    border-top: 5px solid #10b981; /* Success Green */
+}
+
+.border-red {
+    border-top: 5px solid #ef4444; /* Error Red */
+}
+
+.modal-header h3 {
+    margin: 0 0 1rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    
+}
+
+.status-modal-content .modal-body p {
+    color: #aeabab; /* Muted text color */
+    line-height: 1.5;
+    margin-bottom: 2rem;
+}
+
+/* Button Styling matching your "Start Attendance" button */
+.modal-close-btn {
+    background: #111827;
+    color: white;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    border: 1px solid #374151;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.modal-close-btn:hover {
+    background: #1f2937;
+    transform: translateY(-2px);
+}
+
 

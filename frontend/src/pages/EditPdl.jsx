@@ -71,6 +71,7 @@ const EditPdl = () => {
       }
 
       setFormData({ ...data, originalStatus: data.pdl_status });
+      
    
     } catch (error) { console.error("Fetch error:", error); }
     finally { setLoading(false); }

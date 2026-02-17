@@ -8,7 +8,7 @@ const pool = require("../db/pool");
 // ==========================
 // IMPORT CONTROLLERS
 // ==========================
-const { addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord } = require("../controller/pdlController");
+const { addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord, grantGlobalGcta} = require("../controller/pdlController");
 
 // ==========================
 // IMPORT MIDDLEWARE
@@ -77,6 +77,8 @@ router.get('/get/:id', authenticateToken, getPdlById);
 // (Auth -> Upload -> Validate RFID -> Save to DB)
 router.post("/", authenticateToken, upload.single("profile_photo"), validateRFID, addPDL);
 router.put("/update/:id", authenticateToken, updatePdlJudicialRecord);
+
+router.post("/grant-global-gcta", authenticateToken, grantGlobalGcta);
 
 
 

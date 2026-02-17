@@ -10,8 +10,8 @@ import Education from "../pages/Education";
 import Incidents from "../pages/Incidents";
 import Add from "../pages/Add";
 import Profile from "../pages/Profile"; 
-// 👇 1. IMPORT THE NEW EDIT PAGE
 import EditPdl from "../pages/EditPdl"; 
+import Reports from "../pages/Reports";
 
 import ProtectedRoute from "../components/ProtectedRoute";
 
@@ -35,6 +35,7 @@ const AppRoutes = () => {
 
            <Route path="/education" element={<Education />} />
            <Route path="/incidents" element={<Incidents />} />
+            <Route path="/reports" element={<Reports />} />
         </Route>
       </Route>
       

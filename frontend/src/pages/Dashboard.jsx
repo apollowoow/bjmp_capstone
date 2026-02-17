@@ -5,151 +5,101 @@ import "./dashboard.css";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  
-  // Default State matches your backend response structure
-  const [stats, setStats] = useState({
-    totalPdl: 0,
-    highRisk: 0,
-    detained: 0,
-    sentenced: 0,
-    recentIncidents: []
-  });
-  
+ const [stats, setStats] = useState({
+  totalPdl: 0,
+  detained: 0,
+  sentenced: 0,
+  lockedCount: 0,
+  frequentViolators: 0, // 🎯 Updated Key
+  recentIncidents: []
+});
   const [loading, setLoading] = useState(true);
 
-  // Get User Name from localStorage (safely)
-  const user = localStorage.getItem("user") 
-    ? JSON.parse(localStorage.getItem("user")) 
-    : { fullname: "Officer" };
+  const user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : { fullname: "Officer" };
+  const MAX_CAPACITY = 200; // Adjusted for demo
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem("token");
+        if (!token) { navigate("/"); return; }
 
-        // Security Check: Redirect if no token
-        if (!token) {
-          navigate("/");
-          return;
-        }
-
-        // 👇 UPDATED URL to match your new route file
         const response = await fetch(`${API_BASE_URL}/api/dashboard/stats`, {
-          method: "GET",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          }
+          headers: { "Authorization": `Bearer ${token}` }
         });
-        
         const data = await response.json();
-
-        if (response.ok) {
-          setStats(data);
-        } else {
-          console.error("Failed to fetch stats:", data.message);
-          // Optional: Handle 401 Unauthorized
-          if (response.status === 401) navigate("/");
-        }
-      } catch (error) {
-        console.error("Error connecting to server", error);
-      } finally {
-        setLoading(false);
-      }
+        if (response.ok) setStats(data);
+      } catch (error) { console.error("Error", error); }
+      finally { setLoading(false); }
     };
-
     fetchStats();
   }, [navigate]);
 
-  if (loading) return (
-    <div className="dashboard-loading">
-      <div className="spinner"></div>
-      <p>Loading Analytics...</p>
-    </div>
-  );
+  if (loading) return <div className="dashboard-loading"><div className="spinner"></div></div>;
 
   return (
     <div className="dashboard-container">
-      {/* === HEADER === */}
       <div className="dashboard-header">
         <div>
-          <h1>Welcome back, {user.fullname}</h1>
-          <p>System Overview & Facility Status</p>
+          <h1>Welcome, {user.fullname}</h1>
+          <p>Meycauayan City Jail - GCTA Monitoring System</p>
         </div>
-        <div className="date-badge">
-          📅 {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </div>
+        <div className="date-badge">📅 {new Date().toLocaleDateString()}</div>
       </div>
 
-      {/* === STATS CARDS === */}
       <div className="stats-grid">
         <div className="stat-card blue">
-          <div className="stat-icon">👥</div>
-          <div className="stat-info">
             <h3>Total Population</h3>
             <h1>{stats.totalPdl}</h1>
-          </div>
         </div>
-
         <div className="stat-card orange">
-          <div className="stat-icon">⚖️</div>
-          <div className="stat-info">
             <h3>Pending Cases</h3>
             <h1>{stats.detained}</h1>
-          </div>
         </div>
-
         <div className="stat-card green">
-          <div className="stat-icon">🔒</div>
-          <div className="stat-info">
             <h3>Sentenced</h3>
             <h1>{stats.sentenced}</h1>
-          </div>
         </div>
-
         <div className="stat-card red">
-          <div className="stat-icon">⚠️</div>
-          <div className="stat-info">
-            <h3>High Risk PDLs</h3>
-            <h1>{stats.highRisk}</h1>
-          </div>
+            <h3>Frequent Violators</h3>
+            <h1>{stats.frequentViolators}</h1>
+        </div>
+        {/* 🎯 IMPACT CARD: Shows the Locked GCTA count */}
+        <div className="stat-card purple">
+            <h3>GCTA Locked</h3>
+            <h1 style={{color: '#7c3aed'}}>{stats.lockedCount}</h1>
+            <p className="rpt-text-small">Disqualified PDLs</p>
+        </div>
+        {/* 🎯 REALISM CARD: Congestion Rate */}
+        <div className="stat-card cyan">
+            <h3>Facility Capacity</h3>
+            <h1>{((stats.totalPdl / MAX_CAPACITY) * 100).toFixed(1)}%</h1>
+            <div className="rpt-mini-progress">
+                <div className="rpt-bar" style={{ width: `${(stats.totalPdl / MAX_CAPACITY) * 100}%` }}></div>
+            </div>
         </div>
       </div>
 
-      {/* === BOTTOM CONTENT SECTION === */}
       <div className="dashboard-content">
-        
-        {/* Left: Recent Incidents Table */}
         <div className="content-box table-section">
           <div className="box-header">
-            <h3>🚨 Recent Incident Reports</h3>
-            <button className="btn-link" onClick={() => navigate('/incidents')}>View All</button>
+            <h3 className="rpt-h3">🚨 Recent Disciplinary Actions</h3>
+            <button className="rpt-btn-view" onClick={() => navigate('/incidents')}>
+              Log New Action
+            </button>
           </div>
-
           {stats.recentIncidents.length === 0 ? (
-            <div className="no-data">
-              <p>✅ No recent incidents recorded.</p>
-            </div>
+            <div className="no-data"><p>✅ All PDLs are currently in good standing.</p></div>
           ) : (
             <table className="dashboard-table">
               <thead>
-                <tr>
-                  <th>PDL Name</th>
-                  <th>Incident Type</th>
-                  <th>Date Occurred</th>
-                </tr>
+                <tr><th>PDL Name</th><th>Offense</th><th>End Date</th></tr>
               </thead>
               <tbody>
-                {stats.recentIncidents.map((inc, index) => (
-                  <tr key={index}>
-                    <td style={{fontWeight: '600', color: '#334155'}}>
-                      {inc.firstname} {inc.lastname}
-                    </td>
-                    <td>
-                      <span className={`badge ${inc.incidenttype === 'Major' ? 'danger' : 'warning'}`}>
-                        {inc.incidenttype}
-                      </span>
-                    </td>
+                {stats.recentIncidents.map((inc, i) => (
+                  <tr key={i}>
+                    <td>{inc.firstname} {inc.lastname}</td>
+                    <td><span className={`badge ${inc.incidenttype === 'Grave' ? 'danger' : 'warning'}`}>{inc.incidenttype}</span></td>
                     <td>{new Date(inc.dateoccurred).toLocaleDateString()}</td>
                   </tr>
                 ))}
@@ -158,22 +108,14 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Right: Quick Actions Panel */}
         <div className="content-box actions-section">
-          <h3>⚡ Quick Actions</h3>
+          <h3 className="ctb-h3">⚡ Quick Access</h3>
           <div className="action-buttons">
-            <button className="action-btn" onClick={() => navigate('/add')}>
-              <span className="btn-icon">➕</span> Add New PDL Record
-            </button>
-            <button className="action-btn" onClick={() => navigate('/incidents')}>
-              <span className="btn-icon">📝</span> Log New Incident
-            </button>
-            <button className="action-btn" onClick={() => navigate('/programs')}>
-              <span className="btn-icon">🎓</span> Manage Programs
-            </button>
+            <button className="action-btn" onClick={() => navigate('/add')}>➕ Inmate Profiling</button>
+            <button className="action-btn" onClick={() => navigate('/incidents')}>📝 Record Violation</button>
+            <button className="action-btn" onClick={() => navigate('/reports')}>📊 Eligibility Report</button>
           </div>
         </div>
-
       </div>
     </div>
   );

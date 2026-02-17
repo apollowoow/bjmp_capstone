@@ -27,8 +27,9 @@ const Login = () => {
 
         try {
             // 1. SEND CREDENTIALS TO BACKEND
+            console.log(`${API_BASE_URL}`);
             const res = await axios.post(`${API_BASE_URL}/api/auth/login`, formData);
-
+            
             // 2. GET THE TOKEN & USER DATA
             const { token, user, message } = res.data;
 

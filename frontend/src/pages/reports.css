@@ -1,0 +1,169 @@
+/* --- Root Layout --- */
+.rpt-main-scope {
+  padding: 2.5rem;
+  background-color: #ffffff;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  color: #1e293b;
+}
+
+.rpt-content-wrapper {
+  max-width: 1150px;
+  margin: 0 auto;
+}
+
+/* --- Header Section --- */
+.rpt-simple-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.rpt-h1 { font-size: 1.6rem; font-weight: 700; margin: 0; color: #0f172a; }
+.rpt-p-sub { font-size: 0.95rem; color: #64748b; margin: 4px 0 0 0; }
+
+/* --- Filter Control Panel --- */
+.rpt-control-panel {
+  display: grid;
+  grid-template-columns: 1.2fr 1.5fr 1fr auto;
+  gap: 1.5rem;
+  background: #ffffff;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 1.5rem;
+  align-items: flex-end;
+}
+
+.rpt-input-group { display: flex; flex-direction: column; gap: 8px; }
+.rpt-input-group label { 
+  font-size: 0.75rem; 
+  font-weight: 700; 
+  color: #64748b; 
+  text-transform: uppercase; 
+  letter-spacing: 0.05em;
+}
+
+.rpt-select, .rpt-search {
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.rpt-select:focus, .rpt-search:focus { border-color: #0f172a; }
+
+/* --- Table Card --- */
+.rpt-table-container {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.rpt-table-header {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.rpt-h3 { font-size: 1.1rem; font-weight: 700; margin: 0; color: #1e293b; }
+.rpt-count { font-size: 0.85rem; color: #64748b; font-weight: 600; }
+
+.rpt-table { width: 100%; border-collapse: collapse; text-align: left; }
+.rpt-table th { 
+  background: #f8fafc; 
+  padding: 14px 16px; 
+  font-size: 0.75rem; 
+  text-transform: uppercase; 
+  color: #64748b; 
+  border-bottom: 2px solid #e2e8f0; 
+  letter-spacing: 0.05em;
+}
+.rpt-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; vertical-align: middle; }
+
+/* --- Progress Bar --- */
+.rpt-tastm-info { display: flex; flex-direction: column; gap: 6px; }
+.rpt-mini-progress { width: 130px; height: 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+.rpt-bar { height: 100%; background: #10b981; transition: width 0.4s ease; }
+
+.rpt-text-small { font-size: 0.7rem; color: #94a3b8; margin: 0; }
+.text-emerald-700 { color: #047857; }
+.text-blue-700 { color: #1d4ed8; }
+
+/* --- Buttons --- */
+.rpt-btn-print {
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.rpt-btn-print:hover { background: #334155; }
+
+.rpt-btn-view {
+  background-color: transparent;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+.rpt-btn-view:hover {
+  background-color: #f8fafc;
+  border-color: #0f172a;
+  color: #000;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* --- Pagination --- */
+.rpt-pagination {
+  padding: 1.25rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+.rpt-page-btn {
+  padding: 6px 16px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: 0.2s;
+}
+.rpt-page-btn:hover:not(:disabled) { border-color: #0f172a; background: #f8fafc; }
+.rpt-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.rpt-page-info { font-size: 0.9rem; color: #64748b; font-weight: 600; }
+
+/* --- Printing --- */
+@media print {
+  .rpt-hide-print { display: none !important; }
+  .rpt-main-scope { padding: 0; }
+  .rpt-simple-header { border: 2px solid #000; box-shadow: none; }
+  .rpt-table-container { border: 2px solid #000; box-shadow: none; }
+}

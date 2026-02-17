@@ -1,0 +1,248 @@
+/* Main Layout */
+.inc-main-scope { 
+  padding: 3rem; 
+  background: #fdfdfd; 
+  min-height: 100vh; 
+  font-family: 'Inter', -apple-system, sans-serif; 
+}
+
+.inc-content-wrapper { 
+  max-width: 1100px; 
+  margin: 0 auto; 
+}
+
+.inc-h1 { 
+  font-size: 2rem; 
+  font-weight: 850; 
+  color: #1e293b; 
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.inc-p { 
+  color: #64748b; 
+  font-size: 1rem;
+}
+
+/* Grid & Cards */
+.inc-card-grid { 
+  display: grid; 
+  grid-template-columns: 1fr 1.6fr; 
+  gap: 2.5rem; 
+  margin-top: 3rem; 
+}
+
+.inc-card { 
+  background: #ffffff; 
+  border: 1px solid #e2e8f0; 
+  border-radius: 16px; 
+  padding: 2rem; 
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.inc-card-title { 
+  font-size: 0.8rem; 
+  text-transform: uppercase; 
+  letter-spacing: 0.1em; 
+  color: #94a3b8; 
+  margin-bottom: 1.5rem; 
+  font-weight: 700;
+}
+
+/* Search Box */
+.inc-search-box { 
+  display: flex; 
+  gap: 12px; 
+  margin-bottom: 2rem; 
+}
+
+.inc-search-box input { 
+  flex: 1; 
+  padding: 12px 16px; 
+  border: 1.5px solid #e2e8f0; 
+  border-radius: 10px; 
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+.inc-search-box input:focus {
+  border-color: #0f172a;
+  outline: none;
+}
+
+.inc-btn-search { 
+  background: #0f172a; 
+  color: #fff; 
+  border: none; 
+  padding: 0 20px; 
+  border-radius: 10px; 
+  font-weight: 600;
+  cursor: pointer; 
+  transition: transform 0.1s;
+}
+
+.inc-btn-search:active { transform: scale(0.96); }
+
+/* PDL Profile Card */
+.inc-pdl-info-card { 
+  display: flex; 
+  gap: 1.5rem; 
+  align-items: center; 
+  padding: 1.5rem; 
+  background: #f8fafc; 
+  border-radius: 14px; 
+  border: 1px solid #f1f5f9;
+}
+
+.inc-avatar-container img { 
+  width: 70px; 
+  height: 70px; 
+  border-radius: 12px; 
+  object-fit: cover; 
+  border: 3px solid #fff; 
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+}
+
+.inc-details strong { font-size: 1.1rem; color: #1e293b; display: block; }
+.inc-sub-text { font-size: 0.85rem; color: #64748b; margin: 2px 0 8px 0; }
+
+.inc-status { 
+  font-size: 0.75rem; 
+  font-weight: 800; 
+  padding: 4px 10px; 
+  border-radius: 6px; 
+  display: inline-block;
+}
+
+.inc-status.locked { background: #fee2e2; color: #991b1b; }
+.inc-status.good { background: #dcfce7; color: #166534; }
+
+/* Form Elements */
+.inc-form-group { margin-bottom: 1.5rem; }
+.inc-form-group label { 
+  display: block; 
+  font-size: 0.75rem; 
+  font-weight: 800; 
+  color: #475569; 
+  margin-bottom: 8px; 
+  text-transform: uppercase;
+}
+
+.inc-form-group select, 
+.inc-form-group input, 
+.inc-form-group textarea {
+  width: 100%; 
+  padding: 12px; 
+  border: 1.5px solid #e2e8f0; 
+  border-radius: 10px; 
+  font-size: 0.95rem; 
+  background: #fff;
+}
+
+.inc-form-row { 
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap: 1.5rem; 
+}
+
+/* 🎯 NEW: Calculated Date Styling */
+.inc-calculated-date {
+  background: #f1f5f9;
+  border: 1px dashed #cbd5e1;
+  padding: 12px;
+  border-radius: 10px;
+  text-align: center;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.inc-calculated-date strong {
+  color: #ef4444;
+  font-size: 1.1rem;
+  display: block;
+}
+
+.rpt-text-small {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+textarea { height: 120px; resize: none; line-height: 1.5; }
+
+/* Status Messages */
+.inc-msg { font-size: 0.85rem; margin-top: 1rem; font-weight: 600; text-align: center; }
+.inc-msg.error { color: #ef4444; }
+.inc-msg.success { color: #10b981; }
+
+.inc-btn-submit {
+  width: 100%; 
+  padding: 16px; 
+  background: #ef4444; 
+  color: #fff; 
+  border: none; 
+  border-radius: 12px; 
+  font-size: 1rem;
+  font-weight: 800; 
+  cursor: pointer; 
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  margin-top: 1rem;
+}
+
+.inc-btn-submit:hover:not(:disabled) { 
+  background: #dc2626; 
+  box-shadow: 0 6px 15px rgba(239, 68, 68, 0.3);
+  transform: translateY(-2px);
+}
+
+.inc-btn-submit:disabled { 
+  background: #f1f5f9; 
+  color: #94a3b8; 
+  cursor: not-allowed; 
+  box-shadow: none;
+  transform: none;
+}
+/* --- Root Styles --- */
+.inc-main-scope { padding: 3rem; background: #f8fafc; min-height: 100vh; font-family: 'Inter', sans-serif; }
+.inc-content-wrapper { max-width: 1100px; margin: 0 auto; }
+.inc-h1 { font-size: 1.8rem; font-weight: 800; color: #0f172a; }
+
+/* --- Grid & Cards --- */
+.inc-card-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 2rem; margin-top: 2rem; }
+.inc-card { background: white; padding: 2rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+.inc-card-title { font-size: 0.8rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.1em; margin-bottom: 1.5rem; }
+
+/* --- Search UI --- */
+.inc-search-box { display: flex; gap: 10px; margin-bottom: 2rem; }
+.inc-search-box input { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.inc-btn-search { background: #0f172a; color: white; border: none; padding: 0 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+/* --- PDL Info --- */
+.inc-pdl-info-card { display: flex; gap: 15px; align-items: center; padding: 1.25rem; background: #f1f5f9; border-radius: 12px; }
+.inc-avatar-container img { width: 65px; height: 65px; border-radius: 50%; object-fit: cover; border: 3px solid white; }
+.inc-status { font-size: 0.75rem; font-weight: 800; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 5px; }
+.inc-status.locked { background: #fee2e2; color: #991b1b; }
+.inc-status.good { background: #dcfce7; color: #166534; }
+
+/* --- Form Logic --- */
+.inc-form-group { margin-bottom: 1.5rem; }
+.inc-form-group label { display: block; font-size: 0.75rem; font-weight: 700; color: #475569; margin-bottom: 6px; }
+.inc-form-group input, .inc-form-group select, .inc-form-group textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; }
+.inc-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.inc-calculated-date { background: #f1f5f9; padding: 12px; border: 1px dashed #cbd5e1; border-radius: 8px; text-align: center; }
+.inc-calculated-date strong { color: #ef4444; font-size: 1.1rem; }
+textarea { height: 100px; resize: none; }
+.inc-btn-submit { width: 100%; padding: 15px; background: #ef4444; color: white; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; }
+.inc-btn-submit:hover:not(:disabled) { background: #dc2626; transform: translateY(-2px); }
+
+/* --- 🛑 MODAL STYLES --- */
+.inc-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 999; }
+.inc-modal-content { background: white; padding: 2.5rem; border-radius: 20px; width: 400px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+.inc-confirm-box { background: #f8fafc; padding: 1rem; border-radius: 12px; margin: 1.5rem 0; text-align: left; font-size: 0.9rem; }
+.inc-modal-footer { display: flex; gap: 1rem; margin-top: 2rem; }
+.inc-btn-no { flex: 1; padding: 12px; background: #e2e8f0; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.inc-btn-yes { flex: 1.5; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }

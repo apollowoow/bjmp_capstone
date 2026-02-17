@@ -25,6 +25,7 @@ const getAllPDL = async (req, res) => {
         sentence_months,
         sentence_days,
         expected_releasedate,
+        is_locked_for_gcta,
         pdl_picture
       FROM pdl_tbl
       WHERE pdl_status IN ('Sentenced', 'Detained')
@@ -39,7 +40,7 @@ const getAllPDL = async (req, res) => {
         ...pdl,
         // Ensures photos load correctly on different devices in the same Wi-Fi
         pdl_picture: pdl.pdl_picture 
-          ? `${req.protocol}://${req.get('host')}/uploads/${pdl.pdl_picture}`
+          ? `${req.protocol}://${req.get('host')}/public/uploads/${pdl.pdl_picture}`
           : null 
       };
     });
@@ -52,6 +53,46 @@ const getAllPDL = async (req, res) => {
         error: "Server Error: Unable to fetch inmate profiling data" 
     });
   }
+};
+
+
+
+const grantGlobalGcta = async (req, res) => {
+    const { days_to_grant, month_year, remarks } = req.body;
+
+    try {
+        // 1. Check if ANY eligible PDL has already received GCTA for this month
+        // This is a "Global" check. If you want to skip individuals, we can adjust the INSERT.
+        const alreadyGranted = await pool.query(
+            "SELECT 1 FROM gcta_days_log WHERE month_year = TO_DATE($1, 'MM-YYYY') LIMIT 1",
+            [month_year]
+        );
+
+        if (alreadyGranted.rows.length > 0) {
+            return res.status(400).json({ 
+                message: `Data Integrity Error: GCTA for ${remarks} ${month_year.split('-')[1]} has already been processed.` 
+            });
+        }
+
+        // 2. Perform the bulk insert for those not locked
+        const result = await pool.query(`
+            INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, date_granted, status, remarks)
+            SELECT pdl_id, TO_DATE($1, 'MM-YYYY'), $2, CURRENT_DATE, 'active', $3
+            FROM pdl_tbl
+            WHERE is_locked_for_gcta = false
+            RETURNING *`,
+            [month_year, days_to_grant, remarks]
+        );
+
+        res.status(200).json({
+            message: "Success: Monthly GCTA granted to all eligible PDLs.",
+            count: result.rowCount
+        });
+
+    } catch (err) {
+        console.error("Database Error:", err.message);
+        res.status(500).json({ message: "Internal server error during GCTA validation." });
+    }
 };
 
 
@@ -89,7 +130,7 @@ const getPdlById = async (req, res) => {
 
         res.status(200).json({
             ...pdl,
-            pdl_picture: pdl.pdl_picture ? `${req.protocol}://${req.get('host')}/uploads/${pdl.pdl_picture}` : null,
+            pdl_picture: pdl.pdl_picture ? `${req.protocol}://${req.get('host')}/public/uploads/${pdl.pdl_picture}` : null,
             gcta_history: gctaLogs.rows,
             tastm_history: tastmLogs.rows,
             hasMigrated: gctaMigrated || tastmMigrated 
@@ -437,4 +478,4 @@ const updatePdlJudicialRecord = async (req, res) => {
     }
 };
 
-module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord};
+module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord, grantGlobalGcta};

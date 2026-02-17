@@ -34,6 +34,8 @@ const Education = () => {
 
 const [pastSessions, setPastSessions] = useState([]); // 🎯 The Missing State
 
+const [statusModal, setStatusModal] = useState({ show: false, message: "", isError: false });
+
 // Fetch Past Sessions on Load
 const fetchPastSessions = async () => {
     try {
@@ -232,24 +234,53 @@ const closeAlert = () => {
 };
 
     // ⚖️ GLOBAL GCTA GRANT
-    const handleGlobalGctaGrant = async () => {
-        try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`${API_BASE_URL}/api/pdl/grant-global-gcta`, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}` 
-                },
-                body: JSON.stringify({ days_to_grant: 20, month: new Date() })
-            });
+        const handleGlobalGctaGrant = async () => {
+            setShowGctaModal(false);
+            const currentDate = new Date();
+            const monthName = currentDate.toLocaleString('default', { month: 'long' });
+            const monthYear = `${currentDate.getMonth() + 1}-${currentDate.getFullYear()}`;
 
-            if (response.ok) {
-                alert("Success: Automated Monthly GCTA granted.");
-                setShowGctaModal(false);
+            try {
+                const token = localStorage.getItem("token");
+                
+                const response = await fetch(`${API_BASE_URL}/api/pdl/grant-global-gcta`, {
+                    method: "POST",
+                    headers: { 
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ 
+                        days_to_grant: 20, 
+                        month_year: monthYear,
+                        remarks: monthName 
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || "Failed to grant GCTA");
+                }
+
+                // Instead of alert(), we set our status modal state
+                setStatusModal({
+                    show: true,
+                    message: `Success: ${data.count || 'Automated'} Monthly GCTA granted for ${monthName}.`,
+                    isError: false
+                });
+                
+                setShowGctaModal(false); // Close your input modal
+
+            } catch (error) {
+                console.error("GCTA Grant Error:", error);
+                // Show Error Modal instead of Alert
+                setStatusModal({
+                    show: true,
+                    message: `Error: ${error.message}`,
+                    isError: true
+                });
             }
-        } catch (error) { console.error("GCTA Grant Error:", error); }
-    };
+        };
 
     return (
         <div className="education-scope">
@@ -506,6 +537,28 @@ const closeAlert = () => {
                   </div>
               </div>
           )}
+
+                {statusModal.show && (
+                    <div className="status-modal-overlay">
+                        <div className={`status-modal-content ${statusModal.isError ? 'border-red' : 'border-green'}`}>
+                            <div className="modal-header">
+                                <h3>{statusModal.isError ? "Grant Failed" : "Grant Successful"}</h3>
+                            </div>
+                            <div className="modal-body">
+                                <p>{statusModal.message}</p>
+                            </div>
+                            <div className="modal-footer">
+                                <button 
+                                    className="modal-close-btn"
+                                    onClick={() => setStatusModal({ ...statusModal, show: false })}
+                                    
+                                >
+                                    Confirm
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
         </div>
     );
 };

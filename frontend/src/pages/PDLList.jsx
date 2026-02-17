@@ -37,7 +37,16 @@ const PdlList = () => {
       });
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
+
+      
+console.log("--- PDL BACKEND DATA ---");
+    console.log("Raw Data Array:", data);
+    if (data.length > 0) {
+      console.log("First Item Picture Field:", data[0].pdl_picture);
+      console.log("Full Image URL Example:", `${API_BASE_URL}/public/uploads/${data[0].pdl_picture}`);
+    }
       setPdlList(data);
+      
     } catch (error) {
       console.error("Fetch Error:", error);
     } finally {
