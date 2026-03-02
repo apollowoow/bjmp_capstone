@@ -91,7 +91,7 @@ console.log("--- PDL BACKEND DATA ---");
       <div className="list-container">
         <div className="list-header">
           <div>
-            <h2>📂 Inmate Profiling & Analytics</h2>
+            <h2>📂 PDL Profiling & Analytics</h2>
             <p>Managing {filteredList.length} Active Records</p>
           </div>
           <button className="btn-add" onClick={() => navigate("/add")}>

@@ -238,8 +238,6 @@
 .scanner-actions {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 20px;
 }
 
 .danger-btn {
@@ -473,7 +471,7 @@
     display: flex;
     flex-direction: column;
     height: 380px; /* 🎯 Fixed height ensures buttons stay in place */
-    margin: 15px 0;
+    margin: 5px 0;
     justify-content: space-between;
 }
 
@@ -496,7 +494,7 @@
     align-items: center;
     gap: 10px;
     background: rgba(30, 41, 59, 0.4);
-    padding: 8px 10px; /* 🎯 Reduced padding */
+    padding: 8px 10px;
     border-radius: 10px;
     border: 1px solid #1e293b;
     height: 52px; /* 🎯 Fixed height per row */
@@ -536,9 +534,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
+    padding: 0 0;
     border-top: 1px solid #1e293b;
-    margin-top: 5px;
+  
 }
 
 .pag-btn {
@@ -581,7 +579,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    margin: 20px 0; /* Increased margin for better spacing */
+ 
     overflow: hidden;
 }
 
@@ -877,6 +875,154 @@
 .modal-close-btn:hover {
     background: #1f2937;
     transform: translateY(-2px);
+}
+
+/* Manual Entry Trigger Button */
+.btn-manual-entry {
+    display: flex;
+    align-items: center;
+    justify-content: center; 
+    padding: 12px 20px;
+    background-color: #3b82f6; 
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    gap: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.btn-manual-entry:hover {
+    background-color: #2563eb;
+    transform: translateY(-2px);
+}
+
+.btn-manual-entry:active {
+    transform: translateY(0);
+}
+
+/* --- High-Priority Overlay --- */
+.modal-overlay.alert-z-index {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85); /* Darken the scanner background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 20000 !important; /* Higher than your 10000 scanner z-index */
+}
+
+/* --- Modal Container --- */
+.manual-entry-modal {
+    width: 90%;
+    max-width: 500px;
+    background: #ffffff !important; /* Force white background */
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    border: 1px solid #e2e8f0;
+    animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Search Input --- */
+.manual-search-input {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 1rem;
+    margin-bottom: 15px;
+    background: #ffffff;
+    color: #1e293b; /* Dark text for readability */
+}
+
+.manual-search-input:focus {
+    border-color: #3b82f6;
+    outline: none;
+}
+
+/* --- Results List --- */
+.search-results-list {
+    max-height: 350px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 8px;
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    /* 🎯 This pushes the content apart */
+    justify-content: space-between; 
+    padding: 12px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    background: #ffffff;
+    transition: background 0.2s;
+}
+
+.search-result-item:hover {
+    background-color: #f8fafc;
+}
+
+/* --- PDL Info --- */
+.search-result-item img {
+    width: 50px;
+    height: 50px;
+    border-radius: 6px;
+    object-fit: cover;
+    margin-right: 15px;
+}
+.res-info {
+    flex-grow: 1;
+    /* 🎯 Added margin to keep the button from touching the name */
+    margin-right: 15px; 
+}
+
+.res-info strong {
+    display: block;
+    color: #1e293b !important; /* Override white text from scanner */
+    font-size: 0.95rem;
+}
+
+.res-info span {
+    color: #64748b !important; /* Override white text from scanner */
+    font-size: 0.8rem;
+}
+
+/* --- Select Button --- */
+.btn-select {
+    padding: 8px 16px;
+    background: #f1f5f9;
+    color: #475569;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    /* 🎯 Prevents the button from shrinking */
+    flex-shrink: 0; 
+}
+
+.search-result-item:hover .btn-select {
+    background: #3b82f6;
+    color: #ffffff;
+}
+
+.no-res {
+    padding: 20px;
+    text-align: center;
+    color: #94a3b8;
 }
 
 

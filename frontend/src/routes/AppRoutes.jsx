@@ -12,7 +12,7 @@ import Add from "../pages/Add";
 import Profile from "../pages/Profile"; 
 import EditPdl from "../pages/EditPdl"; 
 import Reports from "../pages/Reports";
-
+import SessionDetails from "../pages/SessionDetails";
 import ProtectedRoute from "../components/ProtectedRoute";
 
 const AppRoutes = () => {
@@ -32,7 +32,7 @@ const AppRoutes = () => {
 
            {/* 👇 2. ADD THE DYNAMIC EDIT ROUTE */}
            <Route path="/edit/:id" element={<EditPdl />} />
-
+            <Route path="/education/session/:id" element={<SessionDetails />} />
            <Route path="/education" element={<Education />} />
            <Route path="/incidents" element={<Incidents />} />
             <Route path="/reports" element={<Reports />} />

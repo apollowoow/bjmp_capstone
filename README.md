@@ -1,7 +1,7 @@
 # 🏛️ AI-Enhanced PDL Information Management System
 **Technological University of the Philippines - BSIT Capstone Project**
 
-An integrated management system for Persons Deprived of Liberty (PDL) featuring RFID integration, automated GCTA calculations, and secure inmate profiling.
+An integrated management system for Persons Deprived of Liberty (PDL) featuring RFID integration, automated GCTA calculations, and secure pdl profiling.
 
 ---
 

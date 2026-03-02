@@ -233,4 +233,32 @@
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
+
+/* --- Charts Layout --- */
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.chart-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+}
+
+/* Ensure responsiveness for smaller screens */
+@media (max-width: 1024px) {
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Keep original stats grid compact since charts take space */
+.stats-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
+}
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }

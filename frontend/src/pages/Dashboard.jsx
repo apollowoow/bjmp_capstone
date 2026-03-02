@@ -1,22 +1,27 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+// 📊 Import Recharts components
+import { 
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid 
+} from 'recharts';
 import API_BASE_URL from "../apiConfig";
 import "./dashboard.css"; 
 
 const Dashboard = () => {
   const navigate = useNavigate();
- const [stats, setStats] = useState({
-  totalPdl: 0,
-  detained: 0,
-  sentenced: 0,
-  lockedCount: 0,
-  frequentViolators: 0, // 🎯 Updated Key
-  recentIncidents: []
-});
+  const [stats, setStats] = useState({
+    totalPdl: 0,
+    detained: 0,
+    sentenced: 0,
+    lockedCount: 0,
+    frequentViolators: 0,
+    recentIncidents: []
+  });
   const [loading, setLoading] = useState(true);
 
   const user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : { fullname: "Officer" };
-  const MAX_CAPACITY = 200; // Adjusted for demo
+  const IDEAL_CAPACITY = 41; // 🎯 Revision requirement: Ideal Rate 
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -35,6 +40,18 @@ const Dashboard = () => {
     fetchStats();
   }, [navigate]);
 
+  // 🥧 Pie Chart Data: Population Breakdown
+  const populationData = [
+    { name: "Detained", value: stats.detained, color: "#f59e0b" },
+    { name: "Sentenced", value: stats.sentenced, color: "#10b981" }
+  ];
+
+  // 📊 Bar Chart Data: Congestion Check 
+  const congestionData = [
+    { name: "Ideal Limit", count: IDEAL_CAPACITY, fill: "#94a3b8" },
+    { name: "Current Population", count: stats.totalPdl, fill: stats.totalPdl > IDEAL_CAPACITY ? "#ef4444" : "#3b82f6" }
+  ];
+
   if (loading) return <div className="dashboard-loading"><div className="spinner"></div></div>;
 
   return (
@@ -47,40 +64,61 @@ const Dashboard = () => {
         <div className="date-badge">📅 {new Date().toLocaleDateString()}</div>
       </div>
 
+      {/* 📈 NEW VISUALS SECTION */}
+      <div className="charts-row">
+        <div className="content-box chart-container">
+          <h3 className="rpt-h3">PDL Population Breakdown</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie
+                data={populationData}
+                innerRadius={60}
+                outerRadius={80}
+                paddingAngle={5}
+                dataKey="value"
+              >
+                {populationData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend verticalAlign="bottom" height={36}/>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="content-box chart-container">
+          <h3 className="rpt-h3">Congestion Analysis (Ideal: {IDEAL_CAPACITY})</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={congestionData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" fontSize={12} />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="count" radius={[10, 10, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       <div className="stats-grid">
         <div className="stat-card blue">
-            <h3>Total Population</h3>
+            <h3>Total PDL</h3>
             <h1>{stats.totalPdl}</h1>
-        </div>
-        <div className="stat-card orange">
-            <h3>Pending Cases</h3>
-            <h1>{stats.detained}</h1>
-        </div>
-        <div className="stat-card green">
-            <h3>Sentenced</h3>
-            <h1>{stats.sentenced}</h1>
         </div>
         <div className="stat-card red">
             <h3>Frequent Violators</h3>
             <h1>{stats.frequentViolators}</h1>
         </div>
-        {/* 🎯 IMPACT CARD: Shows the Locked GCTA count */}
         <div className="stat-card purple">
             <h3>GCTA Locked</h3>
             <h1 style={{color: '#7c3aed'}}>{stats.lockedCount}</h1>
             <p className="rpt-text-small">Disqualified PDLs</p>
         </div>
-        {/* 🎯 REALISM CARD: Congestion Rate */}
-        <div className="stat-card cyan">
-            <h3>Facility Capacity</h3>
-            <h1>{((stats.totalPdl / MAX_CAPACITY) * 100).toFixed(1)}%</h1>
-            <div className="rpt-mini-progress">
-                <div className="rpt-bar" style={{ width: `${(stats.totalPdl / MAX_CAPACITY) * 100}%` }}></div>
-            </div>
-        </div>
       </div>
 
       <div className="dashboard-content">
+        {/* 🚨 UNTOUCHED: Recent Disciplinary Actions */}
         <div className="content-box table-section">
           <div className="box-header">
             <h3 className="rpt-h3">🚨 Recent Disciplinary Actions</h3>
@@ -108,10 +146,11 @@ const Dashboard = () => {
           )}
         </div>
 
+        {/* ⚡ UNTOUCHED: Quick Access */}
         <div className="content-box actions-section">
           <h3 className="ctb-h3">⚡ Quick Access</h3>
           <div className="action-buttons">
-            <button className="action-btn" onClick={() => navigate('/add')}>➕ Inmate Profiling</button>
+            <button className="action-btn" onClick={() => navigate('/add')}>➕ PDL Profiling</button>
             <button className="action-btn" onClick={() => navigate('/incidents')}>📝 Record Violation</button>
             <button className="action-btn" onClick={() => navigate('/reports')}>📊 Eligibility Report</button>
           </div>

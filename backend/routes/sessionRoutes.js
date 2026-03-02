@@ -38,6 +38,7 @@ router.post('/log-attendance', authenticateToken, sessionCtrl.logAttendance);
 router.post('/finalize/:session_id', authenticateToken, sessionCtrl.finalizeSession);
 
 router.get('/history', authenticateToken, sessionCtrl.getSessionHistory);
+router.get('/search-pdl', sessionCtrl.searchPdls);
 
 /**
  * @route   DELETE /api/sessions/cancel/:session_id
@@ -45,5 +46,19 @@ router.get('/history', authenticateToken, sessionCtrl.getSessionHistory);
  * @access  Protected
  */
 router.delete('/cancel/:session_id', authenticateToken, sessionCtrl.cancelSession);
+
+/**
+ * @route   GET /api/sessions/details/:id
+ * @desc    Fetch session metadata and all attendees for management
+ * @access  Protected
+ */
+router.get('/details/:id', authenticateToken, sessionCtrl.getSessionDetails);
+
+/**
+ * @route   PUT /api/sessions/update-attendance-hours
+ * @desc    Update a specific PDL's hours for a specific session (Overtime/Correction)
+ * @access  Protected
+ */
+router.put('/update-attendance-hours', authenticateToken, sessionCtrl.updateAttendanceHours);
 
 module.exports = router;

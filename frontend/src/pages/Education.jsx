@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef  } from 'react';
+import React, { useState, useEffect, useRef, navigate  } from 'react';
 import API_BASE_URL from "../apiConfig";
 import "./education.css";
+import { useNavigate } from 'react-router-dom';
 
 const Education = () => {
+    const navigate = useNavigate();
     // --- State Management ---
     const [showSessionModal, setShowSessionModal] = useState(false);
     const rfidInputRef = useRef(null);
@@ -15,8 +17,14 @@ const Education = () => {
     const [scannedPdl, setScannedPdl] = useState(null); 
     const [rfidInput, setRfidInput] = useState("");
 
+    const [showManualModal, setShowManualModal] = useState(false);
+    const [manualSearchTerm, setManualSearchTerm] = useState("");
+    const [pdlResults, setPdlResults] = useState([]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const scansPerPage = 5;
+
+
 
   // Calculate Pagination
   const indexOfLastScan = currentPage * scansPerPage;
@@ -31,6 +39,12 @@ const Education = () => {
     type: "info", // info, warning, danger
     onConfirm: null // For confirmation actions
 });
+
+useEffect(() => {
+    fetchPastSessions();
+}, []);
+
+  
 
 const [pastSessions, setPastSessions] = useState([]); // 🎯 The Missing State
 
@@ -53,9 +67,62 @@ const fetchPastSessions = async () => {
     }
 };
 
-useEffect(() => {
-    fetchPastSessions();
-}, []);
+
+const searchPdls = async (term) => {
+    setManualSearchTerm(term);
+    if (term.length < 2) return setPdlResults([]);
+    
+    try {
+        const token = localStorage.getItem("token");
+        // 🎯 CHANGE THIS PATH to match your new session route
+        const response = await fetch(`${API_BASE_URL}/api/sessions/search-pdl?term=${term}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            setPdlResults(data);
+        }
+    } catch (err) { console.error("Search error:", err); }
+};
+
+const isTypingMode =
+    showManualModal ||
+    showSessionModal ||
+    showGctaModal ||
+    alertModal.show ||
+    statusModal.show;
+
+const handleManualLog = async (pdl) => {
+    try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${API_BASE_URL}/api/sessions/log-attendance`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                session_id: activeSession.session_id,
+                pdl_id: pdl.pdl_id, // Note: backend needs to handle either pdl_id or rfid_number
+                hours_to_earn: activeSession.hours_to_earn
+            })
+        });
+
+        const data = await response.json();
+        
+        if (response.status === 409) {
+            return triggerAlert("Double Entry", "This PDL is already on the list.", "warning");
+        }
+
+        if (response.ok) {
+            setScannedPdl(data); // Shows the Face Match card for verification
+            setShowManualModal(false);
+            setManualSearchTerm("");
+            setPdlResults([]);
+        } else {
+            triggerAlert("Entry Error", data.error || "Could not log PDL.", "danger");
+        }
+    } catch (err) { console.error(err); }
+};
+
+
 
 // 2. Helper to trigger the modal
 const triggerAlert = (title, message, type = "info", onConfirm = null) => {
@@ -79,15 +146,24 @@ const closeAlert = () => {
         officer_in_charge: ""
     });
 
+    useEffect(() => {
+    if (isScanning && !isTypingMode) {
+        setTimeout(() => {
+            rfidInputRef.current?.focus();
+            console.log("📡 Scanner ready");
+        }, 10);
+    }
+}, [isScanning, isTypingMode]);
+
     // --- Form Handlers ---
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setSessionForm(prev => ({ ...prev, [name]: value }));
     };
 
-    const refocusScanner = () => {
-    if (rfidInputRef.current) {
-        rfidInputRef.current.focus();
+  const refocusScanner = () => {
+    if (!isTypingMode) {
+        rfidInputRef.current?.focus();
     }
 };
 
@@ -146,9 +222,10 @@ const closeAlert = () => {
 };
 
     const confirmAttendance = () => {
-        // Double check local state just in case
+  
         if (!currentAttendees.find(p => p.pdl_id === scannedPdl.pdl_id)) {
             setCurrentAttendees([scannedPdl, ...currentAttendees]);
+            console.log('1');
         }
         setScannedPdl(null); 
     };
@@ -311,6 +388,7 @@ const closeAlert = () => {
                                     <th>Hours</th>
                                     <th>Attendees</th>
                                     <th>Facilitator</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -323,6 +401,16 @@ const closeAlert = () => {
                                             <td><strong>{parseFloat(session.hours_to_earn).toFixed(1)}</strong></td>
                                             <td>{session.attendee_count || 0} PDLs</td>
                                             <td>{session.officer_in_charge}</td>
+                                            <td>
+                                                <button 
+                                                    className="btn-refresh"
+                                                    onClick={(e) => {
+                                                        navigate(`/education/session/${session.session_id}`);
+                                                    }}
+                                                >
+                                                    ⚙️ Manage
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))
                                 ) : (
@@ -430,6 +518,7 @@ const closeAlert = () => {
                                             <span className="scan-name">{pdl.last_name}, {pdl.first_name}</span>
                                             <span className="scan-time">Successfully Logged</span>
                                         </div>
+                                        
                                     </div>
                                 ))}
 
@@ -461,6 +550,9 @@ const closeAlert = () => {
                         </div>
 
                             <div className="scanner-actions">
+                                <button className="btn-manual-entry" onClick={() => setShowManualModal(true)}>
+                                            ⌨️ Manual Entry
+                                        </button>
                                 <button className="btn-finish-session" onClick={handleFinishSession} onMouseUp={refocusScanner}>🏁 End & Save</button>
                                 <button className="btn-modal-cancel danger-btn" onClick={handleCancelSession} onMouseUp={refocusScanner}>🗑️ Discard Session</button>
                             </div>
@@ -472,15 +564,19 @@ const closeAlert = () => {
                                     <div className="rfid-icon">📡</div>
                                     <h2>Ready to Scan</h2>
                                     {/* The hidden input now aggressively stays focused via onBlur */}
-                                    <input 
-                                        ref={rfidInputRef} 
-                                        type="text" 
-                                        autoFocus 
-                                        className="hidden-rfid-input" 
-                                        value={rfidInput} 
-                                        onChange={(e) => setRfidInput(e.target.value)} 
-                                        onKeyDown={handleRfidScan} 
-                                        onBlur={refocusScanner} 
+                                    <input
+                                        ref={rfidInputRef}
+                                        type="text"
+                                        autoFocus
+                                        className="hidden-rfid-input"
+                                        value={rfidInput}
+                                        onChange={(e) => setRfidInput(e.target.value)}
+                                        onKeyDown={handleRfidScan}
+                                        onBlur={() => {
+                                            if (!isTypingMode) {
+                                                rfidInputRef.current?.focus();
+                                            }
+                                        }}
                                     />
                                 </div>
                             ) : (
@@ -559,6 +655,51 @@ const closeAlert = () => {
                         </div>
                     </div>
                 )}
+
+                    {showManualModal && (
+        <div className="modal-overlay alert-z-index">
+            <div className="modal-content manual-entry-modal">
+                <div className="modal-header">
+                    <h3>⌨️ Manual Attendance Entry</h3>
+                    <p>Search by Last Name or Jail ID to log attendance without RFID.</p>
+                </div>
+                <div className="modal-body">
+                    <input 
+                        type="text" 
+                        className="manual-search-input"
+                        placeholder="Search PDL Name..." 
+                        value={manualSearchTerm}
+                        onChange={(e) => searchPdls(e.target.value)}
+                        autoFocus
+                    />
+                    <div className="search-results-list">
+                        {pdlResults.map(pdl => (
+                            <div key={pdl.pdl_id} className="search-result-item" onClick={() => handleManualLog(pdl)}>
+                                <img src={`${API_BASE_URL}/public/uploads/${pdl.pdl_picture}`} alt="pdl" />
+                                <div className="res-info">
+                                    <strong>{pdl.last_name}, {pdl.first_name}</strong>
+                                    <span>ID: #{pdl.pdl_id}</span>
+                                </div>
+                                <button className="btn-select" >Select</button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="modal-actions">
+                    <button 
+                        className="btn-modal-cancel" 
+                        onClick={() => { 
+                            setShowManualModal(false); 
+                            refocusScanner()
+                           
+                        }}
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    )}
         </div>
     );
 };

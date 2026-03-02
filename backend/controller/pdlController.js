@@ -50,7 +50,7 @@ const getAllPDL = async (req, res) => {
   } catch (err) {
     console.error("Database Error:", err.message);
     res.status(500).json({ 
-        error: "Server Error: Unable to fetch inmate profiling data" 
+        error: "Server Error: Unable to fetch pdl profiling data" 
     });
   }
 };
@@ -307,7 +307,7 @@ const updatePDL = async (req, res) => {
 
     } catch (err) {
         console.error("Update Error:", err.message);
-        res.status(500).json({ error: "Failed to update inmate record." });
+        res.status(500).json({ error: "Failed to update pdl record." });
     } finally {
         client.release();
     }

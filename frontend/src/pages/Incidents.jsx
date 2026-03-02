@@ -49,10 +49,10 @@ const Incidents = () => {
 
         if (found) {
           setPdl(found);
-          setStatus({ msg: "Inmate identified.", isError: false });
+          setStatus({ msg: "PDL identified.", isError: false });
         } else {
           setPdl(null);
-          setStatus({ msg: "Inmate not found in database.", isError: true });
+          setStatus({ msg: "PDL not found in database.", isError: true });
         }
       }
     } catch (err) {
@@ -198,9 +198,9 @@ const Incidents = () => {
                <h2>Confirm Action?</h2>
             </div>
             <div className="inc-modal-body">
-               <p>This will <strong>Disqualify</strong> the inmate from GCTA credits until the penalty end date.</p>
+               <p>This will <strong>Disqualify</strong> the pdl from GCTA credits until the penalty end date.</p>
                <div className="inc-confirm-box">
-                  <p><strong>Inmate:</strong> {pdl.last_name}, {pdl.first_name}</p>
+                  <p><strong>PDL:</strong> {pdl.last_name}, {pdl.first_name}</p>
                   <p><strong>Category:</strong> {form.category}</p>
                   <p><strong>End Date:</strong> {calculateEndDate(form.incident_date, form.category)}</p>
                </div>

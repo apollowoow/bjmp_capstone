@@ -231,7 +231,7 @@ const handleRfidKeyDown = (e) => {
           <h2>📋 PDL Admission Portal</h2>
           <span className="pdl-add__badge">AI-Enhanced System</span>
         </div>
-        <p>Register new inmate and initialize automated time allowance tracking.</p>
+        <p>Register new PDL and initialize automated time allowance tracking.</p>
       </header>
 
       <div className="pdl-add__content">
@@ -332,7 +332,7 @@ const handleRfidKeyDown = (e) => {
             </>
           )}
 
-          <button type="submit" className="pdl-add__submit-btn">Register New Inmate Record</button>
+          <button type="submit" className="pdl-add__submit-btn">Register New PDL Record</button>
           {message && <div className={`pdl-add__status ${message.includes('❌') ? 'error' : ''}`}>{message}</div>}
         </form>
       </div>

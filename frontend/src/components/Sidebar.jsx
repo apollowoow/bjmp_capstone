@@ -29,7 +29,7 @@ const Sidebar = () => {
       
       <nav>
         <Link to="/dashboard">📊 Dashboard</Link>
-        <Link to="/pdl">👥 Inmate Profiling</Link>
+        <Link to="/pdl">👥 PDL   Profiling</Link>
         <Link to="/education">⏱️ Programs & Credits</Link>
         <Link to="/incidents">⚠️ Incidents</Link>
         <Link to="/reports">📑 Reports</Link>
