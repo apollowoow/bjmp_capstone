@@ -11,6 +11,11 @@ const Education = () => {
     const [showGctaModal, setShowGctaModal] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [activeSession, setActiveSession] = useState(null); 
+
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filterProgram, setFilterProgram] = useState("All");
+    const [filterDate, setFilterDate] = useState("");
+   
     
     const [sessionHistory, setSessionHistory] = useState([]); 
     const [currentAttendees, setCurrentAttendees] = useState([]); 
@@ -21,12 +26,12 @@ const Education = () => {
     const [manualSearchTerm, setManualSearchTerm] = useState("");
     const [pdlResults, setPdlResults] = useState([]);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const scansPerPage = 5;
+    const [currentPage, setCurrentPage] = useState(1);
+    const scansPerPage = 5;
+
+   
 
 
-
-  // Calculate Pagination
   const indexOfLastScan = currentPage * scansPerPage;
   const indexOfFirstScan = indexOfLastScan - scansPerPage;
   const currentScans = currentAttendees.slice(indexOfFirstScan, indexOfLastScan);
@@ -92,7 +97,33 @@ const isTypingMode =
     alertModal.show ||
     statusModal.show;
 
-const handleManualLog = async (pdl) => {
+
+    const [historyPage, setHistoryPage] = useState(1);
+    const historyPerPage = 10;
+
+    const filteredSessions = pastSessions.filter(session => {
+    const matchesSearch = session.session_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          session.officer_in_charge.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesProgram = filterProgram === "All" || session.program_name === filterProgram;
+    
+    // Normalize date format for comparison
+    const sessionDateStr = new Date(session.session_date).toISOString().split('T')[0];
+    const matchesDate = !filterDate || sessionDateStr === filterDate;
+
+    return matchesSearch && matchesProgram && matchesDate;
+});
+
+useEffect(() => {
+    setHistoryPage(1);
+}, [searchTerm, filterProgram, filterDate]);
+
+    const lastHistoryIndex = historyPage * historyPerPage;
+    const firstHistoryIndex = lastHistoryIndex - historyPerPage;
+    const currentHistorySessions = filteredSessions.slice(firstHistoryIndex, lastHistoryIndex);
+    const totalHistoryPages = Math.ceil(filteredSessions.length / historyPerPage);
+
+    const handleManualLog = async (pdl) => {
     try {
         const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/sessions/log-attendance`, {
@@ -188,7 +219,72 @@ const closeAlert = () => {
     } catch (err) { console.error(err); }
 };
 
-    // 🟡 RFID SCAN (With Double Entry Guard)
+
+const handleRemoveAttendee = (pdlId, lastName, firstName) => {
+    // 🛡️ 1. Trigger the Custom Confirmation Modal
+    triggerAlert(
+        "Remove Attendee?", 
+        `Are you sure you want to remove ${lastName}, ${firstName} from this session? This action cannot be undone.`, 
+        "warning", // Using warning type for deletions
+        async () => {
+            try {
+                const token = localStorage.getItem("token");
+                
+                // 🎯 FIX: Verify if your route is /api/sessions (plural) or /api/session (singular)
+                // Based on your handleFinishSession, it looks like it should be PLURAL.
+                const response = await fetch(
+                    `${API_BASE_URL}/api/sessions/remove-attendance/${activeSession.session_id}/${pdlId}`, 
+                    {
+                        method: "DELETE",
+                        headers: { Authorization: `Bearer ${token}` }
+                    }
+                );
+
+                if (response.ok) {
+                    // Close the "Are you sure?" modal
+                    closeAlert();
+
+                    // ✨ 2. UI Update: Remove from the main list
+                    setCurrentAttendees((prev) => prev.filter(pdl => pdl.pdl_id !== pdlId));
+                    
+                    // 🚀 3. Show Success Message
+                    triggerAlert("Removed", "The PDL has been removed from the session logs.", "info");
+                } else {
+                    const data = await response.json();
+                    triggerAlert("Error", data.error || "Failed to remove attendee.", "danger");
+                }
+            } catch (err) {
+                console.error("Removal Error:", err);
+                triggerAlert("Server Error", "Could not connect to the database.", "danger");
+            }
+        }
+    );
+};
+
+
+const handleAutoDecline = async (pdlId) => {
+    try {
+        const token = localStorage.getItem("token");
+        // We use the DELETE route to "undo" the log that handleRfidScan just created
+        const response = await fetch(`${API_BASE_URL}/api/sessions/remove-attendance/${activeSession.session_id}/${pdlId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            // Remove from the list on the right if it was already added
+            setCurrentAttendees((prev) => prev.filter(pdl => pdl.pdl_id !== pdlId));
+            
+            // Go back to "Ready to Scan"
+            setScannedPdl(null);
+            refocusScanner();
+        }
+    } catch (err) {
+        console.error("Decline Error:", err);
+    }
+};
+
+  
    const handleRfidScan = async (e) => {
     if (e.key === 'Enter') {
         const scannedUid = rfidInput;
@@ -210,6 +306,9 @@ const closeAlert = () => {
             
             if (response.status === 409) {
                 return triggerAlert("Double Entry Detected", "This PDL has already been scanned for this session.", "warning");
+            }
+            if (response.status === 403) {
+                return triggerAlert("Access Denied: This PDL is currently barred from earning credits due to a disciplinary record.", "warning");
             }
 
             if (response.ok) {
@@ -268,6 +367,10 @@ const closeAlert = () => {
         }
     );
 };
+
+
+
+
 
     // 🗑️ DISCARD/CANCEL SESSION (Rollback)
     const handleCancelSession = () => {
@@ -359,7 +462,34 @@ const closeAlert = () => {
             }
         };
 
-    return (
+useEffect(() => {
+    const handleBeforeUnload = (e) => {
+        if (isScanning) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    };
+
+    const handleLeave = (e) => {
+        if (!isScanning || !activeSession?.session_id) return;
+        if (e.persisted) return;
+
+        navigator.sendBeacon(
+            `${API_BASE_URL}/api/sessions/reload/${activeSession.session_id}`
+        );
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handleLeave);
+
+    return () => {
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        window.removeEventListener("pagehide", handleLeave);
+    };
+}, [isScanning, activeSession, API_BASE_URL]);
+
+return (
         <div className="education-scope">
             <div className="education-container">
                 <header className="page-header">
@@ -378,6 +508,47 @@ const closeAlert = () => {
                         <h2>📜 Judicial Ledger: Past Sessions</h2>
                         <button className="btn-refresh" onClick={fetchPastSessions}>🔄 Refresh</button>
                     </div>
+
+                    <div className="ledger-filters" style={{ 
+                        display: 'flex', 
+                        gap: '10px', 
+                        padding: '15px', 
+                        background: '#f1f5f9', 
+                        borderRadius: '8px', 
+                        margin: '0 20px 15px 20px' 
+                    }}>
+                        <input 
+                            type="text" 
+                            placeholder="Search Topic..." 
+                            className="manual-search-input"
+                            style={{ flex: 2, marginBottom: 0 }}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <select 
+                            className="manual-search-input"
+                            style={{ flex: 1, marginBottom: 0 }}
+                            value={filterProgram}
+                            onChange={(e) => setFilterProgram(e.target.value)}
+                        >
+                            <option value="All">All Programs</option>
+                            <option value="Education">Education (ALS)</option>
+                            <option value="Vocational">TESDA / Vocational</option>
+                            <option value="Livelihood">Livelihood Training</option>
+                            <option value="Religious">Religious / Values Formation</option>
+                            <option value="Sports">Sports & Recreation</option>
+                        </select>
+                        <input 
+                            type="date" 
+                            className="manual-search-input"
+                            style={{ flex: 1, marginBottom: 0 }}
+                            value={filterDate}
+                            onChange={(e) => setFilterDate(e.target.value)}
+                        />
+                        <button className="btn-modal-cancel" onClick={() => {setSearchTerm(""); setFilterProgram("All"); setFilterDate("");}}>
+                            Reset
+                        </button>
+                    </div>
                     <div className="table-responsive">
                         <table className="data-table">
                             <thead>
@@ -392,8 +563,8 @@ const closeAlert = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {pastSessions && pastSessions.length > 0 ? (
-                                    pastSessions.map((session, index) => (
+                                {currentHistorySessions && currentHistorySessions.length > 0 ? (
+                                    currentHistorySessions.map((session, index) => (
                                         <tr key={session.session_id || index}>
                                             <td>{new Date(session.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                                             <td><span className="badge-program">{session.program_name}</span></td>
@@ -424,6 +595,27 @@ const closeAlert = () => {
                                 )}
                             </tbody>
                         </table>
+                            {totalHistoryPages > 1 && (
+                                <div className="pagination-controls">
+                                    <p>Page <strong>{historyPage}</strong> of {totalHistoryPages}</p>
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <button 
+                                            className="pag-btn" 
+                                            disabled={historyPage === 1} 
+                                            onClick={() => setHistoryPage(prev => prev - 1)}
+                                        >
+                                            Previous
+                                        </button>
+                                        <button 
+                                            className="pag-btn" 
+                                            disabled={historyPage === totalHistoryPages} 
+                                            onClick={() => setHistoryPage(prev => prev + 1)}
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                     </div>
                 </div>
             </div>
@@ -518,6 +710,14 @@ const closeAlert = () => {
                                             <span className="scan-name">{pdl.last_name}, {pdl.first_name}</span>
                                             <span className="scan-time">Successfully Logged</span>
                                         </div>
+
+                                        <button 
+                                        className="btn-decline-scan" 
+                                        onClick={() => handleRemoveAttendee(pdl.pdl_id, pdl.last_name, pdl.first_name)}
+                                        title="Remove from session"
+                                    >
+                                        ✕
+                                    </button>
                                         
                                     </div>
                                 ))}
@@ -595,8 +795,7 @@ const closeAlert = () => {
                                         </div>
                                     </div>
                                     <div className="match-actions">
-                                        {/* 🎯 Added refocusScanner() here so the NEXT scan works immediately */}
-                                        <button className="btn-decline" onClick={() => { setScannedPdl(null); refocusScanner(); }}>
+                                        <button className="btn-decline" onClick={() => handleAutoDecline(scannedPdl.pdl_id)}>
                                             ❌ Decline
                                         </button>
                                         <button className="btn-confirm-match" onClick={confirmAttendance}>
@@ -657,49 +856,49 @@ const closeAlert = () => {
                 )}
 
                     {showManualModal && (
-        <div className="modal-overlay alert-z-index">
-            <div className="modal-content manual-entry-modal">
-                <div className="modal-header">
-                    <h3>⌨️ Manual Attendance Entry</h3>
-                    <p>Search by Last Name or Jail ID to log attendance without RFID.</p>
-                </div>
-                <div className="modal-body">
-                    <input 
-                        type="text" 
-                        className="manual-search-input"
-                        placeholder="Search PDL Name..." 
-                        value={manualSearchTerm}
-                        onChange={(e) => searchPdls(e.target.value)}
-                        autoFocus
-                    />
-                    <div className="search-results-list">
-                        {pdlResults.map(pdl => (
-                            <div key={pdl.pdl_id} className="search-result-item" onClick={() => handleManualLog(pdl)}>
-                                <img src={`${API_BASE_URL}/public/uploads/${pdl.pdl_picture}`} alt="pdl" />
-                                <div className="res-info">
-                                    <strong>{pdl.last_name}, {pdl.first_name}</strong>
-                                    <span>ID: #{pdl.pdl_id}</span>
-                                </div>
-                                <button className="btn-select" >Select</button>
+                    <div className="modal-overlay alert-z-index">
+                        <div className="modal-content manual-entry-modal">
+                            <div className="modal-header">
+                                <h3>⌨️ Manual Attendance Entry</h3>
+                                <p>Search by Last Name or Jail ID to log attendance without RFID.</p>
                             </div>
-                        ))}
+                            <div className="modal-body">
+                                <input 
+                                    type="text" 
+                                    className="manual-search-input"
+                                    placeholder="Search PDL Name..." 
+                                    value={manualSearchTerm}
+                                    onChange={(e) => searchPdls(e.target.value)}
+                                    autoFocus
+                                />
+                                <div className="search-results-list">
+                                    {pdlResults.map(pdl => (
+                                        <div key={pdl.pdl_id} className="search-result-item" onClick={() => handleManualLog(pdl)}>
+                                            <img src={`${API_BASE_URL}/public/uploads/${pdl.pdl_picture}`} alt="pdl" />
+                                            <div className="res-info">
+                                                <strong>{pdl.last_name}, {pdl.first_name}</strong>
+                                                <span>ID: #{pdl.pdl_id}</span>
+                                            </div>
+                                            <button className="btn-select" >Select</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="modal-actions">
+                                <button 
+                                    className="btn-modal-cancel" 
+                                    onClick={() => { 
+                                        setShowManualModal(false); 
+                                        refocusScanner()
+                                    
+                                    }}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div className="modal-actions">
-                    <button 
-                        className="btn-modal-cancel" 
-                        onClick={() => { 
-                            setShowManualModal(false); 
-                            refocusScanner()
-                           
-                        }}
-                    >
-                        Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    )}
+                )}
         </div>
     );
 };

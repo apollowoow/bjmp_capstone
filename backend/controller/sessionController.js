@@ -1,7 +1,7 @@
 const pool = require('../db/pool');
 
 
-// 📜 GET SESSION HISTORY (With Attendee Counts)
+
 const getSessionHistory = async (req, res) => {
     try {
         const result = await pool.query(
@@ -44,36 +44,42 @@ const startSession = async (req, res) => {
     }
 };
 
-// 🟡 LOG RFID ATTENDANCE (With Duplicate Guard)
+
 const logAttendance = async (req, res) => {
     const { session_id, rfid_number, hours_to_earn, pdl_id } = req.body;
 
     try {
         let pdl;
 
-        // 🎯 FIX: Check if we have pdl_id (Manual) or rfid_number (Scanner)
+        // 🎯 Path A/B: Get PDL info including their Lock Status
         if (pdl_id) {
-            // Path A: Manual Selection from Search Modal
             const pdlResult = await pool.query(
-                "SELECT pdl_id, first_name, last_name, pdl_picture FROM pdl_tbl WHERE pdl_id = $1",
+                "SELECT pdl_id, first_name, last_name, pdl_picture, is_locked_for_gcta FROM pdl_tbl WHERE pdl_id = $1",
                 [pdl_id]
             );
             pdl = pdlResult.rows[0];
         } else {
-            // Path B: RFID Hardware Scan
             const pdlResult = await pool.query(
-                "SELECT pdl_id, first_name, last_name, pdl_picture FROM pdl_tbl WHERE rfid_number = $1",
+                "SELECT pdl_id, first_name, last_name, pdl_picture, is_locked_for_gcta FROM pdl_tbl WHERE rfid_number = $1",
                 [rfid_number]
             );
             pdl = pdlResult.rows[0];
         }
 
-        // 1. Identify PDL (Updated Error Message for clarity)
+        // 1. Identify PDL
         if (!pdl) {
             return res.status(404).json({ error: "PDL record not found. Please verify ID or RFID." });
         }
 
-        // 2. 🛡️ DOUBLE ENTRY CHECK (Logic remains identical)
+        // 🚫 1.5 DISCIPLINARY LOCK CHECK
+        // If the PDL is locked due to a violation, they cannot log attendance for hours.
+        if (pdl.is_locked_for_gcta) {
+            return res.status(403).json({ 
+                error: "Access Denied: This PDL is currently barred from earning credits due to a disciplinary record." 
+            });
+        }
+
+        // 2. 🛡️ DOUBLE ENTRY CHECK
         const duplicateCheck = await pool.query(
             "SELECT * FROM attendance_tbl WHERE session_id = $1 AND pdl_id = $2",
             [session_id, pdl.pdl_id]
@@ -83,14 +89,13 @@ const logAttendance = async (req, res) => {
             return res.status(409).json({ error: "PDL already scanned for this session." });
         }
 
-        // 3. Log into attendance_tbl (Logic remains identical)
+        // 3. Log into attendance_tbl
         await pool.query(
             `INSERT INTO attendance_tbl (pdl_id, session_id, hours_attended, timestamp_in) 
              VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
             [pdl.pdl_id, session_id, hours_to_earn]
         );
 
-        // This triggers the Verification Card on your frontend
         res.status(200).json(pdl);
 
     } catch (err) {
@@ -98,6 +103,31 @@ const logAttendance = async (req, res) => {
         res.status(500).json({ error: "Server error during attendance processing." });
     }
 };
+
+
+const removeAttendance = async (req, res) => {
+    // We get these from the URL params: /api/attendance/12/26
+    const { session_id, pdl_id } = req.params;
+
+    try {
+        const result = await pool.query(
+            "DELETE FROM attendance_tbl WHERE session_id = $1 AND pdl_id = $2",
+            [session_id, pdl_id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Attendance record not found." });
+        }
+
+        res.status(200).json({ message: "PDL removed from session successfully." });
+    } catch (err) {
+        console.error("Remove Attendance Error:", err.message);
+        res.status(500).json({ error: "Server error while removing attendee." });
+    }
+};
+
+
+
 
 // 🔴 FINALIZE SESSION (Sync to PDL Ledger)
 const finalizeSession = async (req, res) => {
@@ -114,8 +144,6 @@ const finalizeSession = async (req, res) => {
             return res.status(400).json({ error: "Cannot finalize an empty session. Discard it instead." });
         }
 
-        // 2. Optional: Mark session as finalized in session_tbl if you have a status column
-        // await pool.query("UPDATE session_tbl SET status = 'completed' WHERE session_id = $1", [session_id]);
 
         res.status(200).json({ 
             message: "Session attendance locked. Credits will be calculated at month-end." 
@@ -143,6 +171,28 @@ const cancelSession = async (req, res) => {
         res.status(200).json({ message: "Session and logs discarded." });
     } catch (err) {
         console.error("❌ Cancel Error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+const reloadSession = async (req, res) => {
+    const { session_id } = req.params;
+    console.log("🔄 Reload triggered for session:", session_id);
+
+    try {
+        // 1. Delete children (Attendance Logs)
+        await pool.query("DELETE FROM attendance_tbl WHERE session_id = $1", [session_id]);
+        
+        // 2. Delete parent (Session)
+        const result = await pool.query("DELETE FROM session_tbl WHERE session_id = $1", [session_id]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Session not found." });
+        }
+
+        res.status(200).json({ message: "Session and logs discarded." });
+    } catch (err) {
+        console.error("❌ Reload Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 };
@@ -234,4 +284,4 @@ const updateAttendanceHours = async (req, res) => {
 };
 
 module.exports = { startSession, logAttendance, finalizeSession, cancelSession , 
-    getSessionHistory, searchPdls, updateAttendanceHours, getSessionDetails};
+    getSessionHistory, searchPdls, updateAttendanceHours, getSessionDetails, removeAttendance, reloadSession};

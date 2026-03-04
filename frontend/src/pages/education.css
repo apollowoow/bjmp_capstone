@@ -489,16 +489,7 @@
 }
 
 /* 2. Shrunken Scan Item */
-.scan-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: rgba(30, 41, 59, 0.4);
-    padding: 8px 10px;
-    border-radius: 10px;
-    border: 1px solid #1e293b;
-    height: 52px; /* 🎯 Fixed height per row */
-}
+
 
 /* 3. Smaller Mini Photo */
 .mini-pdl-photo {
@@ -605,6 +596,8 @@
     transition: background 0.2s;
 }
 
+
+
 /* 3. Larger Mini Photos */
 .mini-pdl-photo {
     width: 48px;  /* 🎯 Increased from 32px */
@@ -621,6 +614,26 @@
     flex-direction: column;
     justify-content: center;
     gap: 2px;
+}
+
+.btn-decline-scan {
+    margin-left: auto; /* 🚀 The Magic Line */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center; /* Center the icon inside */
+    gap: 2px;
+    background: transparent;
+    border: none;
+    color: #ef4444; /* Red color for 'decline/remove' */
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.btn-decline-scan:hover {
+    background: rgba(255, 231, 231, 0.1); /* Subtle red glow on hover */
 }
 
 .scan-name {

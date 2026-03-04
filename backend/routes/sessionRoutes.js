@@ -30,6 +30,8 @@ router.post('/start', authenticateToken, sessionCtrl.startSession);
  */
 router.post('/log-attendance', authenticateToken, sessionCtrl.logAttendance);
 
+router.delete('/remove-attendance/:session_id/:pdl_id', authenticateToken, sessionCtrl.removeAttendance);
+
 /**
  * @route   POST /api/sessions/finalize/:session_id
  * @desc    Sync session hours to the PDL's permanent record
@@ -46,6 +48,8 @@ router.get('/search-pdl', sessionCtrl.searchPdls);
  * @access  Protected
  */
 router.delete('/cancel/:session_id', authenticateToken, sessionCtrl.cancelSession);
+
+router.post('/reload/:session_id', sessionCtrl.reloadSession);
 
 /**
  * @route   GET /api/sessions/details/:id
