@@ -58,6 +58,12 @@ const EditPdl = () => {
       });
       const data = await response.json();
 
+      console.log("--- [FETCH] Raw PDL Data ---");
+        console.log("Full Object:", data);
+        console.log("Committal Date (Raw):", data.date_commited_pnp);
+        console.log("Total GCTA Sum (Backend):", data.gcta_history);
+        console.log("Total TASTM Sum (Backend):", data.total_tastm_earned);
+
       if (data.hasMigrated) {
         const gctaEntry = data.gcta_history?.find(l => l.remarks?.includes("Migration"));
         const tastmEntry = data.tastm_history?.find(l => l.remarks?.includes("Migration"));
@@ -65,6 +71,9 @@ const EditPdl = () => {
         data.tastm_days = tastmEntry ? tastmEntry.days_earned : 0;
         data.tastm_hours = tastmEntry ? tastmEntry.total_hours_accumulated : 0;
       }
+
+      console.log("Total GCTA Ssdadum (Backend):", data.tastmEntry);
+        console.log("Total TASTsadsadM Sum (Backend):", data.gctaEntry);
 
       if (data.date_commited_pnp) {
         data.date_commited_pnp = new Date(data.date_commited_pnp).toISOString().split('T')[0];
@@ -92,6 +101,8 @@ const EditPdl = () => {
   const handleLockToggle = () => {
     if (!isUnlocked && formData.hasMigrated) {
       setShowLockWarning(true); 
+      console.log(formData.gcta_days);
+
     } else {
       setIsUnlocked(!isUnlocked);
     }
@@ -280,7 +291,7 @@ const EditPdl = () => {
 
                 {/* SENTENCE DURATION */}
                 {formData.pdl_status === "Sentenced" && (
-                  <div className="sentence-reveal-sub">
+                  <div className="field">
                     <label>Court-Ordered Sentence Duration</label>
                     <div className="triple-input">
                       <div className="unit-input">
@@ -343,19 +354,24 @@ const EditPdl = () => {
 
       {/* 🛡️ MODAL C: SAVE CONFIRMATION */}
       {showModal && (
-        <div className="modal-overlay">
-          <div className={`modal-content ${isUnlocked || isJudicialUnlocked ? 'tamper-danger' : ''}`}>
+    <div className="modal-overlay">
+        <div className={`modal-content ${isUnlocked || isJudicialUnlocked ? 'tamper-danger' : ''}`}>
             <div className="modal-header"><h3>Confirm Record Update</h3></div>
             <div className="modal-body">
-              <p>Finalize changes for <strong>{formData.last_name}</strong>?</p>
+                <p>Finalize changes for <strong>{formData.last_name}</strong>?</p>
+                {!isUnlocked && (
+                    <p className="helper-text">
+                        ⚠️ <strong>Manual Override is locked.</strong> Credit fields (GCTA/TASTM) will not be saved. Unlock Manual Entry first to persist credit changes.
+                    </p>
+                )}
             </div>
             <div className="modal-actions">
-              <button className="btn-modal-cancel" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-modal-confirm" onClick={confirmUpdate}>Confirm Update</button>
+                <button className="btn-modal-cancel" onClick={() => setShowModal(false)}>Cancel</button>
+                <button className="btn-modal-confirm" onClick={confirmUpdate}>Confirm Update</button>
             </div>
-          </div>
         </div>
-      )}
+    </div>
+)}
 
       {showValidationError && (
   <div className="modal-overlay">

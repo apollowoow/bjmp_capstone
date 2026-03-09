@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, navigate  } from 'react';
 import API_BASE_URL from "../apiConfig";
 import "./education.css";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useBlocker } from 'react-router-dom';
 
 const Education = () => {
     const navigate = useNavigate();
     // --- State Management ---
     const [showSessionModal, setShowSessionModal] = useState(false);
     const rfidInputRef = useRef(null);
-    const [showGctaModal, setShowGctaModal] = useState(false);
+  
     const [isScanning, setIsScanning] = useState(false);
     const [activeSession, setActiveSession] = useState(null); 
 
@@ -28,6 +28,9 @@ const Education = () => {
 
     const [currentPage, setCurrentPage] = useState(1);
     const scansPerPage = 5;
+
+    const [showLeaveModal, setShowLeaveModal] = useState(false);
+const [pendingNavigation, setPendingNavigation] = useState(null);
 
    
 
@@ -93,7 +96,7 @@ const searchPdls = async (term) => {
 const isTypingMode =
     showManualModal ||
     showSessionModal ||
-    showGctaModal ||
+ 
     alertModal.show ||
     statusModal.show;
 
@@ -374,94 +377,57 @@ const handleAutoDecline = async (pdlId) => {
 
     // 🗑️ DISCARD/CANCEL SESSION (Rollback)
     const handleCancelSession = () => {
-    triggerAlert(
-        "Discard Session?", 
-        "This will permanently delete all attendance logs for this session. This action cannot be undone.", 
-        "danger",
-        async () => {
-            try {
-                const token = localStorage.getItem("token");
-                const response = await fetch(`${API_BASE_URL}/api/sessions/cancel/${activeSession.session_id}`, {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    // 1. Reset the UI state immediately
-                    setIsScanning(false);
-                    setActiveSession(null);
-                    setCurrentAttendees([]);
-
-                    // 2. 🎯 THE FIX: Show the "Cancelled" Success Modal
-                    // We don't call closeAlert() yet; we overwrite the current modal with a success one
-                    triggerAlert(
-                        "Session Cancelled", 
-                        "The session and all associated logs have been successfully discarded.", 
-                        "info" // Use 'info' or 'success' depending on your CSS
-                    );
-
-                    // 3. Refresh the history table if it exists
-                    if (typeof fetchPastSessions === "function") fetchPastSessions();
-                } else {
-                    triggerAlert("Error", "Could not discard the session. Please try again.", "danger");
-                }
-            } catch (err) { 
-                console.error("Discard Error:", err);
-                triggerAlert("Server Error", "Connection lost. The session may not have been deleted.", "danger");
-            }
-        }
+     triggerAlert("Discard Session?", "This will permanently delete all attendance logs for this session. This action cannot be undone.", "danger",
+        () => executeCancelSession()
     );
 };
 
-    // ⚖️ GLOBAL GCTA GRANT
-        const handleGlobalGctaGrant = async () => {
-            setShowGctaModal(false);
-            const currentDate = new Date();
-            const monthName = currentDate.toLocaleString('default', { month: 'long' });
-            const monthYear = `${currentDate.getMonth() + 1}-${currentDate.getFullYear()}`;
+const executeCancelSession = async () => {
+    try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${API_BASE_URL}/api/sessions/cancel/${activeSession.session_id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` }
+        });
 
-            try {
-                const token = localStorage.getItem("token");
-                
-                const response = await fetch(`${API_BASE_URL}/api/pdl/grant-global-gcta`, {
-                    method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}` 
-                    },
-                    body: JSON.stringify({ 
-                        days_to_grant: 20, 
-                        month_year: monthYear,
-                        remarks: monthName 
-                    })
-                });
+        if (response.ok) {
+            setIsScanning(false);
+            setActiveSession(null);
+            setCurrentAttendees([]);
+            triggerAlert("Session Cancelled", "The session and all associated logs have been successfully discarded.", "info");
+            if (typeof fetchPastSessions === "function") fetchPastSessions();
+        } else {
+            triggerAlert("Error", "Could not discard the session. Please try again.", "danger");
+        }
+    } catch (err) {
+        console.error("Discard Error:", err);
+        triggerAlert("Server Error", "Connection lost. The session may not have been deleted.", "danger");
+    }
+};
 
-                const data = await response.json();
 
-                if (!response.ok) {
-                    throw new Error(data.message || "Failed to grant GCTA");
-                }
+   
+        
+        useEffect(() => {
+    const handlePopState = (e) => {
+        if (isScanning) {
+            // Push state back to prevent actual navigation
+            window.history.pushState(null, '', window.location.href);
+            setShowLeaveModal(true);
+        }
+    };
 
-                // Instead of alert(), we set our status modal state
-                setStatusModal({
-                    show: true,
-                    message: `Success: ${data.count || 'Automated'} Monthly GCTA granted for ${monthName}.`,
-                    isError: false
-                });
-                
-                setShowGctaModal(false); // Close your input modal
+    if (isScanning) {
+        // Push a dummy state so back button triggers popstate
+        window.history.pushState(null, '', window.location.href);
+        window.addEventListener('popstate', handlePopState);
+    }
 
-            } catch (error) {
-                console.error("GCTA Grant Error:", error);
-                // Show Error Modal instead of Alert
-                setStatusModal({
-                    show: true,
-                    message: `Error: ${error.message}`,
-                    isError: true
-                });
-            }
-        };
-
+    return () => {
+        window.removeEventListener('popstate', handlePopState);
+    };
+}, [isScanning]);
+        
 useEffect(() => {
     const handleBeforeUnload = (e) => {
         if (isScanning) {
@@ -498,7 +464,7 @@ return (
                         <p>Manage Program Attendance (TASTM) and Automated Monthly Credits (GCTA).</p>
                     </div>
                     <div className="header-actions">
-                        <button className="btn-grant-gcta" onClick={() => setShowGctaModal(true)}>⚖️ Grant Monthly GCTA</button>
+                      
                         <button className="btn-primary" onClick={() => setShowSessionModal(true)}>🚀 Start Attendance Session</button>
                     </div>
                 </header>
@@ -660,21 +626,7 @@ return (
                 </div>
             )}
 
-            {showGctaModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content danger-border">
-                        <div className="modal-header"><h3 className="text-danger">⚖️ Confirm Global GCTA Grant</h3></div>
-                        <div className="modal-body">
-                            <p>Grant **20 days** of GCTA to all PDLs where <code>is_locked_for_gcta</code> is false.</p>
-                            <p className="helper-text">Recalculates release dates for all eligible records.</p>
-                        </div>
-                        <div className="modal-actions">
-                            <button className="btn-modal-cancel" onClick={() => setShowGctaModal(false)}>Cancel</button>
-                            <button className="btn-modal-confirm" onClick={handleGlobalGctaGrant}>Confirm Global Grant</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+         
 
             {isScanning && (
                 <div className="scanner-overlay">
@@ -894,6 +846,35 @@ return (
                                     }}
                                 >
                                     Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {showLeaveModal && (
+                    <div className="modal-overlay alert-z-index">
+                        <div className="modal-content alert-modal warning-border">
+                            <div className="modal-header">
+                                <h3>⚠️ Active Scanning Session</h3>
+                            </div>
+                            <div className="modal-body">
+                                <p>You have an active scanning session. Going back will discard all unsaved attendance logs.</p>
+                            </div>
+                            <div className="modal-actions">
+                                <button className="btn-modal-cancel" onClick={() => setShowLeaveModal(false)}>
+                                    Stay on Page
+                                </button>
+                                <button 
+                                    className="btn-modal-confirm danger-bg" 
+                                    onClick={() => {
+                                        setShowLeaveModal(false);
+                                        setIsScanning(false);
+                                        navigate(-1);
+                                        executeCancelSession()
+                                    }}
+                                >
+                                    Leave Anyway
                                 </button>
                             </div>
                         </div>

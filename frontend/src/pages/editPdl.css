@@ -158,6 +158,7 @@
   color: #64748b; 
   text-transform: uppercase; 
   margin-bottom: 8px;
+  margin-top: 10px;
   display: block;
 }
 
@@ -173,7 +174,13 @@
 
 .edit-pdl-scope input:focus { border-color: #0f172a; outline: none; background: #fff; }
 
-.edit-pdl-scope .triple-input { display: flex; gap: 15px; }
+.edit-pdl-scope .triple-input { display: flex; gap: 15px;  font-size: 0.75rem; 
+  font-weight: 800; 
+  color: #64748b; 
+  text-transform: uppercase; 
+  margin-bottom: 8px;
+  margin-top: 10px;
+}
 
 /* ============================================================
    MODALS & OVERLAYS
@@ -244,6 +251,7 @@
    BUTTONS
    ============================================================ */
 .edit-pdl-scope .btn-save-finalize {
+  margin-top: 10px;
   width: 100%;
   padding: 18px;
   background: #0f172a;

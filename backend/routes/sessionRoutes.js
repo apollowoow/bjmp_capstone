@@ -30,6 +30,9 @@ router.post('/start', authenticateToken, sessionCtrl.startSession);
  */
 router.post('/log-attendance', authenticateToken, sessionCtrl.logAttendance);
 
+router.post('/silent-gcta-sync', authenticateToken, sessionCtrl.silentGctaSync);
+
+
 router.delete('/remove-attendance/:session_id/:pdl_id', authenticateToken, sessionCtrl.removeAttendance);
 
 /**

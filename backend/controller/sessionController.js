@@ -259,6 +259,120 @@ const getSessionDetails = async (req, res) => {
     }
 };
 
+
+const calculateReleaseDate = (committalDate, years, months, days, totalCredits) => {
+    // 1. Create date using UTC to avoid timezone shifts
+    const d = new Date(committalDate);
+    let release = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    
+    // 2. Add Sentence Duration (Calendar-based)
+    release.setUTCFullYear(release.getUTCFullYear() + parseInt(years || 0));
+    release.setUTCMonth(release.getUTCMonth() + parseInt(months || 0));
+    release.setUTCDate(release.getUTCDate() + parseInt(days || 0));
+
+    // 3. Apply the Inclusive Day Rule (-1)
+    // Jan 26 is Day 1, so a 1-day sentence ends on Jan 26, not Jan 27.
+    release.setUTCDate(release.getUTCDate() - 1);
+
+    // 4. Subtract the Credits (GCTA + TASTM)
+    release.setUTCDate(release.getUTCDate() - parseInt(totalCredits || 0));
+
+    // 5. Return as YYYY-MM-DD
+    return release.toISOString().split('T')[0]; 
+};
+
+const silentGctaSync = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 🎯 STAGE 1: THE AUTO-UNLOCK (Penalty Expiry)
+        await client.query(`
+            UPDATE pdl_tbl SET is_locked_for_gcta = false 
+            WHERE is_locked_for_gcta = true AND pdl_id IN (
+                SELECT pdl_id FROM incident_tbl 
+                GROUP BY pdl_id HAVING MAX(penalty_end_date)::DATE <= CURRENT_DATE
+            )
+        `);
+
+        // 🎯 STAGE 2: THE AUTO-GRANT (Monthly 20-Day Credit)
+        const grantResult = await client.query(`
+            INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, date_granted, status, remarks)
+            SELECT pdl_id, DATE_TRUNC('month', CURRENT_DATE), 20, CURRENT_DATE, 'Active', 'Automated GCTA'
+            FROM pdl_tbl 
+            WHERE date_admitted_bjmp <= CURRENT_DATE - INTERVAL '1 month'
+            AND is_locked_for_gcta = false
+            AND pdl_id NOT IN (
+                SELECT pdl_id FROM gcta_days_log 
+                WHERE EXTRACT(MONTH FROM month_year) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM month_year) = EXTRACT(YEAR FROM CURRENT_DATE)
+                AND remarks ILIKE 'Automated GCTA%'
+            )
+            RETURNING pdl_id;
+        `);
+
+        // 🎯 STAGE 3: THE UPSERT (Recalculate Everything for Updated PDLs)
+        // 🎯 STAGE 3: THE UPSERT (Recalculate Everything for Updated PDLs)
+if (grantResult.rows.length > 0) {
+    for (let row of grantResult.rows) {
+        const pdlId = row.pdl_id;
+
+        // 🔍 1. Fetch details ONLY if Committal Date exists
+        const pdlData = await client.query(
+            `SELECT date_commited_pnp, sentence_years, sentence_months, sentence_days 
+             FROM pdl_tbl 
+             WHERE pdl_id = $1 AND date_commited_pnp IS NOT NULL`, 
+            [pdlId]
+        );
+
+        // If no record is returned (because it's NULL), we skip this PDL
+        if (pdlData.rows.length === 0) {
+            console.log(`[SYNC] Skipping PDL ${pdlId}: No Committal Date provided.`);
+            continue; 
+        }
+
+        const p = pdlData.rows[0];
+
+        // 🔍 2. Get the True Sum (GCTA + TASTM)
+        const sums = await client.query(
+            `SELECT 
+                (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log WHERE pdl_id = $1) as gcta,
+                (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log WHERE pdl_id = $1) as tastm`, 
+            [pdlId]
+        );
+        
+        const totalCredits = parseInt(sums.rows[0].gcta) + parseInt(sums.rows[0].tastm);
+
+        // 🧮 3. RUN THE MATH (Hitting that May 25, 2025 target)
+        const newReleaseDate = calculateReleaseDate(
+            p.date_commited_pnp, p.sentence_years, p.sentence_months, p.sentence_days, totalCredits
+        );
+
+        console.log(newReleaseDate);
+
+        // 💾 4. UPDATE PDL_TBL
+        await client.query(
+            `UPDATE pdl_tbl SET 
+                total_timeallowance_earned = $1, 
+                expected_releasedate = $2 
+             WHERE pdl_id = $3`, 
+            [totalCredits, newReleaseDate, pdlId]
+        );
+    }
+}
+
+        await client.query('COMMIT');
+        res.status(200).json({ success: true, granted: grantResult.rowCount });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("❌ Sync & Upsert Failure:", err.message);
+        res.status(500).json({ error: "Sync failed" });
+    } finally {
+        client.release();
+    }
+};
+
 // ✍️ UPDATE INDIVIDUAL ATTENDANCE HOURS (The Overtime Fix)
 const updateAttendanceHours = async (req, res) => {
     const { session_id, pdl_id, new_hours } = req.body;
@@ -284,4 +398,4 @@ const updateAttendanceHours = async (req, res) => {
 };
 
 module.exports = { startSession, logAttendance, finalizeSession, cancelSession , 
-    getSessionHistory, searchPdls, updateAttendanceHours, getSessionDetails, removeAttendance, reloadSession};
+    getSessionHistory, searchPdls, updateAttendanceHours, getSessionDetails, removeAttendance, reloadSession, silentGctaSync};

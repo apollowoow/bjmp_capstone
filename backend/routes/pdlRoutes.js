@@ -8,7 +8,7 @@ const pool = require("../db/pool");
 // ==========================
 // IMPORT CONTROLLERS
 // ==========================
-const { addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord, grantGlobalGcta} = require("../controller/pdlController");
+const { addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord, grantGlobalGcta, recalculatePdlSentence} = require("../controller/pdlController");
 
 // ==========================
 // IMPORT MIDDLEWARE
@@ -72,6 +72,7 @@ const validateRFID = async (req, res, next) => {
 // Get all PDLs
 router.get("/getall", authenticateToken, getAllPDL);
 router.get('/get/:id', authenticateToken, getPdlById);
+router.post('/recalculate/:id', authenticateToken, recalculatePdlSentence);
 
 // Add New PDL 
 // (Auth -> Upload -> Validate RFID -> Save to DB)

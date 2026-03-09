@@ -23,6 +23,34 @@ const Dashboard = () => {
   const user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : { fullname: "Officer" };
   const IDEAL_CAPACITY = 41; // 🎯 Revision requirement: Ideal Rate 
 
+
+useEffect(() => {
+    const runGctaSync = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const response = await fetch(`${API_BASE_URL}/api/sessions/silent-gcta-sync`, {
+                method: "POST",
+                headers: { 
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json" 
+                }
+            });
+            
+            const data = await response.json();
+            
+            // 💡 Pro-Tip: Only notify if an actual change occurred
+            if (data.granted > 0) {
+                // Example: triggerAlert("Monthly Update", `${data.granted} PDLs received GCTA.`, "success");
+                console.log(`[GCTA Sync] Granted credits to ${data.granted} PDLs.`);
+            }
+        } catch (err) {
+            console.error("GCTA Background Sync Error:", err);
+        }
+    };
+
+    runGctaSync();
+}, []);
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
