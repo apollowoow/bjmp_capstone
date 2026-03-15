@@ -267,3 +267,47 @@
   font-size: 0.7rem; 
   font-weight: 700;
 }
+/* --- Container for the button --- */
+.recommit-wrapper {
+  display: flex;
+  justify-content: center; /* Centers horizontally */
+  width: 100%;
+  margin-top: 1.2rem;
+}
+
+/* --- The Recommit Button --- */
+.btn-recommit {
+  /* Size & Shape */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;          /* Smaller, professional padding */
+  width: fit-content;         /* Button only grows to fit text */
+  
+  /* Style & Colors */
+  background: #6366f1;        /* Indigo */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  
+  /* Typography */
+  font-size: 0.8rem;          /* Smaller font for a "system tool" look */
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  /* Animation */
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2);
+}
+
+.btn-recommit:hover {
+  background: #4f46e5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.btn-recommit:active {
+  transform: translateY(0);
+}

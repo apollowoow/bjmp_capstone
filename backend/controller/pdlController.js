@@ -56,6 +56,119 @@ const getAllPDL = async (req, res) => {
 };
 
 
+const getReleasedPdls = async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                r.release_id, 
+                r.pdl_id, 
+                r.first_name, 
+                r.middle_name, 
+                r.last_name, 
+                r.birthday,
+                r.gender,
+                'Released' as pdl_status, 
+                r.crime_name,
+                r.sentence_years,
+                r.sentence_months,
+                r.sentence_days,
+                r.actual_release_date as expected_releasedate,
+                r.total_credits_applied as total_timeallowance_earned,
+                p.pdl_picture
+            FROM released_tbl r
+            LEFT JOIN pdl_tbl p ON r.pdl_id = p.pdl_id
+            ORDER BY r.actual_release_date DESC
+        `;
+
+        const result = await pool.query(query);
+
+        // 🎯 MAP RESULTS: Construct the dynamic photo URL
+        const pdlsWithFullPhotoUrl = result.rows.map(pdl => {
+            return {
+                ...pdl,
+                // Automatically builds http://192.168.x.x:5000/public/uploads/file.png
+                pdl_picture: pdl.pdl_picture 
+                    ? `${req.protocol}://${req.get('host')}/public/uploads/${pdl.pdl_picture}`
+                    : null 
+            };
+        });
+
+        res.status(200).json(pdlsWithFullPhotoUrl);
+    } catch (err) {
+        console.error("Error fetching released PDLs:", err.message);
+        res.status(500).json({ error: "Failed to fetch archive records." });
+    }
+};
+
+
+const getReleasedPdlById = async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+
+    try {
+        // 1. Fetch the Archived Stay Snapshot
+        const profileQuery = `
+            SELECT 
+                r.*, 
+                p.pdl_picture,
+                'Released' as pdl_status
+            FROM released_tbl r
+            LEFT JOIN pdl_tbl p ON r.pdl_id = p.pdl_id
+            WHERE r.pdl_id = $1
+            ORDER BY r.actual_release_date DESC LIMIT 1
+        `;
+        const profileResult = await client.query(profileQuery, [id]);
+
+        if (profileResult.rows.length === 0) {
+            return res.status(404).json({ error: "No archived record found." });
+        }
+
+        const pdl = profileResult.rows[0];
+        const startDate = pdl.date_admitted_bjmp;
+        const endDate = pdl.actual_release_date;
+
+        // 2. Fetch GCTA Logs filtered by Stay Dates
+        // Logic: Only logs that happened between admission and release
+        const gctaLogs = await client.query(
+            `SELECT * FROM gcta_days_log 
+             WHERE pdl_id = $1 
+             AND month_year >= $2 
+             AND month_year <= $3 
+             ORDER BY month_year DESC`, 
+            [id, startDate, endDate]
+        );
+
+        // 3. Fetch TASTM Logs filtered by Stay Dates
+        const tastmLogs = await client.query(
+            `SELECT * FROM tastm_days_log 
+             WHERE pdl_id = $1 
+             AND month_year >= $2 
+             AND month_year <= $3 
+             ORDER BY month_year DESC`, 
+            [id, startDate, endDate]
+        );
+
+        // 4. Construct Final Response
+        const fullData = {
+            ...pdl,
+            pdl_picture: pdl.pdl_picture 
+                ? `${req.protocol}://${req.get('host')}/public/uploads/${pdl.pdl_picture}`
+                : null,
+            gcta_history: gctaLogs.rows,
+            tastm_history: tastmLogs.rows,
+            is_archived_view: true // Helper flag for frontend
+        };
+
+        res.status(200).json(fullData);
+
+    } catch (err) {
+        console.error("Archive Fetch Error:", err.message);
+        res.status(500).json({ error: "Server error fetching historical logs." });
+    } finally {
+        client.release();
+    }
+};
+
 
 const grantGlobalGcta = async (req, res) => {
     const { days_to_grant, month_year, remarks } = req.body;
@@ -202,7 +315,7 @@ const getPdlById = async (req, res) => {
         // This will tell you if the DB is sending a valid Date object, a string, or null
         console.log(`--- [DEBUG] PDL ID: ${id} ---`);
         console.log("Committal Date (PNP):", pdl.date_admitted_bjmp);
-        console.log("Type of date:", typeof pdl.date_adm);
+ 
 
         const gctaLogs = await client.query(
             "SELECT * FROM gcta_days_log WHERE pdl_id = $1 ORDER BY month_year DESC", [id]
@@ -596,4 +709,213 @@ const updatePdlJudicialRecord = async (req, res) => {
     }
 };
 
-module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord, grantGlobalGcta, recalculatePdlSentence};
+
+ const updatePersonalInfo = async (req, res) => {
+  const { id } = req.params;
+  const { 
+    first_name, 
+    last_name, 
+    middle_name, 
+    gender, 
+    birthday, 
+    case_number, 
+    crime_name, 
+    date_admitted_bjmp 
+  } = req.body;
+
+  try {
+    // 1. Determine if a new photo path exists
+    // Since your storage destination is 'public/uploads/', 
+    // the accessible URL path is usually /uploads/filename
+    const newPhotoPath = req.file ? `${req.file.filename}` : null;
+
+    const query = `
+      UPDATE pdl_tbl 
+      SET 
+        first_name = $1,
+        last_name = $2,
+        middle_name = $3,
+        gender = $4,
+        birthday = $5,
+        case_number = $6,
+        crime_name = $7,
+        date_admitted_bjmp = $8,
+        pdl_picture = COALESCE($9, pdl_picture),
+        updated_at = NOW()
+      WHERE pdl_id = $10
+      RETURNING *;
+    `;
+
+    const values = [
+      first_name,
+      last_name,
+      middle_name,
+      gender,
+      birthday,
+      case_number,
+      crime_name,
+      date_admitted_bjmp,
+      newPhotoPath, // If null, COALESCE keeps the old picture
+      id
+    ];
+
+    const result = await pool.query(query, values);
+
+   
+    if (result.rowCount === 0) {
+      // 🛡️ Cleanup: If DB fails but file was uploaded, delete it
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: "PDL Record not found." });
+    }
+
+    res.status(200).json({ 
+      message: "Personal Information successfully synchronized.", 
+      pdl: result.rows[0] 
+    });
+
+  } catch (err) {
+    console.error("❌ Update Personal Info Error:", err.message);
+    // 🛡️ Cleanup uploaded file on server error
+    if (req.file) fs.unlinkSync(req.file.path);
+    res.status(500).json({ error: "Internal Database Error" });
+  }
+};
+
+const recommitPDL = async (req, res) => {
+  const { id } = req.params;
+    
+    // Destructure based on the mapping we used in the Frontend FormData
+    const {
+        case_status,      // This will update the pdl_status column
+        caseNumber,
+        caseName,
+        admissionDate,
+        rfidNumber,
+        date_commited_pnp,
+        sentence_years,
+        sentence_months,
+        sentence_days
+    } = req.body;
+
+    try {
+        const newPhotoPath = req.file ? `/uploads/${req.file.filename}` : null;
+
+        // 🎯 THE RESET QUERY
+        // We use case_status to set the new pdl_status
+        const query = `
+            UPDATE pdl_tbl 
+            SET 
+                pdl_status = $1,               -- This handles both Case/PDL status
+                case_number = $2,
+                crime_name = $3,
+                date_admitted_bjmp = $4,
+                rfid_number = $5,
+                date_commited_pnp = $6,
+                sentence_years = $7,
+                sentence_months = $8,
+                sentence_days = $9,
+                pdl_picture = COALESCE($10, pdl_picture),
+                
+                -- 📉 RESET TRACKING: New case starts at zero credits
+                total_timeallowance_earned = 0,
+                updated_at = NOW()
+            WHERE pdl_id = $11
+            RETURNING *;
+        `;
+
+        const values = [
+            case_status || 'Detained',         // Default to Detained if empty
+            caseNumber,
+            caseName,
+            admissionDate,
+            rfidNumber,
+            date_commited_pnp || null,
+            parseInt(sentence_years) || 0,
+            parseInt(sentence_months) || 0,
+            parseInt(sentence_days) || 0,
+            newPhotoPath,
+            id
+        ];
+
+        const result = await pool.query(query, values);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Record not found." });
+        }
+
+        res.status(200).json({ 
+            message: "Recommitment Successful. New legal timeline initialized.", 
+            pdl: result.rows[0] 
+        });
+        
+
+    } catch (err) {
+        console.error("❌ Backend Recommit Error:", err.message);
+        res.status(500).json({ error: "Database failed to initialize recommitment." });
+    }
+};
+
+const releasePdl = async (req, res) => {
+    const { id } = req.params;
+    const { actual_release_date } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // 1. Fetch current data for the snapshot
+        const pdlResult = await client.query(
+            "SELECT * FROM pdl_tbl WHERE pdl_id = $1", [id]
+        );
+        
+        if (pdlResult.rows.length === 0) throw new Error("PDL not found.");
+        const p = pdlResult.rows[0];
+
+        // 2. INSERT into released_tbl (The History Snapshot)
+        await client.query(`
+        INSERT INTO released_tbl (
+            pdl_id, first_name, last_name, middle_name, birthday, gender,
+            crime_name, sentence_years, sentence_months, sentence_days,
+            total_credits_applied, date_commited_pnp, 
+            date_admitted_bjmp, 
+            actual_release_date
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+        [
+            p.pdl_id, p.first_name, p.last_name, p.middle_name, p.birthday, p.gender,
+            p.crime_name, p.sentence_years, p.sentence_months, p.sentence_days,
+            p.total_timeallowance_earned, p.date_commited_pnp, 
+            p.date_admitted_bjmp,
+            actual_release_date
+        ]
+    );
+
+        // 3. WIPE/RESET pdl_tbl (Clear judicial data for future recommitment)
+        await client.query(`
+            UPDATE pdl_tbl SET 
+                pdl_status = 'Released',
+                rfid_number = NULL, 
+                date_commited_pnp = NULL,
+                sentence_years = 0, 
+                sentence_months = 0, 
+                sentence_days = 0,
+                total_timeallowance_earned = 0,
+                expected_releasedate = NULL,
+               
+            
+                updated_at = NOW()
+            WHERE pdl_id = $1`, [id]);
+
+        await client.query('COMMIT');
+        res.status(200).json({ success: true, message: "Archive created and profile reset." });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("Release Error:", err.message);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+};
+
+module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord, grantGlobalGcta, recalculatePdlSentence, releasePdl, 
+    getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL};

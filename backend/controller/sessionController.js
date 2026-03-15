@@ -286,88 +286,87 @@ const silentGctaSync = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 🎯 STAGE 1: THE AUTO-UNLOCK (Penalty Expiry)
+        // 🎯 STAGE 1: THE AUTO-UNLOCK
         await client.query(`
             UPDATE pdl_tbl SET is_locked_for_gcta = false 
-            WHERE is_locked_for_gcta = true AND pdl_id IN (
+            WHERE is_locked_for_gcta = true 
+            AND pdl_status NOT IN ('Released', 'Escaped', 'Deceased')
+            AND pdl_id IN (
                 SELECT pdl_id FROM incident_tbl 
                 GROUP BY pdl_id HAVING MAX(penalty_end_date)::DATE <= CURRENT_DATE
             )
         `);
 
-        // 🎯 STAGE 2: THE AUTO-GRANT (Monthly 20-Day Credit)
+        // 🎯 STAGE 2: THE AUTO-GRANT
         const grantResult = await client.query(`
             INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, date_granted, status, remarks)
             SELECT pdl_id, DATE_TRUNC('month', CURRENT_DATE), 20, CURRENT_DATE, 'Active', 'Automated GCTA'
             FROM pdl_tbl 
-            WHERE date_admitted_bjmp <= CURRENT_DATE - INTERVAL '1 month'
+            WHERE pdl_status NOT IN ('Released', 'Escaped', 'Deceased')
+            AND date_admitted_bjmp <= CURRENT_DATE - INTERVAL '1 month'
             AND is_locked_for_gcta = false
             AND pdl_id NOT IN (
                 SELECT pdl_id FROM gcta_days_log 
-                WHERE EXTRACT(MONTH FROM month_year) = EXTRACT(MONTH FROM CURRENT_DATE)
-                AND EXTRACT(YEAR FROM month_year) = EXTRACT(YEAR FROM CURRENT_DATE)
+                WHERE DATE_TRUNC('month', month_year) = DATE_TRUNC('month', CURRENT_DATE)
                 AND remarks ILIKE 'Automated GCTA%'
             )
             RETURNING pdl_id;
         `);
 
-        // 🎯 STAGE 3: THE UPSERT (Recalculate Everything for Updated PDLs)
-        // 🎯 STAGE 3: THE UPSERT (Recalculate Everything for Updated PDLs)
-if (grantResult.rows.length > 0) {
-    for (let row of grantResult.rows) {
-        const pdlId = row.pdl_id;
+        // 🎯 STAGE 3: THE UPSERT
+        if (grantResult.rows.length > 0) {
+            for (let row of grantResult.rows) {
+                const pdlId = row.pdl_id;
 
-        // 🔍 1. Fetch details ONLY if Committal Date exists
-        const pdlData = await client.query(
-            `SELECT date_commited_pnp, sentence_years, sentence_months, sentence_days 
-             FROM pdl_tbl 
-             WHERE pdl_id = $1 AND date_commited_pnp IS NOT NULL`, 
-            [pdlId]
-        );
+                // 🔍 1. Fetch details with Status Guard
+                const pdlData = await client.query(
+                    `SELECT date_commited_pnp, date_admitted_bjmp, sentence_years, sentence_months, sentence_days 
+                     FROM pdl_tbl 
+                     WHERE pdl_id = $1 
+                     AND date_commited_pnp IS NOT NULL 
+                     AND pdl_status NOT IN ('Released', 'Escaped', 'Deceased')`,
+                    [pdlId]
+                );
 
-        // If no record is returned (because it's NULL), we skip this PDL
-        if (pdlData.rows.length === 0) {
-            console.log(`[SYNC] Skipping PDL ${pdlId}: No Committal Date provided.`);
-            continue; 
+                if (pdlData.rows.length === 0) continue; 
+
+                const p = pdlData.rows[0];
+
+                // 🔍 2. Fixed Summation Query (Removed Syntax Ambiguity)
+                const sums = await client.query(
+                    `SELECT 
+                        (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log 
+                         WHERE pdl_id = $1 AND date_granted >= $2) AS gcta_sum,
+                        (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log 
+                         WHERE pdl_id = $1 AND date_granted >= $2) AS tastm_sum`, 
+                    [pdlId, p.date_admitted_bjmp]
+                );
+                
+                const totalCredits = parseInt(sums.rows[0].gcta_sum) + parseInt(sums.rows[0].tastm_sum);
+
+                // 🧮 3. RUN THE MATH
+                const newReleaseDate = calculateReleaseDate(
+                    p.date_commited_pnp, p.sentence_years, p.sentence_months, p.sentence_days, totalCredits
+                );
+
+                // 💾 4. UPDATE PDL_TBL
+                await client.query(
+                    `UPDATE pdl_tbl SET 
+                        total_timeallowance_earned = $1, 
+                        expected_releasedate = $2 
+                     WHERE pdl_id = $3`, 
+                    [totalCredits, newReleaseDate, pdlId]
+                );
+            }
         }
-
-        const p = pdlData.rows[0];
-
-        // 🔍 2. Get the True Sum (GCTA + TASTM)
-        const sums = await client.query(
-            `SELECT 
-                (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log WHERE pdl_id = $1) as gcta,
-                (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log WHERE pdl_id = $1) as tastm`, 
-            [pdlId]
-        );
-        
-        const totalCredits = parseInt(sums.rows[0].gcta) + parseInt(sums.rows[0].tastm);
-
-        // 🧮 3. RUN THE MATH (Hitting that May 25, 2025 target)
-        const newReleaseDate = calculateReleaseDate(
-            p.date_commited_pnp, p.sentence_years, p.sentence_months, p.sentence_days, totalCredits
-        );
-
-        console.log(newReleaseDate);
-
-        // 💾 4. UPDATE PDL_TBL
-        await client.query(
-            `UPDATE pdl_tbl SET 
-                total_timeallowance_earned = $1, 
-                expected_releasedate = $2 
-             WHERE pdl_id = $3`, 
-            [totalCredits, newReleaseDate, pdlId]
-        );
-    }
-}
 
         await client.query('COMMIT');
         res.status(200).json({ success: true, granted: grantResult.rowCount });
 
     } catch (err) {
         await client.query('ROLLBACK');
-        console.error("❌ Sync & Upsert Failure:", err.message);
-        res.status(500).json({ error: "Sync failed" });
+        console.error("❌ Sync Failure:", err.message);
+        res.status(500).json({ error: "Sync failed", details: err.message });
     } finally {
         client.release();
     }

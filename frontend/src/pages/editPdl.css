@@ -79,8 +79,8 @@
 
 .edit-pdl-scope .rfid-tag-locked span { display: block; color: white; font-weight: 700; font-size: 0.9rem; }
 
-.edit-pdl-scope .id-details h1 { font-size: 1.5rem; margin-bottom: 5px; color: #0f172a; }
-.edit-pdl-scope .jail-id { font-size: 0.85rem; color: #64748b; margin-bottom: 20px; }
+.edit-pdl-scope .id-details h1 { font-size: 1.5rem; margin-bottom: 5px; color: #0f172a; text-align: center;}
+.edit-pdl-scope .jail-id { font-size: 0.85rem; color: #64748b; margin-bottom: 20px; text-align: center;}
 
 .edit-pdl-scope .spec { 
   display: flex; 
@@ -380,4 +380,218 @@
     cursor: pointer !important;
 }
 
+.upload-placeholder {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+.upload-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: inherit;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.change-photo-btn {
+  position: absolute;
+  bottom: 50px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  width: fit-content;
+  align-self: center;
+}
+
+/* Add Photo */
+.change-photo-btn[title="Add photo"] {
+  background: #e8f0fe;
+  color: #1a56db;
+  border: 1.5px dashed #1a56db;
+}
+
+.change-photo-btn[title="Add photo"]:hover {
+  background: #d0e2ff;
+  transform: scale(1.02);
+}
+
+/* Edit Photo */
+.change-photo-btn[title="Change photo"] {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1.5px solid #16a34a;
+}
+
+.change-photo-btn[title="Change photo"]:hover {
+  background: #dcfce7;
+  transform: scale(1.02);
+}
+
+.spec input,
+.spec select {
+  text-align: end;
+  border: none;
+  border-bottom: 1.5px solid #1a56db;
+  border-radius: 0;
+  padding: 2px 4px;
+  margin-left: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  color: inherit;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+.spec input:focus,
+.spec select:focus {
+  border-bottom-color: #2563eb;
+}
+
 .edit-pdl-scope .btn-save-finalize:hover { background: #1e293b; }
+.edit-specs-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1.5px solid #1a56db;
+  background: #e8f0fe;
+  color: #1a56db;
+  cursor: pointer;
+  margin-bottom: 6px;
+  margin-left: auto;
+  transition: background 0.2s, transform 0.1s;
+}
+.edit-specs-btn.editing {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.edit-specs-btn:hover {
+  transform: scale(1.02);
+}
+
+.submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  background: #1a56db;
+  color: #fff;
+  cursor: pointer;
+  margin-top: 12px;
+  width: 100%;
+  letter-spacing: 0.04em;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(26, 86, 219, 0.25);
+}
+
+.submit-btn:hover {
+  background: #1e40af;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 86, 219, 0.35);
+}
+
+.submit-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(26, 86, 219, 0.2);
+}
+
+.pdl-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6); /* Slightly darker for better focus */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* Higher z-index to stay above navbars/headers */
+  padding: 1rem;
+  backdrop-filter: blur(2px); /* Softens the background */
+}
+
+/* 2. The Card (Renamed from .pdl-modal to .pdl-modal-card) */
+.pdl-modal-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 2.5rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center; /* Centers the icon and text */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  animation: modalPopUp 0.2s ease-out;
+}
+
+/* 3. The Details */
+.modal-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.pdl-modal-card h3 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.pdl-modal-card p {
+  margin: 0 0 1.5rem;
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.6;
+}
+
+/* 4. The Button */
+.modal-close-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #1e293b; /* Dark BJMP-style blue */
+  color: white;
+  transition: all 0.2s;
+}
+
+.modal-close-btn:hover {
+  background: #334155;
+  transform: translateY(-1px);
+}
+
+/* 5. Color coding for variants */
+.pdl-modal-card.error { border-top: 5px solid #ef4444; }
+.pdl-modal-card.success { border-top: 5px solid #10b981; }
+.pdl-modal-card.warning { border-top: 5px solid #f59e0b; }
+
+@keyframes modalPopUp {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

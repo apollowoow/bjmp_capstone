@@ -6,6 +6,7 @@ import "./pdlList.css";
 const PdlList = () => {
   const navigate = useNavigate();
   const [pdlList, setPdlList] = useState([]);
+  const [releasedList, setReleasedList] = useState([]);
   const [filteredList, setFilteredList] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -21,7 +22,7 @@ const PdlList = () => {
 
   useEffect(() => {
     fetchPDLs();
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
     filterResults();
@@ -29,30 +30,31 @@ const PdlList = () => {
   }, [searchTerm, statusFilter, pdlList]);
 
   const fetchPDLs = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/api/pdl/getall`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error(`Server error: ${response.status}`);
-      const data = await response.json();
+  try {
+    setLoading(true);
+    setPdlList([]); // 🧹 Clear old data so the user doesn't see "Detained" while loading "Released"
+    
+    const token = localStorage.getItem("token");
+    const endpoint = statusFilter === "Released" 
+      ? `${API_BASE_URL}/api/pdl/releaseall` 
+      : `${API_BASE_URL}/api/pdl/getall`;
 
-      
-console.log("--- PDL BACKEND DATA ---");
-    console.log("Raw Data Array:", data);
-    if (data.length > 0) {
-      console.log("First Item Picture Field:", data[0].pdl_picture);
-      console.log("Full Image URL Example:", `${API_BASE_URL}/public/uploads/${data[0].pdl_picture}`);
-    }
-      setPdlList(data);
-      
-    } catch (error) {
-      console.error("Fetch Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const response = await fetch(endpoint, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+    const data = await response.json();
+
+    setPdlList(data);
+    console.log(pdlList)
+
+  } catch (error) {
+    console.error("Fetch Error:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const filterResults = () => {
     let temp = pdlList;
@@ -115,6 +117,7 @@ console.log("--- PDL BACKEND DATA ---");
             <option value="All">All Legal Statuses</option>
             <option value="Detained">Detained (Pending)</option>
             <option value="Sentenced">Sentenced (Convicted)</option>
+            <option value="Released">Released</option>
           </select>
         </div>
 
@@ -141,6 +144,7 @@ console.log("--- PDL BACKEND DATA ---");
                       return (
                         <tr key={pdl.pdl_id}>
                           <td className="identity-cell">
+                            
                             <img 
                               src={pdl.pdl_picture || DEFAULT_AVATAR} 
                               alt="Profile"

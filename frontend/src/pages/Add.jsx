@@ -1,12 +1,15 @@
-import React, { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import API_BASE_URL from "../apiConfig";
 import "./add.css";
 
 const Add = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const fileInputRef = useRef(null);
-  
+  const queryParams = new URLSearchParams(location.search);
+  const recommitId = queryParams.get("recommitId");
+
   // 1. 🛡️ REF for Hardware Speed Check
   const lastKeyTime = useRef(Date.now());
 
@@ -35,6 +38,50 @@ const Add = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [alertModal, setAlertModal] = useState({ show: false, title: "", message: "", type: "warning" });
+
+  useEffect(() => {
+
+    if (recommitId) {
+      console.log("🎯 Recommit Mode Active for PDL ID:", recommitId);
+      fetchPdlForRecommit(recommitId);
+   
+    }
+  }, [recommitId]);
+
+
+  const fetchPdlForRecommit = async (id) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE_URL}/api/pdl/get/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        // Pre-fill identity fields but keep legal fields empty for the new case
+        setFormData(prev => ({
+          ...prev,
+          firstName: data.first_name,
+          lastName: data.last_name,
+          middleName: data.middle_name || "",
+          birthday: data.birthday ? data.birthday.split('T')[0] : "",
+          gender: data.gender,
+          rfidNumber: data.rfid_number || ""
+        }));
+
+        if (data.pdl_picture) {
+          const fullImageUrl = data.pdl_picture.startsWith('http') 
+            ? data.pdl_picture 
+            : `${API_BASE_URL}${data.pdl_picture}`;
+            
+          setPreviewUrl(fullImageUrl);
+
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch PDL for recommitment:", error);
+    }
+  };
 
  const handleChange = (e) => {
   const { name, value } = e.target;
@@ -175,8 +222,9 @@ const handleRfidKeyDown = (e) => {
     // 3. ⚠️ SOFT WARNINGS (Information for the Confirm Modal)
     const warnings = [];
     if (!formData.middleName.trim()) warnings.push("Middle Name is missing.");
-    if (!selectedFile) warnings.push("Profile photo is missing.");
-
+   if (!selectedFile && !previewUrl) {
+      warnings.push("Profile photo is missing.");
+    }
     if (formData.caseStatus === "Sentenced") {
       const years = parseInt(formData.sentenceYears) || 0;
       const months = parseInt(formData.sentenceMonths) || 0;
@@ -193,7 +241,7 @@ const handleRfidKeyDown = (e) => {
 
   const confirmSave = async () => {
     setShowConfirmModal(false);
-    setMessage("📡 Syncing with BJMP Database...");
+    setMessage(recommitId ? "♻️ Recommitting..." : "📡 Registering...");
 
     const dataToSend = new FormData();
     Object.keys(formData).forEach((key) => {
@@ -204,24 +252,28 @@ const handleRfidKeyDown = (e) => {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/api/pdl`, {
-        method: "POST",
+      const url = recommitId ? `${API_BASE_URL}/api/pdl/recommit/${recommitId}` : `${API_BASE_URL}/api/pdl`;
+      const method = recommitId ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { Authorization: `Bearer ${token}` },
         body: dataToSend,
       });
 
-      const data = await response.json();
       if (response.ok) {
-        setMessage(`✅ Registered: ${formData.firstName} ${formData.lastName}`);
-        setFormData(initialFormState);
-        setPreviewUrl(null);
-        setSelectedFile(null);
+        setAlertModal({
+          show: true,
+          title: "Success",
+          message: recommitId ? "PDL Recommitted successfully." : "New PDL registered.",
+          type: "success"
+        });
+        setTimeout(() => navigate(recommitId ? `/profile/${recommitId}` : "/pdl"), 2000);
       } else {
-        setMessage(`❌ Error: ${data.error}`);
+        const err = await response.json();
+        setMessage(`❌ Error: ${err.error}`);
       }
-    } catch (error) {
-      setMessage("❌ Failed to reach server.");
-    }
+    } catch (error) { setMessage("❌ Connection failed."); }
   };
 
   return (
@@ -247,23 +299,34 @@ const handleRfidKeyDown = (e) => {
                 <div className="pdl-add__file-wrapper">
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} id="pdl-photo-input" />
                   <label htmlFor="pdl-photo-input" className="pdl-add__file-button">📸 {selectedFile ? "Change Photo" : "Upload Photo"}</label>
-                </div>
+                </div>    
               </div>
             </div>
           </section>
 
           <h3 className="pdl-add__section-title">1. Personal Identification</h3>
-          <div className="pdl-add__group"><label className="pdl-add__label">First Name</label><input className="pdl-add__input" name="firstName" value={formData.firstName} onChange={handleChange} required /></div>
-          <div className="pdl-add__group"><label className="pdl-add__label">Last Name</label><input className="pdl-add__input" name="lastName" value={formData.lastName} onChange={handleChange} required /></div>
-          <div className="pdl-add__group"><label className="pdl-add__label">Middle Name</label><input className="pdl-add__input" name="middleName" value={formData.middleName} onChange={handleChange} /></div>
-          <div className="pdl-add__group"><label className="pdl-add__label">Date of Birth</label><input type="date" className="pdl-add__input" name="birthday" value={formData.birthday} onChange={handleChange} required /></div>
+          <div className="pdl-add__group"><label className="pdl-add__label">First Name</label><input className="pdl-add__input" name="firstName" 
+          readOnly={!!recommitId} value={formData.firstName} onChange={handleChange} style={recommitId ? { backgroundColor: "#f1f5f9", cursor: "not-allowed", color: "#64748b" } : {}} required /></div>
+          <div className="pdl-add__group"><label className="pdl-add__label">Last Name</label><input className="pdl-add__input" name="lastName" 
+          readOnly={!!recommitId} value={formData.lastName} onChange={handleChange} style={recommitId ? { backgroundColor: "#f1f5f9", cursor: "not-allowed", color: "#64748b" } : {}} required /></div>
+          <div className="pdl-add__group"><label className="pdl-add__label">Middle Name</label><input className="pdl-add__input" name="middleName" 
+          readOnly={!!recommitId} value={formData.middleName} style={recommitId ? { backgroundColor: "#f1f5f9", cursor: "not-allowed", color: "#64748b" } : {}} onChange={handleChange} /></div>
+          <div className="pdl-add__group"><label className="pdl-add__label">Date of Birth</label><input type="date" className="pdl-add__input" 
+          readOnly={!!recommitId} style={recommitId ? { backgroundColor: "#f1f5f9", cursor: "not-allowed", color: "#64748b" } : {}} name="birthday" value={formData.birthday} onChange={handleChange} required /></div>
           <div className="pdl-add__group">
             <label className="pdl-add__label">Gender</label>
-            <select className="pdl-add__input" name="gender" value={formData.gender} onChange={handleChange} required>
-              <option value="">-- Select --</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
+            <select 
+                className="pdl-add__input" 
+                name="gender" 
+                value={formData.gender} 
+                onChange={handleChange} 
+                required
+                disabled={!!recommitId} // 🔒 Standard HTML lock
+                style={recommitId ? { backgroundColor: "#f1f5f9" } : {}}
+              >
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
           </div>
           
           <div className="pdl-add__group">
@@ -332,7 +395,9 @@ const handleRfidKeyDown = (e) => {
             </>
           )}
 
-          <button type="submit" className="pdl-add__submit-btn">Register New PDL Record</button>
+          <button type="submit" className="pdl-add__submit-btn">
+  {recommitId ? "♻️ Finalize Recommitment" : "📝 Register New PDL Record"}
+</button>
           {message && <div className={`pdl-add__status ${message.includes('❌') ? 'error' : ''}`}>{message}</div>}
         </form>
       </div>

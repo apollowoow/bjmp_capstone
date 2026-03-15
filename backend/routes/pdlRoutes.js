@@ -8,7 +8,8 @@ const pool = require("../db/pool");
 // ==========================
 // IMPORT CONTROLLERS
 // ==========================
-const { addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord, grantGlobalGcta, recalculatePdlSentence} = require("../controller/pdlController");
+const { addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord, grantGlobalGcta, 
+  recalculatePdlSentence, releasePdl, getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL} = require("../controller/pdlController");
 
 // ==========================
 // IMPORT MIDDLEWARE
@@ -73,6 +74,12 @@ const validateRFID = async (req, res, next) => {
 router.get("/getall", authenticateToken, getAllPDL);
 router.get('/get/:id', authenticateToken, getPdlById);
 router.post('/recalculate/:id', authenticateToken, recalculatePdlSentence);
+router.put(
+  '/recommit/:id', 
+  authenticateToken, 
+  upload.single('profile_photo'), 
+  recommitPDL
+);
 
 // Add New PDL 
 // (Auth -> Upload -> Validate RFID -> Save to DB)
@@ -80,6 +87,15 @@ router.post("/", authenticateToken, upload.single("profile_photo"), validateRFID
 router.put("/update/:id", authenticateToken, updatePdlJudicialRecord);
 
 router.post("/grant-global-gcta", authenticateToken, grantGlobalGcta);
+router.post("/release/:id", authenticateToken, releasePdl);
+router.get("/releaseall", authenticateToken, getReleasedPdls);
+router.get('/getrelease/:id', authenticateToken, getReleasedPdlById);
+router.put(
+  '/update-personal/:id', 
+  authenticateToken, 
+  upload.single('profile_photo'), 
+  updatePersonalInfo
+);
 
 
 

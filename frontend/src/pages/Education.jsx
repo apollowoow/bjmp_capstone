@@ -145,6 +145,18 @@ useEffect(() => {
             return triggerAlert("Double Entry", "This PDL is already on the list.", "warning");
         }
 
+        if (response.status === 403) {
+            setShowManualModal(false);
+                return triggerAlert("Access Denied: This PDL is currently barred from earning credits due to a disciplinary record.", "warning");
+            }
+
+        if (response.status === 403) {
+            setScannedPdl(data); 
+            setShowManualModal(false);
+            setManualSearchTerm("");
+            setPdlResults([]);
+        }
+
         if (response.ok) {
             setScannedPdl(data); // Shows the Face Match card for verification
             setShowManualModal(false);

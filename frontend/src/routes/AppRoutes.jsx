@@ -29,6 +29,7 @@ const AppRoutes = () => {
            <Route path="/addUser" element={<AddUser />} />
            <Route path="/pdl" element={<PDLList />} />
            <Route path="/profile/:id" element={<Profile />} />
+           <Route path="/recommit/:id" element={<Add />} />
 
            {/* 👇 2. ADD THE DYNAMIC EDIT ROUTE */}
            <Route path="/edit/:id" element={<EditPdl />} />
