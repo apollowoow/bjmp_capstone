@@ -47,7 +47,6 @@ const PdlList = () => {
     const data = await response.json();
 
     setPdlList(data);
-    console.log(pdlList)
 
   } catch (error) {
     console.error("Fetch Error:", error);
@@ -175,7 +174,18 @@ const PdlList = () => {
                             </span>
                           </td>
                           <td>
-                            <button className="btn-view" onClick={() => navigate(`/profile/${pdl.pdl_id}`)}>
+                            <button 
+                              className="btn-view" 
+                              onClick={() => {
+                                // If status is 'Released', we add a flag to the URL
+                                const isReleased = pdl.pdl_status === 'Released';
+                                const path = isReleased 
+                                  ? `/profile/${pdl.release_id}?type=released` 
+                                  : `/profile/${pdl.pdl_id}`;
+                                
+                                navigate(path);
+                              }}
+                            >
                               Analyze
                             </button>
                           </td>

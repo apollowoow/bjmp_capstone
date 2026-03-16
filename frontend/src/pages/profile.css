@@ -302,6 +302,26 @@
   box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2);
 }
 
+.recommit-disabled-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #f8fafc; /* Very light slate */
+    border: 1px solid #e2e8f0;
+    padding: 12px;
+    border-radius: 8px;
+    color: #64748b;
+    font-size: 13px;
+    text-align: center;
+}
+
+.recommit-disabled-msg strong {
+    color: #475569;
+    display: block;
+    margin-bottom: 4px;
+}
+
+
 .btn-recommit:hover {
   background: #4f46e5;
   transform: translateY(-1px);

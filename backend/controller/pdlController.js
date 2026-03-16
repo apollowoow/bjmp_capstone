@@ -102,20 +102,19 @@ const getReleasedPdls = async (req, res) => {
 
 
 const getReleasedPdlById = async (req, res) => {
-    const { id } = req.params;
+    const { id } = req.params; // This is the release_id
     const client = await pool.connect();
 
     try {
-        // 1. Fetch the Archived Stay Snapshot
+        // 1. Fetch the exact Archived Stay using release_id
         const profileQuery = `
             SELECT 
                 r.*, 
                 p.pdl_picture,
-                'Released' as pdl_status
+                p.pdl_status AS current_live_status -- 🕵️‍♂️ Get their REAL-TIME status
             FROM released_tbl r
             LEFT JOIN pdl_tbl p ON r.pdl_id = p.pdl_id
-            WHERE r.pdl_id = $1
-            ORDER BY r.actual_release_date DESC LIMIT 1
+            WHERE r.release_id = $1
         `;
         const profileResult = await client.query(profileQuery, [id]);
 
@@ -124,40 +123,37 @@ const getReleasedPdlById = async (req, res) => {
         }
 
         const pdl = profileResult.rows[0];
+        const pdl_id = pdl.pdl_id;
         const startDate = pdl.date_admitted_bjmp;
         const endDate = pdl.actual_release_date;
 
-        // 2. Fetch GCTA Logs filtered by Stay Dates
-        // Logic: Only logs that happened between admission and release
+        // 2. Fetch GCTA Logs (Stay-Bound)
         const gctaLogs = await client.query(
             `SELECT * FROM gcta_days_log 
-             WHERE pdl_id = $1 
-             AND month_year >= $2 
-             AND month_year <= $3 
-             ORDER BY month_year DESC`, 
-            [id, startDate, endDate]
+             WHERE pdl_id = $1 AND date_granted >= $2 AND date_granted <= $3 
+             ORDER BY date_granted DESC`, 
+            [pdl_id, startDate, endDate]
         );
 
-        // 3. Fetch TASTM Logs filtered by Stay Dates
+        // 3. Fetch TASTM Logs (Stay-Bound)
         const tastmLogs = await client.query(
             `SELECT * FROM tastm_days_log 
-             WHERE pdl_id = $1 
-             AND month_year >= $2 
-             AND month_year <= $3 
-             ORDER BY month_year DESC`, 
-            [id, startDate, endDate]
+             WHERE pdl_id = $1 AND date_granted >= $2 AND date_granted <= $3 
+             ORDER BY date_granted DESC`, 
+            [pdl_id, startDate, endDate]
         );
 
         // 4. Construct Final Response
         const fullData = {
             ...pdl,
-            pdl_picture: pdl.pdl_picture 
-                ? `${req.protocol}://${req.get('host')}/public/uploads/${pdl.pdl_picture}`
-                : null,
+            pdl_status: 'Released', // Force the 'viewed' status to Released for the header
+            current_live_status: pdl.current_live_status, // 🚀 This is the flag for the button logic
+            pdl_picture: pdl.pdl_picture ? `${req.protocol}://${req.get('host')}/public/uploads/${pdl.pdl_picture}` : null,
             gcta_history: gctaLogs.rows,
             tastm_history: tastmLogs.rows,
-            is_archived_view: true // Helper flag for frontend
+            is_archived_view: true 
         };
+        console.log(fullData);
 
         res.status(200).json(fullData);
 
@@ -218,47 +214,45 @@ const recalculatePdlSentence = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 1. Fetch Sentence Params & Status
+        // 1. Fetch Sentence Params & CURRENT Admission Date
         const pdlResult = await client.query(
-            `SELECT date_commited_pnp, sentence_years, sentence_months, sentence_days, pdl_status 
+            `SELECT date_admitted_bjmp, date_commited_pnp, sentence_years, sentence_months, sentence_days, pdl_status 
              FROM pdl_tbl WHERE pdl_id = $1`, [id]
         );
         
         if (pdlResult.rows.length === 0) throw new Error("PDL not found.");
         const pdl = pdlResult.rows[0];
 
-        // 2. Aggregate EVERY credit from the logs (True Sum)
+        // 🎯 2. Aggregate ONLY credits from the CURRENT stay
+        // We filter logs by comparing their date to the date_admitted_bjmp
         const creditResult = await client.query(`
             SELECT 
-                (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log WHERE pdl_id = $1) as gcta,
-                (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log WHERE pdl_id = $1) as tastm
-        `, [id]);
+                (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log 
+                 WHERE pdl_id = $1 AND date_granted >= $2) as gcta,
+                (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log 
+                 WHERE pdl_id = $1 AND date_granted >= $2) as tastm
+        `, [id, pdl.date_admitted_bjmp]);
 
         const totalCredits = parseInt(creditResult.rows[0].gcta) + parseInt(creditResult.rows[0].tastm);
 
-        // 3. Calculation Engine (The "Legal Math")
+        // 3. Calculation Engine (Stay-Specific Math)
         let updatedExpectedDate = null;
         let updatedOriginalDate = null;
 
         if (pdl.date_commited_pnp && (pdl.sentence_years || pdl.sentence_months || pdl.sentence_days)) {
-            // Full Term Logic
             let release = new Date(pdl.date_commited_pnp);
             release.setFullYear(release.getFullYear() + (parseInt(pdl.sentence_years) || 0));
             release.setMonth(release.getMonth() + (parseInt(pdl.sentence_months) || 0));
             release.setDate(release.getDate() + (parseInt(pdl.sentence_days) || 0));
 
-            // Inclusive Day Rule (-1)
-            release.setDate(release.getDate() - 1);
-            updatedOriginalDate = new Date(release); // Stays as Full Term Expiry
+            release.setDate(release.getDate() - 1); // Inclusive Rule
+            updatedOriginalDate = new Date(release);
 
-            // Deduct the Total Credits (GCTA + TASTM)
-            release.setDate(release.getDate() - totalCredits);
-            updatedExpectedDate = release; // Becomes Projected Release
+            release.setDate(release.getDate() - totalCredits); // Deduct only CURRENT credits
+            updatedExpectedDate = release;
         }
-        console.log("tado   ");
-        console.log(updatedExpectedDate + updatedOriginalDate);
 
-        // 4. THE UPSERT: Sync back to Master Table
+        // 4. THE UPSERT
         const updateQuery = `
             UPDATE pdl_tbl SET 
                 total_timeallowance_earned = $1,
@@ -280,17 +274,10 @@ const recalculatePdlSentence = async (req, res) => {
         ]);
 
         await client.query('COMMIT');
-
-        // 5. Response (Confirmed Update)
-        res.status(200).json({
-            success: true,
-            message: "Database analytics synchronized.",
-            updatedData: finalResult.rows[0]
-        });
+        res.status(200).json({ success: true, updatedData: finalResult.rows[0] });
 
     } catch (err) {
         await client.query('ROLLBACK');
-        console.error("Recalculation Error:", err.message);
         res.status(500).json({ error: err.message });
     } finally {
         client.release();
@@ -310,31 +297,34 @@ const getPdlById = async (req, res) => {
         }
 
         const pdl = profileResult.rows[0];
+        const admissionDate = pdl.date_admitted_bjmp;
 
-        // 🎯 DEBUGGING LOG
-        // This will tell you if the DB is sending a valid Date object, a string, or null
-        console.log(`--- [DEBUG] PDL ID: ${id} ---`);
-        console.log("Committal Date (PNP):", pdl.date_admitted_bjmp);
- 
-
+        // 🎯 Filter logs: Only those earned on or after this admission
         const gctaLogs = await client.query(
-            "SELECT * FROM gcta_days_log WHERE pdl_id = $1 ORDER BY month_year DESC", [id]
+            `SELECT * FROM gcta_days_log 
+             WHERE pdl_id = $1 AND date_granted >= $2 
+             ORDER BY month_year DESC`, [id, admissionDate]
         );
 
         const tastmLogs = await client.query(
-            "SELECT * FROM tastm_days_log WHERE pdl_id = $1 ORDER BY month_year DESC", [id]
+            `SELECT * FROM tastm_days_log 
+             WHERE pdl_id = $1 AND date_granted >= $2 
+             ORDER BY month_year DESC`, [id, admissionDate]
         );
 
+        // 🔍 NEW: Check for Migration remark in the filtered logs
         const migrationBaselineString = "Migration";
-        const gctaMigrated = gctaLogs.rows.some(log => log.remarks === migrationBaselineString);
-        const tastmMigrated = tastmLogs.rows.some(log => log.remarks === migrationBaselineString);
+        const gctaMigrated = gctaLogs.rows.some(log => log.remarks?.includes(migrationBaselineString));
+        const tastmMigrated = tastmLogs.rows.some(log => log.remarks?.includes(migrationBaselineString));
 
         res.status(200).json({
             ...pdl,
             pdl_picture: pdl.pdl_picture ? `${req.protocol}://${req.get('host')}/public/uploads/${pdl.pdl_picture}` : null,
             gcta_history: gctaLogs.rows,
             tastm_history: tastmLogs.rows,
-            hasMigrated: gctaMigrated || tastmMigrated 
+            // 🎯 This is what your frontend is looking for!
+            hasMigrated: gctaMigrated || tastmMigrated, 
+            is_recommitted: !!pdl.date_admitted_bjmp 
         });
 
     } catch (err) {
@@ -549,6 +539,11 @@ const updatePdlJudicialRecord = async (req, res) => {
         // --- 🛡️ STEP 2: VARIABLE RESOLUTION ---
         // We force values to booleans and integers to avoid "Data Type" errors.
         const manualActive = isManualOverride === true || isManualOverride === 'true';
+        console.log("--- 📡 BACKEND RECEIVED ---");
+        console.log("Is Manual Active?:", manualActive);
+        console.log("GCTA Days Received:", gcta_days);
+        console.log("TASTM Days Received:", tastm_days);
+        console.log("Manual Override Raw:", isManualOverride);
 
         const sY = sentence_years !== undefined ? parseInt(sentence_years) : (db.sentence_years || 0);
         const sM = sentence_months !== undefined ? parseInt(sentence_months) : (db.sentence_months || 0);
@@ -650,6 +645,7 @@ const updatePdlJudicialRecord = async (req, res) => {
 
         // --- 🛡️ STEP 5: SMART MIGRATION LOG SYNC (Upsert) ---
         if (manualActive) {
+            console.log("🎯 STEP 5 REACHED: Attempting Migration Upsert for PDL:", id);
             const migrationDate = new Date();
             migrationDate.setDate(1); 
             const logRemark = 'Migration';
@@ -894,20 +890,19 @@ const releasePdl = async (req, res) => {
             UPDATE pdl_tbl SET 
                 pdl_status = 'Released',
                 rfid_number = NULL, 
+                original_release_date = NULL,
                 date_commited_pnp = NULL,
                 sentence_years = 0, 
                 sentence_months = 0, 
                 sentence_days = 0,
                 total_timeallowance_earned = 0,
                 expected_releasedate = NULL,
-               
-            
                 updated_at = NOW()
             WHERE pdl_id = $1`, [id]);
 
         await client.query('COMMIT');
         res.status(200).json({ success: true, message: "Archive created and profile reset." });
-
+            
     } catch (err) {
         await client.query('ROLLBACK');
         console.error("Release Error:", err.message);

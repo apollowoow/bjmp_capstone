@@ -8,6 +8,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const [pdl, setPdl] = useState(null);
   const [loading, setLoading] = useState(true);
+ 
 
   const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23cbd5e1'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
 
@@ -16,33 +17,13 @@ const Profile = () => {
         setLoading(true);
         const token = localStorage.getItem("token");
 
-        // 1. Initial fetch to check the PDL's current status
-        const initialRes = await fetch(`${API_BASE_URL}/api/pdl/get/${id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        if (!initialRes.ok) throw new Error("PDL not found");
-        const initialData = await initialRes.json();
+        // 🔍 Check the URL for "?type=released"
+        const queryParams = new URLSearchParams(location.search);
+        const isReleasedView = queryParams.get("type") === "released";
 
-        // 🚦 DECISION POINT
-        if (initialData.pdl_status !== "Released") {
-            // CASE A: PDL is still Detained or Sentenced
-            // We run recalculate to ensure GCTA/TASTM is up to date
-            await fetch(`${API_BASE_URL}/api/pdl/recalculate/${id}`, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            // Fetch the freshly updated data
-            const freshRes = await fetch(`${API_BASE_URL}/api/pdl/get/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const freshData = await freshRes.json();
-            setPdl(freshData);
-            
-        } else {
-            // CASE B: PDL is Released
-            // We hit your new specific Archive Controller to get the snapshot data
+        if (isReleasedView) {
+            // 📜 CASE B: ARCHIVE VIEW (Released Table)
+            // We use the ID passed from the Analyze button (which is the release_id)
             const archiveRes = await fetch(`${API_BASE_URL}/api/pdl/getrelease/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -50,13 +31,33 @@ const Profile = () => {
             if (archiveRes.ok) {
                 const archiveData = await archiveRes.json();
                 setPdl(archiveData);
+                console.log(archiveData);
+             
             } else {
-                // Fallback to initial data if archive fetch fails
-                setPdl(initialData);
+                throw new Error("Archive record not found");
             }
+
+        } else {
+            // 🛡️ CASE A: ACTIVE VIEW (PDL Table)
+            // 1. Run recalculate first to ensure GCTA/TASTM is up to date
+            await fetch(`${API_BASE_URL}/api/pdl/recalculate/${id}`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // 2. Fetch the freshly updated active data
+            const freshRes = await fetch(`${API_BASE_URL}/api/pdl/get/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            if (!freshRes.ok) throw new Error("Active PDL not found");
+            
+            const freshData = await freshRes.json();
+            setPdl(freshData);
         }
     } catch (error) {
         console.error("Profile Refresh Error:", error);
+        // You could set an error state here to show a message in the UI
     } finally {
         setLoading(false);
     }
@@ -127,13 +128,20 @@ const Profile = () => {
               <div className="info-row"><span>Crime/Offense</span><strong>{pdl.crime_name}</strong></div>
             </div>
             {pdl.pdl_status === "Released" && (
-                <div className="recommit-wrapper"> {/* 🎯 Added class here */}
-                    <button   
-                        className="btn-recommit" 
-                        onClick={() => navigate(`/add?recommitId=${pdl.pdl_id}`)}
-                    >
-                        ♻️ Recommit PDL
-                    </button>
+                <div className="recommit-wrapper">
+                    {pdl.current_live_status === "Released" ? (
+                        <button 
+                            className="btn-recommit" 
+                            onClick={() => navigate(`/add?recommitId=${pdl.pdl_id}`)}
+                        >
+                            ♻️ Recommit PDL
+                        </button>
+                    ) : (
+                        <div className="recommit-disabled-msg">
+                            🔒 <strong>Recommitment Disabled</strong>
+                            <span> Subject is currently {pdl.current_live_status}</span>
+                        </div>
+                    )}
                 </div>
             )}
           </div>

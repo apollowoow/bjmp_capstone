@@ -57,7 +57,15 @@ const handleFieldChange = (field, value) => {
     }
 };
 
- 
+ const getValidationErrorButtonText = () => {
+  if (validationMessage.includes("Chronology") || validationMessage.includes("Date")) {
+    return "I will correct the dates";
+  }
+  if (validationMessage.includes("Judicial")) {
+    return "I will lock Judicial Entry";
+  }
+  return "I will lock the section";
+};
 
 const handleImageUpload = (e) => {
   const file = e.target.files[0];
@@ -91,7 +99,7 @@ const handleImageUpload = (e) => {
         console.log("Total TASTM Sum (Backend):", data.total_tastm_earned);
 
       if (data.hasMigrated) {
-        const gctaEntry = data.gcta_history?.find(l => l.remarks?.includes("Migration"));
+        const gctaEntry = data.gcta_history?.find(l => l.remarks?.includes('Migration'));
         const tastmEntry = data.tastm_history?.find(l => l.remarks?.includes("Migration"));
         data.gcta_days = gctaEntry ? gctaEntry.days_earned : 0;
         data.tastm_days = tastmEntry ? tastmEntry.days_earned : 0;
@@ -155,13 +163,28 @@ const handleImageUpload = (e) => {
             setShowModal(false); 
             return;
         }
+        if(isUnlocked){
+          setValidationMessage("Manual Override Button is Unlocked, Changes won't be saved. Lock to save");
+          setShowValidationError(true);
+          setShowModal(false); 
+          console.log(formData);
+          return;
+        }
+        if(isJudicialUnlocked){
+          setValidationMessage("Judicial Entry is Unlocked, Changes won't be saved. Lock to save");
+          setShowValidationError(true);
+          setShowModal(false); 
+           console.log(formData);
+          return;
+        }
     }
 
     try {
         const token = localStorage.getItem("token");
+    
         const payload = {
             ...formData,
-            isManualOverride: isUnlocked,
+            isManualOverride: true,
             sentence_years: parseInt(formData.sentence_years) || 0,
             sentence_months: parseInt(formData.sentence_months) || 0,
             sentence_days: parseInt(formData.sentence_days) || 0,
@@ -180,6 +203,7 @@ const handleImageUpload = (e) => {
         });
 
         if (response.ok) {
+          console.log(formData);
          setShowModal(false);
             setModal({
                 show: true,
@@ -291,16 +315,20 @@ const handleSubmit = async () => {
 };
 
 const handleCloseModal = () => {
-    // 1. Close the modal first
     const modalType = modal.type;
+    const isReleaseAction = modal.isRelease; // 🔍 Check the flag
+    
     setModal({ ...modal, show: false });
 
-    // 2. Only navigate if the last action was a SUCCESS
     if (modalType === "success") {
-        navigate(`/profile/${id}`);
+        if (isReleaseAction) {
+            // 📜 If they were released, take them to the list/archive
+            navigate(`/pdl`); 
+        } else {
+            // ✅ If it was just a name/status update, stay on the profile
+            navigate(`/profile/${id}`);
+        }
     }
-    // If it was an 'error' or 'warning', we stay on the page 
-    // so the officer can fix the mistake.
 };
 
 
@@ -343,14 +371,31 @@ const confirmRelease = async () => {
         });
 
         if (response.ok) {
-            alert("🚀 PDL Successfully Released and Record Archived to History.");
-            navigate(`/profile/${id}`); 
+          setShowModal(false);
+           setModal({
+            show: true,
+            title: "PDL Released",
+            message: "Record moved to archives.",
+            type: "success",
+            isRelease: true // 🎯 Add this flag
+        });
+       
         } else {
             const result = await response.json();
-            alert(`Error: ${result.error || "Failed to process release"}`);
+            setModal({
+              show: true,
+              title: "System Error",
+              message: (`Error: ${result.error || "Failed to process release"}`),
+              type: "error"
+            });
         }
     } catch (error) { 
-        alert("System Error: Could not reach the Judicial Server.");
+        setModal({
+              show: true,
+              title: "System Error",
+              message: "Could not reach the server",
+              type: "error"
+            });
     }
 };
 
@@ -539,9 +584,14 @@ const confirmRelease = async () => {
               <hr className="section-divider" />
 
               {/* SECTION: JUDICIAL RECORDS */}
-              <div className="section-header">
+             <div className="section-header">
                 <h3>📂 Judicial Records</h3>
-                {(formData.date_commited_pnp || formData.sentence_years > 0) && (
+                
+                {/* 🎯 Updated Condition: 
+                    Show the button if we are EDITING an existing PDL (id exists)
+                    OR if there's already data saved.
+                */}
+                {(id || formData.date_commited_pnp || formData.sentence_years > 0) && (
                   <button 
                     type="button" 
                     className={`btn-lock-toggle ${isJudicialUnlocked ? 'unlocked' : ''}`} 
@@ -576,15 +626,11 @@ const confirmRelease = async () => {
                     name="date_commited_pnp" 
                     value={formData.date_commited_pnp || ""} 
                     onChange={handleChange} 
-                    disabled={(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked}
+                    disabled={!isJudicialUnlocked}
                   />
                 </div>
                 )}
         
-                
-
-                {/* SENTENCE DURATION */}
-              
                 {formData.pdl_status === "Sentenced" && (
                   
                   <div className="field">
@@ -595,21 +641,24 @@ const confirmRelease = async () => {
                       name="date_commited_pnp" 
                       value={formData.date_commited_pnp || ""} 
                       onChange={handleChange} 
-                      disabled={(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked}
+                      disabled={!isJudicialUnlocked}
                     />
                   </div>
                     <label>Court-Ordered Sentence Duration</label>
                     <div className="triple-input">
                       <div className="unit-input">
-                        <input type="number" name="sentence_years" value={formData.sentence_years} onChange={handleChange} disabled={(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked} />
+                        <input type="number" name="sentence_years" value={formData.sentence_years} onChange={handleChange} 
+                        disabled={!isJudicialUnlocked} />
                         <span>Years</span>
                       </div>
                       <div className="unit-input">
-                        <input type="number" name="sentence_months" value={formData.sentence_months} onChange={handleChange} disabled={(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked} />
+                        <input type="number" name="sentence_months" value={formData.sentence_months} onChange={handleChange} 
+                        disabled={!isJudicialUnlocked} />
                         <span>Months</span>
                       </div>
                       <div className="unit-input">
-                        <input type="number" name="sentence_days" value={formData.sentence_days} onChange={handleChange} disabled={(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked} />
+                        <input type="number" name="sentence_days" value={formData.sentence_days} onChange={handleChange} 
+                        disabled={!isJudicialUnlocked}/>
                         <span>Days</span>
                       </div>
                     </div>
@@ -766,14 +815,17 @@ const confirmRelease = async () => {
       <div className="modal-body">
         <p className="validation-text">{validationMessage}</p>
         <p className="helper-text">
-          {formData.pdl_status === "Released" 
-            ? "Judicial protocol requires an actual release date that is not in the future." 
-            : "The system requires that the PNP Committal occurs before or on the same day as BJMP Admission."}
+          {validationMessage.includes("Unlocked") 
+            ? "Please click the Lock button in the header of the section to finalize your edits before saving."
+            : (formData.pdl_status === "Released" 
+                ? "Judicial protocol requires an actual release date that is not in the future." 
+                : "The system requires that the PNP Committal occurs before or on the same day as BJMP Admission.")
+          }
         </p>
       </div>
       <div className="modal-actions">
-        <button className="btn-modal-error" onClick={() => setShowValidationError(false)}>
-          I will correct the dates
+       <button className="btn-modal-error" onClick={() => setShowValidationError(false)}>
+          {getValidationErrorButtonText()}
         </button>
       </div>
     </div>
