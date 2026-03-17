@@ -54,6 +54,7 @@ const Profile = () => {
             
             const freshData = await freshRes.json();
             setPdl(freshData);
+            console.log(freshData);
         }
     } catch (error) {
         console.error("Profile Refresh Error:", error);

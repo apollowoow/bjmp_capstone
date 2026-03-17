@@ -130,15 +130,18 @@ const getReleasedPdlById = async (req, res) => {
         // 2. Fetch GCTA Logs (Stay-Bound)
         const gctaLogs = await client.query(
             `SELECT * FROM gcta_days_log 
-             WHERE pdl_id = $1 AND date_granted >= $2 AND date_granted <= $3 
-             ORDER BY date_granted DESC`, 
+            WHERE pdl_id = $1 
+            AND date_granted::DATE >= $2::DATE 
+            AND date_granted::DATE <= $3::DATE 
+            ORDER BY date_granted DESC`, 
             [pdl_id, startDate, endDate]
         );
-
-        // 3. Fetch TASTM Logs (Stay-Bound)
+                // 3. Fetch TASTM Logs (Stay-Bound)
         const tastmLogs = await client.query(
             `SELECT * FROM tastm_days_log 
-             WHERE pdl_id = $1 AND date_granted >= $2 AND date_granted <= $3 
+             WHERE pdl_id = $1 
+             AND date_granted::DATE >= $2::DATE 
+             AND date_granted::DATE <= $3::DATE 
              ORDER BY date_granted DESC`, 
             [pdl_id, startDate, endDate]
         );
@@ -228,9 +231,14 @@ const recalculatePdlSentence = async (req, res) => {
         const creditResult = await client.query(`
             SELECT 
                 (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log 
-                 WHERE pdl_id = $1 AND date_granted >= $2) as gcta,
+                WHERE pdl_id = $1 
+                AND status = 'Active'         -- 🛡️ IGNORE RELEASED/DISQUALIFIED
+                AND date_granted::DATE >= $2::DATE) as gcta,
+                
                 (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log 
-                 WHERE pdl_id = $1 AND date_granted >= $2) as tastm
+                WHERE pdl_id = $1 
+                AND status = 'Active'         -- 🛡️ IGNORE RELEASED/DISQUALIFIED
+                AND date_granted::DATE >= $2::DATE) as tastm
         `, [id, pdl.date_admitted_bjmp]);
 
         const totalCredits = parseInt(creditResult.rows[0].gcta) + parseInt(creditResult.rows[0].tastm);
@@ -297,32 +305,38 @@ const getPdlById = async (req, res) => {
         }
 
         const pdl = profileResult.rows[0];
-        const admissionDate = pdl.date_admitted_bjmp;
+        // 🎯 Use PNP Date as the boundary if available, otherwise BJMP Admission
+        const admissionDate = pdl.date_commited_pnp || pdl.date_admitted_bjmp;
 
-        // 🎯 Filter logs: Only those earned on or after this admission
+        // --- 🛡️ FILTER LOGS: The "Double-Lock" Strategy ---
+        // We filter by date AND status to ensure only CURRENT stay records show up.
+        
         const gctaLogs = await client.query(
             `SELECT * FROM gcta_days_log 
-             WHERE pdl_id = $1 AND date_granted >= $2 
+             WHERE pdl_id = $1 
+             AND status = 'Active'         -- 🎯 Lock 1: Ignore archived records
+             AND date_granted::DATE >= $2::DATE -- 🎯 Lock 2: Only this stay
              ORDER BY month_year DESC`, [id, admissionDate]
         );
 
         const tastmLogs = await client.query(
             `SELECT * FROM tastm_days_log 
-             WHERE pdl_id = $1 AND date_granted >= $2 
+             WHERE pdl_id = $1 
+             AND status = 'Active'         -- 🎯 Lock 1: Ignore archived records
+             AND date_granted::DATE >= $2::DATE -- 🎯 Lock 2: Only this stay
              ORDER BY month_year DESC`, [id, admissionDate]
         );
 
-        // 🔍 NEW: Check for Migration remark in the filtered logs
+        // 🔍 Migration Check Logic (Remains the same but now strictly active)
         const migrationBaselineString = "Migration";
-        const gctaMigrated = gctaLogs.rows.some(log => log.remarks?.includes(migrationBaselineString));
-        const tastmMigrated = tastmLogs.rows.some(log => log.remarks?.includes(migrationBaselineString));
+        const gctaMigrated = gctaLogs.rows.some(log => log.remarks === migrationBaselineString);
+        const tastmMigrated = tastmLogs.rows.some(log => log.remarks === migrationBaselineString);
 
         res.status(200).json({
             ...pdl,
             pdl_picture: pdl.pdl_picture ? `${req.protocol}://${req.get('host')}/public/uploads/${pdl.pdl_picture}` : null,
             gcta_history: gctaLogs.rows,
             tastm_history: tastmLogs.rows,
-            // 🎯 This is what your frontend is looking for!
             hasMigrated: gctaMigrated || tastmMigrated, 
             is_recommitted: !!pdl.date_admitted_bjmp 
         });
@@ -651,46 +665,59 @@ const updatePdlJudicialRecord = async (req, res) => {
             const logRemark = 'Migration';
 
             // --- GCTA UPSERT ---
+            // --- GCTA UPSERT (Recommitment Aware) ---
             const existingGcta = await client.query(
-                "SELECT gcta_log_id FROM gcta_days_log WHERE pdl_id = $1 AND remarks = $2",
+                `SELECT gcta_log_id FROM gcta_days_log 
+                WHERE pdl_id = $1 
+                AND remarks = $2 
+                AND status = 'Active'`, // 🎯 ONLY look for the one belonging to the CURRENT stay
                 [id, logRemark]
             );
 
             if (existingGcta.rows.length > 0) {
+                // Update the active migration log
                 await client.query(
                     "UPDATE gcta_days_log SET days_earned = $1, month_year = $2 WHERE gcta_log_id = $3",
                     [parseInt(gcta_days) || 0, migrationDate, existingGcta.rows[0].gcta_log_id]
                 );
             } else {
+                // Create a NEW migration log for this new recommitment stay
                 await client.query(
-                    `INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, status, remarks) 
-                     VALUES ($1, $2, $3, 'Active', $4)`,
+                    `INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, status, remarks, date_granted) 
+                    VALUES ($1, $2, $3, 'Active', $4, NOW())`, 
                     [id, migrationDate, parseInt(gcta_days) || 0, logRemark]
                 );
             }
 
             // --- TASTM UPSERT ---
             const existingTastm = await client.query(
-                "SELECT tastm_log_id FROM tastm_days_log WHERE pdl_id = $1 AND remarks = $2",
+                `SELECT tastm_log_id FROM tastm_days_log 
+                WHERE pdl_id = $1 
+                AND remarks = $2 
+                AND status = 'Active'`, // 🎯 Triple Guard: ID + Remark + Active Status
                 [id, logRemark]
             );
 
             if (existingTastm.rows.length > 0) {
+                // Update the existing migration record for the CURRENT stay
                 await client.query(
-                    `UPDATE tastm_days_log SET total_hours_accumulated = $1, days_earned = $2, month_year = $3 
-                     WHERE tastm_log_id = $4`,
+                    `UPDATE tastm_days_log 
+                    SET total_hours_accumulated = $1, days_earned = $2, month_year = $3, date_granted = NOW()
+                    WHERE tastm_log_id = $4`,
                     [parseFloat(tastm_hours) || 0, parseInt(tastm_days) || 0, migrationDate, existingTastm.rows[0].tastm_log_id]
                 );
             } else {
+                // Create a NEW migration record for this new recommitment stay
                 await client.query(
-                    `INSERT INTO tastm_days_log (pdl_id, month_year, total_hours_accumulated, days_earned, remarks) 
-                     VALUES ($1, $2, $3, $4, $5)`,
+                    `INSERT INTO tastm_days_log (pdl_id, month_year, total_hours_accumulated, days_earned, remarks, status, date_granted) 
+                    VALUES ($1, $2, $3, $4, $5, 'Active', NOW())`, // 🎯 Ensures date_granted is set for filtering
                     [id, migrationDate, parseFloat(tastm_hours) || 0, parseInt(tastm_days) || 0, logRemark]
                 );
             }
         }
 
         await client.query("COMMIT");
+        
         res.status(200).json({ 
             message: "Timeline Recalculated & Logs Synchronized.", 
             data: result.rows[0] 
@@ -867,31 +894,68 @@ const releasePdl = async (req, res) => {
         if (pdlResult.rows.length === 0) throw new Error("PDL not found.");
         const p = pdlResult.rows[0];
 
+        // 🎯 DEFINING THE WINDOW: Use PNP Date as start to ensure migration logs are caught
+        const startDate = p.date_commited_pnp || p.date_admitted_bjmp;
+        const endDate = actual_release_date;
+        console.log(startDate + endDate)
+
         // 2. INSERT into released_tbl (The History Snapshot)
         await client.query(`
-        INSERT INTO released_tbl (
-            pdl_id, first_name, last_name, middle_name, birthday, gender,
-            crime_name, sentence_years, sentence_months, sentence_days,
-            total_credits_applied, date_commited_pnp, 
-            date_admitted_bjmp, 
-            actual_release_date
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-        [
-            p.pdl_id, p.first_name, p.last_name, p.middle_name, p.birthday, p.gender,
-            p.crime_name, p.sentence_years, p.sentence_months, p.sentence_days,
-            p.total_timeallowance_earned, p.date_commited_pnp, 
-            p.date_admitted_bjmp,
-            actual_release_date
-        ]
-    );
+            INSERT INTO released_tbl (
+                pdl_id, first_name, last_name, middle_name, birthday, gender,
+                crime_name, sentence_years, sentence_months, sentence_days,
+                total_credits_applied, date_commited_pnp, 
+                date_admitted_bjmp, actual_release_date
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+            [
+                p.pdl_id, p.first_name, p.last_name, p.middle_name, p.birthday, p.gender,
+                p.crime_name, p.sentence_years, p.sentence_months, p.sentence_days,
+                p.total_timeallowance_earned, p.date_commited_pnp, 
+                p.date_admitted_bjmp, actual_release_date
+            ]
+        );
 
-        // 3. WIPE/RESET pdl_tbl (Clear judicial data for future recommitment)
+        // --- 🛡️ STEP 3: THE ARCHIVE & FREEZE SWEEP ---
+        
+        // A. Update GCTA Logs
+        await client.query(`
+            UPDATE gcta_days_log SET status = 'Released'
+            WHERE pdl_id = $1 AND date_granted::DATE >= $2::DATE AND date_granted::DATE <= $3::DATE
+        `, [id, startDate, endDate]);
+
+        // B. Update TASTM Logs
+        await client.query(`
+            UPDATE tastm_days_log SET status = 'Released'
+            WHERE pdl_id = $1 AND date_granted::DATE >= $2::DATE AND date_granted::DATE <= $3::DATE
+        `, [id, startDate, endDate]);
+
+        // C. Update Attendance Records
+        await client.query(`
+            UPDATE attendance_tbl 
+            SET status = 'Released'
+            WHERE pdl_id = $1 
+            AND timestamp_in::DATE >= $2::DATE  -- 🎯 Casts timestamp to Date
+            AND timestamp_in::DATE <= $3::DATE
+        `, [id, startDate, endDate]);
+
+        // D. Update Incident Records (Appending the Remark)
+        await client.query(`
+            UPDATE incident_tbl 
+            SET status = 'Released'
+            WHERE pdl_id = $1 
+            AND incident_date::DATE >= $2::DATE 
+            AND incident_date::DATE <= $3::DATE;
+        `, [id, startDate, endDate]);
+
+
+        // --- 🎯 STEP 4: WIPE/RESET pdl_tbl ---
         await client.query(`
             UPDATE pdl_tbl SET 
                 pdl_status = 'Released',
                 rfid_number = NULL, 
                 original_release_date = NULL,
                 date_commited_pnp = NULL,
+                date_admitted_bjmp = NULL, -- Clear this for clean recommitment
                 sentence_years = 0, 
                 sentence_months = 0, 
                 sentence_days = 0,
@@ -901,16 +965,16 @@ const releasePdl = async (req, res) => {
             WHERE pdl_id = $1`, [id]);
 
         await client.query('COMMIT');
-        res.status(200).json({ success: true, message: "Archive created and profile reset." });
-            
+        res.status(200).json({ success: true, message: "Archive created, logs frozen, and profile reset." });
+
     } catch (err) {
         await client.query('ROLLBACK');
-        console.error("Release Error:", err.message);
+        console.error("Critical Release Error:", err.message);
         res.status(500).json({ error: err.message });
     } finally {
         client.release();
     }
-};
+}; 
 
 module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord, grantGlobalGcta, recalculatePdlSentence, releasePdl, 
     getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL};
