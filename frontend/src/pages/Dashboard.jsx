@@ -23,33 +23,42 @@ const Dashboard = () => {
   const user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : { fullname: "Officer" };
   const IDEAL_CAPACITY = 41; // 🎯 Revision requirement: Ideal Rate 
 
-
 useEffect(() => {
-    const runGctaSync = async () => {
+    const runMasterSync = async () => {
         try {
             const token = localStorage.getItem("token");
-            const response = await fetch(`${API_BASE_URL}/api/sessions/silent-gcta-sync`, {
-                method: "POST",
-                headers: { 
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json" 
-                }
+            const headers = { 
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json" 
+            };
+
+            // 🎯 1. Sync GCTA first
+            const gctaRes = await fetch(`${API_BASE_URL}/api/sessions/silent-gcta-sync`, { 
+                method: "POST", headers 
             });
-            
-            const data = await response.json();
-            
-            // 💡 Pro-Tip: Only notify if an actual change occurred
-            if (data.granted > 0) {
-                // Example: triggerAlert("Monthly Update", `${data.granted} PDLs received GCTA.`, "success");
-                console.log(`[GCTA Sync] Granted credits to ${data.granted} PDLs.`);
+            const gctaData = await gctaRes.json();
+
+            // 🎯 2. Sync TASTM second
+            const tastmRes = await fetch(`${API_BASE_URL}/api/sessions/silent-tastm-sync`, { 
+                method: "POST", headers 
+            });
+            const tastmData = await tastmRes.json();
+
+            // 💡 Pro-Tip: Final Console Report
+            if (gctaData.granted > 0 || tastmData.granted > 0) {
+                console.log(`[Background Sync] GCTA: ${gctaData.granted} | TASTM: ${tastmData.granted} updates applied.`);
+                
+                // Optional: If you're on the PDL List page, trigger a data refresh
+                // if (fetchPdlList) fetchPdlList(); 
             }
+
         } catch (err) {
-            console.error("GCTA Background Sync Error:", err);
+            console.error("Background Ledger Sync Error:", err);
         }
     };
 
-    runGctaSync();
-}, []);
+    runMasterSync();
+}, []); // Runs once when the Warden logs in / loads the dashboard
 
   useEffect(() => {
     const fetchStats = async () => {

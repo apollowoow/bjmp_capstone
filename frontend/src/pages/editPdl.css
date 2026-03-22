@@ -591,6 +591,200 @@
 .pdl-modal-card.success { border-top: 5px solid #10b981; }
 .pdl-modal-card.warning { border-top: 5px solid #f59e0b; }
 
+/* Make the checkbox bigger */
+.large-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    /* This is the secret sauce to scale it up */
+    transform: scale(1.5); 
+    /* Adjust margin to prevent it from overlapping text after scaling */
+    margin-right: 10px; 
+}
+
+/* Optional: Change the color of the checkmark in modern browsers */
+.large-checkbox {
+    accent-color: #b91c1c; /* A strong red to match the "Disqualified" warning */
+}
+
+/* Better alignment for the container */
+.toggle-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fee2e2;
+    padding: 12px 15px; /* Added a bit more padding for the larger checkbox */
+    border-radius: 6px;
+    border: 1px solid #fecaca;
+}
+
+.toggle-container label {
+    font-weight: 600;
+    color: #991b1b;
+    cursor: pointer;
+}
+
+/* --- 1. Header & Title Group --- */
+.migration-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #edf2f7;
+  margin-bottom: 20px;
+}
+
+.title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title-group h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #2d3748;
+}
+
+/* --- 2. Status Badges --- */
+.badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-locked {
+  background-color: #fff5f5;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+}
+
+.badge-open {
+  background-color: #f0fff4;
+  color: #2f855a;
+  border: 1px solid #9ae6b4;
+}
+
+/* --- 3. The Toggle Button --- */
+.btn-lock-toggle {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #cbd5e0;
+  background: #fff;
+  color: #4a5568;
+}
+
+.btn-lock-toggle.unlocked {
+  background-color: #ebf8ff;
+  color: #2b6cb0;
+  border-color: #90cdf4;
+}
+
+.btn-lock-toggle:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-lock-toggle.system-disabled {
+  background-color: #edf2f7;
+  color: #a0aec0;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* --- 4. The Integrity Banner --- */
+.migration-lock-banner {
+  background-color: #fffaf0; /* Light Amber */
+  border-left: 4px solid #dd6b20;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.banner-content {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+}
+
+.banner-content .icon {
+  font-size: 1.4rem;
+}
+
+.banner-content .text {
+  font-size: 0.9rem;
+  color: #744210;
+  line-height: 1.5;
+}
+
+/* --- 5. Input Section & States --- */
+.migration-fields {
+  display: grid;
+  gap: 20px;
+  padding: 20px;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.is-locked {
+  background-color: #f7fafc; /* Ghost white */
+  cursor: not-allowed;
+}
+
+.is-editable {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+/* --- 6. Individual Field Lock Visuals --- */
+.field label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #4a5568;
+}
+
+.lock-icon {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.locked-field input {
+  background-color: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  border: 1px dashed #cbd5e0 !important;
+  cursor: not-allowed;
+}
+
+/* Optional: Red hint for Voided fields */
+.locked-field input[value="0"] {
+  color: #fc8181 !important;
+  text-decoration: line-through;
+}
+
+/* --- 7. TASTM Grouping --- */
+.tastm-migration-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #edf2f7;
+}
 @keyframes modalPopUp {
   from { transform: scale(0.9); opacity: 0; }
   to { transform: scale(1); opacity: 1; }

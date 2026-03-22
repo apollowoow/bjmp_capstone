@@ -195,13 +195,15 @@ const Profile = () => {
                 /* ⏳ ACTIVE VIEW: Show detailed GCTA/TASTM breakdown */
                 <>
                   {/* GCTA Summary */}
-                  <div className="ledger-item">
+                 <div className="ledger-item">
                     <div className="ledger-info">
                       <strong>GCTA</strong>
                       <span>Good Conduct Time Allowance</span>
                     </div>
                     <div className="ledger-value positive">
-                      -{pdl.gcta_history?.reduce((acc, log) => acc + (parseInt(log.days_earned) || 0), 0) || 0} Days
+                      {/* 🎯 Added check: Only sum if status is 'Active' */}
+                      -{pdl.gcta_history?.reduce((acc, log) => 
+                        log.status === 'Active' ? acc + (parseInt(log.days_earned) || 0) : acc, 0) || 0} Days
                     </div>
                   </div>
 
@@ -212,7 +214,9 @@ const Profile = () => {
                       <span>Study, Teaching & Mentoring</span>
                     </div>
                     <div className="ledger-value positive">
-                      -{pdl.tastm_history?.reduce((acc, log) => acc + (parseInt(log.days_earned) || 0), 0) || 0} Days
+                      {/* 🎯 Added check: Only sum if status is 'Active' */}
+                      -{pdl.tastm_history?.reduce((acc, log) => 
+                        log.status === 'Active' ? acc + (parseInt(log.days_earned) || 0) : acc, 0) || 0} Days
                     </div>
                   </div>
 
@@ -263,15 +267,35 @@ const Profile = () => {
                     </div>
                   ) : pdl.pdl_status === "Sentenced" && (pdl.sentence_years > 0 || pdl.sentence_months > 0 || pdl.sentence_days > 0) && pdl.date_commited_pnp ? (
                     /* 2. SENTENCED VIEW: Show Analytics Prediction */
-                    <div className="release-highlight">
-                      <p>Projected Release Date</p>
-                      <h2 className="release-text">
-                        {pdl.expected_releasedate ? 
-                          new Date(pdl.expected_releasedate).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) 
-                          : "Calculating..."}
-                      </h2>
-                      <span className="algo-tag">Method: Automated Sentence Analytics (TCIS)</span>
-                    </div>
+                   <div className="release-highlight">
+  <p>Projected Release Date</p>
+  <h2 className="release-text">
+    {pdl.expected_releasedate ? 
+      new Date(pdl.expected_releasedate).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) 
+      : "Calculating..."}
+  </h2>
+
+  {/* 🏛️ NEW: Date of Final Judgment (Universal) */}
+  <div className="judgment-info">
+    <span className="judgment-label">Final Judgment: </span>
+    <span className="judgment-value">
+      {pdl.date_of_final_judgment ? 
+        new Date(pdl.date_of_final_judgment).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) 
+        : "N/A (Pending Trial)"}
+    </span>
+  </div>
+
+  {/* 🎯 Legal Status Indicator */}
+  <h3 className={`status-banner ${pdl.is_legally_disqualified ? 'text-danger' : 'text-success'}`}>
+    {pdl.is_legally_disqualified ? (
+      <>⚠️ Disqualified (RA 10592)</>
+    ) : (
+      <>✅ Qualified Offender</>
+    )}
+  </h3>
+
+  <span className="algo-tag">Method: Automated Sentence Analytics (TCIS)</span>
+</div>
                   ) : (
                     /* 3. DETAINED / PENDING VIEW */
                     <div className="detained-notice pending-docs">

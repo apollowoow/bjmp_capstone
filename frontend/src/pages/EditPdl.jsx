@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API_BASE_URL from "../apiConfig";
 import "./editPdl.css";
@@ -6,16 +6,39 @@ import "./editPdl.css";
 const EditPdl = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    first_name: "", last_name: "", pdl_status: "",
-    rfid_number: "", gender: "", birthday: "",
-    pdl_picture: "", date_commited_pnp: "",
-    sentence_years: 0, sentence_months: 0, sentence_days: 0,
-    gcta_days: 0, tastm_days: 0, tastm_hours: 0,
-    originalStatus: "", actual_release_date: "",
+
+ 
+ const [formData, setFormData] = useState({
+    // 1. Personal Info
+    first_name: "", 
+    last_name: "", 
+    pdl_status: "",
+    rfid_number: "", 
+    gender: "", 
+    birthday: "",
+    pdl_picture: "", 
+
+    // 2. Judicial Info (Dates & Duration)
+    date_commited_pnp: "",
+    date_of_final_judgment: "", // 🎯 NEW: Conviction Date
+    sentence_years: 0, 
+    sentence_months: 0, 
+    sentence_days: 0,
+
+    // ⚖️ 3. Legal Master Switch
+    is_legally_disqualified: false, // 🎯 NEW: RA 10592 Switch (Checkbox)
+    disqualification_reason: "",    // 🎯 NEW: Why they are disqualified
+
+    // 4. Allowance Migration & Logic
+    gcta_days: 0, 
+    tastm_days: 0, 
+    tastm_hours: 0,
+    originalStatus: "", 
+    actual_release_date: "",
     hasMigrated: false 
-  });
+});
   
+ 
   const [loading, setLoading] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [showModal, setShowModal] = useState(false); 
@@ -82,44 +105,85 @@ const handleImageUpload = (e) => {
 
   useEffect(() => { fetchCurrentPdl(); }, [id]);
 
-  
-  const fetchCurrentPdl = async () => {
-    try {
-       
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/api/pdl/get/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await response.json();
+const fetchCurrentPdl = async () => {
+  setLoading(true);
+  try {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${API_BASE_URL}/api/pdl/get/${id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await response.json();
 
-      console.log("--- [FETCH] Raw PDL Data ---");
-        console.log("Full Object:", data);
-        console.log("Committal Date (Raw):", data.date_commited_pnp);
-        console.log("Total GCTA Sum (Backend):", data.gcta_history);
-        console.log("Total TASTM Sum (Backend):", data.total_tastm_earned);
+    console.log("--- 🔍 DEBUG: FETCH PDL START ---");
 
-      if (data.hasMigrated) {
-        const gctaEntry = data.gcta_history?.find(l => l.remarks?.includes('Migration'));
-        const tastmEntry = data.tastm_history?.find(l => l.remarks?.includes("Migration"));
-        data.gcta_days = gctaEntry ? gctaEntry.days_earned : 0;
-        data.tastm_days = tastmEntry ? tastmEntry.days_earned : 0;
-        data.tastm_hours = tastmEntry ? tastmEntry.total_hours_accumulated : 0;
-      }
+    if (data.hasMigrated) {
+      console.log("Migration Detected. Running Universal Lock Scan...");
 
-      console.log("Total GCTA Ssdadum (frnt):", data.gcta_days);
-        console.log("Total TASTsadsadM Sum (frnt):", data.tastm_hours);
+      const gctaEntry = data.gcta_history?.find(l => 
+        l.remarks?.toLowerCase().includes('migration')
+      );
+      const tastmEntry = data.tastm_history?.find(l => 
+        l.remarks?.toLowerCase().includes('migration')
+      );
 
-      if (data.date_commited_pnp) {
-        data.date_commited_pnp = new Date(data.date_commited_pnp).toISOString().split('T')[0];
-      }
+      // ✅ TASTM is locked if:
+      // 1. The migration row contains 'locked' in remarks (consumed by sync), OR
+      // 2. The migration row status is 'Inactive' (already used and deactivated)
+      data.isTastmLocked = !!(
+        tastmEntry?.remarks?.toLowerCase().includes('locked') ||
+        tastmEntry?.status?.toLowerCase() === 'inactive'
+      );
 
-      setPreviewUrl(data.pdl_picture || null);
-      setFormData({ ...data, originalStatus: data.pdl_status });
-      
-   
-    } catch (error) { console.error("Fetch error:", error); }
-    finally { setLoading(false); }
-  };
+      // ✅ GCTA is locked if:
+      // 1. The migration row contains 'locked' in remarks, OR
+      // 2. The migration row status is 'Inactive'
+      data.isGctaLocked = !!(
+        gctaEntry?.remarks?.toLowerCase().includes('locked') ||
+        gctaEntry?.status?.toLowerCase() === 'inactive'
+      );
+
+      // ✅ Master flag — true if EITHER is locked
+      data.isMigrationLocked = data.isTastmLocked || data.isGctaLocked;
+
+      // Map values to form inputs so numbers stay visible even when locked
+      data.gcta_days = gctaEntry ? gctaEntry.days_earned : 0;
+      data.tastm_days = tastmEntry ? tastmEntry.days_earned : 0;
+      data.tastm_hours = tastmEntry ? tastmEntry.total_hours_accumulated : 0;
+
+      console.log(">>> FINAL LOCK STATUS <<<");
+      console.log("TASTM Locked:", data.isTastmLocked ? "YES 🔒" : "NO 🔓");
+      console.log("GCTA Locked:", data.isGctaLocked ? "YES 🔒" : "NO 🔓");
+      console.log("Migration Master Lock:", data.isMigrationLocked ? "YES 🔒" : "NO 🔓");
+      if (tastmEntry) console.log("TASTM Remark:", tastmEntry.remarks, "| Status:", tastmEntry.status);
+      if (gctaEntry) console.log("GCTA Remark:", gctaEntry.remarks, "| Status:", gctaEntry.status);
+    }
+
+    if (data.date_commited_pnp) {
+      data.date_commited_pnp = new Date(data.date_commited_pnp).toISOString().split('T')[0];
+    }
+    if (data.date_of_final_judgment) {
+      data.date_of_final_judgment = new Date(data.date_of_final_judgment).toISOString().split('T')[0];
+    }
+
+    setPreviewUrl(data.pdl_picture || null);
+
+    setFormData({ 
+      ...data, 
+      originalStatus: data.pdl_status,
+      isMigrationLocked: data.isMigrationLocked || false, 
+      isTastmLocked: data.isTastmLocked || false,
+      isGctaLocked: data.isGctaLocked || false
+    });
+
+    console.log("Final FormData State set. UI should now respect locks.");
+    console.log("--- 🔍 DEBUG: FETCH PDL END ---");
+
+  } catch (error) { 
+    console.error("Fetch error:", error); 
+  } finally { 
+    setLoading(false); 
+  }
+};
 
    const [previewUrl, setPreviewUrl] = useState(formData.pdl_picture || null);
 
@@ -128,10 +192,16 @@ const handleImageUpload = (e) => {
     if (original === "Sentenced") return ["Sentenced", "Released"];
     return ["Detained", "Sentenced", "Released"];
   };
-
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    // 1. Destructure 'type' and 'checked' alongside 'name' and 'value'
+    const { name, value, type, checked } = e.target;
+    console.log(formData);
+
+    setFormData(prev => ({ 
+      ...prev, 
+      // 2. Use 'checked' if it's a checkbox, otherwise use 'value'
+      [name]: type === 'checkbox' ? checked : value 
+    }));
   };
 
   // 🛡️ LOCK TOGGLE LOGIC
@@ -152,31 +222,43 @@ const handleImageUpload = (e) => {
 
  const confirmUpdate = async () => {
     // 🛡️ DATE CHRONOLOGY VALIDATION
-    if (formData.date_commited_pnp && formData.date_admitted_bjmp) {
+    if (formData.date_commited_pnp) {
         const pnpDate = new Date(formData.date_commited_pnp);
         const bjmpDate = new Date(formData.date_admitted_bjmp);
+        const judgmentDate = formData.date_of_final_judgment ? new Date(formData.date_of_final_judgment) : null;
 
-        // PNP Committal must be BEFORE or EQUAL to BJMP Admission
-        if (pnpDate > bjmpDate) {
+        // 1. PNP Committal vs BJMP Admission
+        if (formData.date_admitted_bjmp && pnpDate > bjmpDate) {
             setValidationMessage("Judicial Conflict: PNP Committal Date cannot be later than the BJMP Admission Date.");
             setShowValidationError(true);
             setShowModal(false); 
             return;
         }
-        if(isUnlocked){
-          setValidationMessage("Manual Override Button is Unlocked, Changes won't be saved. Lock to save");
-          setShowValidationError(true);
-          setShowModal(false); 
-          console.log(formData);
-          return;
+
+        // 2. 🎯 NEW: Conviction Date Validation
+        // A PDL cannot be convicted (Final Judgment) before they are even committed (PNP Date)
+        if (formData.pdl_status === "Sentenced") {
+            if (!formData.date_of_final_judgment) {
+                setValidationMessage("Required: Please provide the Date of Final Judgment for Sentenced PDL.");
+                setShowValidationError(true);
+                setShowModal(false);
+                return;
+            }
+            if (judgmentDate < pnpDate) {
+                setValidationMessage("Judicial Conflict: Final Judgment Date cannot be earlier than the PNP Committal Date.");
+                setShowValidationError(true);
+                setShowModal(false);
+                return;
+            }
         }
-        if(isJudicialUnlocked){
-          setValidationMessage("Judicial Entry is Unlocked, Changes won't be saved. Lock to save");
-          setShowValidationError(true);
-          setShowModal(false); 
-           console.log(formData);
-          return;
-        }
+    }
+
+    // 🛡️ LOCK STATE VALIDATIONS
+    if (isUnlocked || isJudicialUnlocked) {
+        setValidationMessage("Security Warning: Manual or Judicial panels are currently UNLOCKED. Please lock them to save changes.");
+        setShowValidationError(true);
+        setShowModal(false); 
+        return;
     }
 
     try {
@@ -185,6 +267,12 @@ const handleImageUpload = (e) => {
         const payload = {
             ...formData,
             isManualOverride: true,
+            // 🎯 Ensure these new fields are explicitly included
+            date_of_final_judgment: formData.date_of_final_judgment || null,
+            is_legally_disqualified: formData.is_legally_disqualified === true,
+            remarks: formData.remarks || "", 
+            
+            // Numeric Clean-up
             sentence_years: parseInt(formData.sentence_years) || 0,
             sentence_months: parseInt(formData.sentence_months) || 0,
             sentence_days: parseInt(formData.sentence_days) || 0,
@@ -203,19 +291,16 @@ const handleImageUpload = (e) => {
         });
 
         if (response.ok) {
-          console.log(formData);
-         setShowModal(false);
+            setShowModal(false);
             setModal({
                 show: true,
                 title: "Ledger Updated",
-                message: "The Judicial Ledger and time credits have been recalculated successfully.",
+                message: "The Judicial Ledger has been updated. If the PDL was disqualified, detention credits have been voided.",
                 type: "success"
             });
-            
-           
         } else {
             const result = await response.json();
-              setShowModal(false);
+            setShowModal(false);
             setModal({
                 show: true,
                 title: "Update Failed",
@@ -398,6 +483,25 @@ const confirmRelease = async () => {
             });
     }
 };
+const prevStatusRef = useRef(formData.pdl_status);
+useEffect(() => {
+    // Check if the user just switched from something else to 'Sentenced'
+    if (prevStatusRef.current !== "Sentenced" && formData.pdl_status === "Sentenced") {
+      
+      console.log("🕵️‍♂️ Status flip detected! Wiping migration fields...");
+
+      // Wiping the fields in the state
+      setFormData(prev => ({
+        ...prev,
+        gcta_days: 0,
+        tastm_days: 0,
+        tastm_hours: 0
+      }));
+    }
+
+    // Update the "Memory" to the current status for the next check
+    prevStatusRef.current = formData.pdl_status;
+  }, [formData.pdl_status]);
 
   if (loading) return <div className="loading-state">Syncing Judicial Ledger...</div>;
 
@@ -552,34 +656,115 @@ const confirmRelease = async () => {
             <form onSubmit={handleOpenModal}>
               
               {/* SECTION: SYSTEM MIGRATION LEDGER */}
-              <div className="section-header">
-                <h3>⚙️ System Migration Ledger</h3>
-                <button 
-                  type="button" 
-                  className={`btn-lock-toggle ${isUnlocked ? 'unlocked' : ''}`} 
-                  onClick={handleLockToggle}
-                >
-                  {isUnlocked ? "🔓 Manual Override Active" : "🔒 Unlock Manual Entry"}
-                </button>
-              </div>
+            <div className="section-header migration-header">
+  <div className="title-group">
+    <h3>⚙️ System Migration Ledger</h3>
+    {/* 🎯 Master Status Badge */}
+    {formData.isMigrationLocked ? (
+      <span className="badge badge-locked">🔒 System Finalized</span>
+    ) : (
+      <span className="badge badge-open">🔓 Pending Entry</span>
+    )}
+  </div>
 
-              <div className={`input-section ${!isUnlocked ? 'disabled' : ''}`}>
-                <div className="field">
-                  <label>Total GCTA Credits (Days)</label>
-                  <input type="number" name="gcta_days" value={formData.gcta_days} onChange={handleChange} disabled={!isUnlocked} />
-                </div>
+  <button 
+    type="button" 
+    className={`btn-lock-toggle ${isUnlocked ? 'unlocked' : ''} ${formData.isMigrationLocked ? 'system-disabled' : ''}`} 
+    onClick={handleLockToggle}
+    // 🛡️ Master Rule: If the system locked it, the button is dead.
+    disabled={formData.isMigrationLocked}
+  >
+    {formData.isMigrationLocked ? "System Locked" : (isUnlocked ? "🔓 Close Manual Entry" : "🔒 Unlock Manual Entry")}
+  </button>
+</div>
 
-                <div className="tastm-migration-group">
-                  <div className="field">
-                    <label>TASTM Credits (Days)</label>
-                    <input type="number" name="tastm_days" value={formData.tastm_days} onChange={handleChange} disabled={!isUnlocked} />
-                  </div>
-                  <div className="field">
-                    <label>TASTM Balance (Hours)</label>
-                    <input type="number" name="tastm_hours" value={formData.tastm_hours} onChange={handleChange} disabled={!isUnlocked} />
-                  </div>
-                </div>
-              </div>
+{/* 🚩 Integrity Banner */}
+{(formData.isMigrationLocked || formData.isTastmLocked || formData.isGctaLocked) && (
+  <div className="migration-lock-banner">
+    <div className="banner-content">
+      <span className="icon">⚖️</span>
+      <div className="text">
+        <strong>Migration Data Locked</strong>
+        <p>The following migration records have been consumed and are now read-only:</p>
+        <div className="lock-indicators">
+          {formData.isTastmLocked && (
+            <span className="lock-badge tastm">
+              🔒 TASTM Migration — Already used by automated sync
+            </span>
+          )}
+          {formData.isGctaLocked && (
+            <span className="lock-badge gcta">
+              🔒 GCTA Migration — Locked by system or legal disqualification
+            </span>
+          )}
+          {!formData.isTastmLocked && !formData.isGctaLocked && formData.isMigrationLocked && (
+            <span className="lock-badge general">
+              🔒 Migration record locked
+            </span>
+          )}
+        </div>
+        <p className="audit-note">
+          Manual edits to migration fields are disabled to maintain the judicial audit trail.
+        </p>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* 🎯 Input Wrapper: Visual dimming when locked */}
+<div className={`input-section migration-fields ${(formData.isMigrationLocked || !isUnlocked) ? 'is-locked' : 'is-editable'}`}>
+  
+  {/* --- GCTA FIELD --- */}
+  <div className={`field ${formData.isGctaLocked ? 'locked-field' : ''}`}>
+    <label>
+      Total GCTA Credits (Days) 
+      {formData.isGctaLocked && <span className="lock-icon">🔒</span>}
+    </label>
+    <input 
+      type="number" 
+      name="gcta_days" 
+      placeholder="0"
+      value={formData.gcta_days} 
+      onChange={handleChange} 
+      // 🛡️ Lock logic: must be toggled ON and system must NOT have locked it
+      disabled={!isUnlocked || formData.isGctaLocked} 
+    />
+  </div>
+
+  <div className="tastm-migration-group">
+    {/* --- TASTM DAYS --- */}
+    <div className={`field ${formData.isTastmLocked ? 'locked-field' : ''}`}>
+      <label>
+        TASTM Credits (Days) 
+        {formData.isTastmLocked && <span className="lock-icon">🔒</span>}
+      </label>
+      <input 
+        type="number" 
+        name="tastm_days" 
+        placeholder="0"
+        value={formData.tastm_days} 
+        onChange={handleChange} 
+        disabled={!isUnlocked || formData.isTastmLocked} 
+      />
+    </div>
+    
+    {/* --- TASTM HOURS --- */}
+    <div className={`field ${formData.isTastmLocked ? 'locked-field' : ''}`}>
+      <label>
+        TASTM Balance (Hours) 
+        {formData.isTastmLocked && <span className="lock-icon">🔒</span>}
+      </label>
+      <input 
+        type="number" 
+        name="tastm_hours" 
+        placeholder="0.00"
+        value={formData.tastm_hours} 
+        onChange={handleChange} 
+        disabled={!isUnlocked || formData.isTastmLocked} 
+      />
+    </div>
+  </div>
+</div>
 
               <hr className="section-divider" />
 
@@ -644,6 +829,19 @@ const confirmRelease = async () => {
                       disabled={!isJudicialUnlocked}
                     />
                   </div>
+
+                    <div className="field highlight-field">
+                    <label className="text-blue-700 font-bold">Date of Final Judgment (Conviction Date)</label>
+                    <input 
+                      type="date" 
+                      name="date_of_final_judgment" 
+                      value={formData.date_of_final_judgment || ""} 
+                      onChange={handleChange} 
+                      disabled={!isJudicialUnlocked}
+                      required={formData.pdl_status === "Sentenced"}
+                    />
+                  </div>
+                  
                     <label>Court-Ordered Sentence Duration</label>
                     <div className="triple-input">
                       <div className="unit-input">
@@ -662,6 +860,31 @@ const confirmRelease = async () => {
                         <span>Days</span>
                       </div>
                     </div>
+                    
+
+                   <div className="field disqualification-toggle">
+  <div className="toggle-container">
+    <label htmlFor="is_legally_disqualified">
+      Legally Disqualified (RA 10592 Exclusions)?
+    </label>
+    <input 
+      id="is_legally_disqualified"
+      type="checkbox" 
+      name="is_legally_disqualified"
+      className="large-checkbox" /* 🎯 Target this class */
+      checked={formData.is_legally_disqualified || false}
+      onChange={(e) => handleChange({
+        target: { name: 'is_legally_disqualified', value: e.target.checked }
+      })}
+      disabled={!isJudicialUnlocked}
+    />
+  </div>
+  {formData.is_legally_disqualified && (
+    <p className="warning-text">
+      ⚠️ Credits earned during detention will be VOIDED upon saving.
+    </p>
+  )}
+</div>
                   </div>
                 )}
 

@@ -217,50 +217,70 @@ const recalculatePdlSentence = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 1. Fetch Sentence Params & CURRENT Admission Date
+        // 1. Fetch PDL Details
         const pdlResult = await client.query(
-            `SELECT date_admitted_bjmp, date_commited_pnp, sentence_years, sentence_months, sentence_days, pdl_status 
+            `SELECT date_admitted_bjmp, date_commited_pnp, date_of_final_judgment,
+                    sentence_years, sentence_months, sentence_days, 
+                    pdl_status, is_legally_disqualified 
              FROM pdl_tbl WHERE pdl_id = $1`, [id]
         );
         
         if (pdlResult.rows.length === 0) throw new Error("PDL not found.");
         const pdl = pdlResult.rows[0];
 
-        // 🎯 2. Aggregate ONLY credits from the CURRENT stay
-        // We filter logs by comparing their date to the date_admitted_bjmp
+        // 🎯 2. The Anchor (Judgment for DQ, Admission for Normal)
+        const creditAnchor = pdl.is_legally_disqualified 
+            ? pdl.date_of_final_judgment 
+            : pdl.date_admitted_bjmp;
+
+        // 🛡️ 3. AGGREGATE WITH MIGRATION OVERRIDE
+        // This query now says: "Include it if it's after the anchor OR if it's labeled 'Sentenced Migration'"
         const creditResult = await client.query(`
             SELECT 
                 (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log 
-                WHERE pdl_id = $1 
-                AND status = 'Active'         -- 🛡️ IGNORE RELEASED/DISQUALIFIED
-                AND date_granted::DATE >= $2::DATE) as gcta,
-                
+                 WHERE pdl_id = $1 AND status = 'Active' 
+                 AND (
+                    DATE_TRUNC('month', month_year) >= DATE_TRUNC('month', $2::DATE)
+                    OR remarks = 'Migration (Sentenced)'
+                 )) as gcta,
                 (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log 
-                WHERE pdl_id = $1 
-                AND status = 'Active'         -- 🛡️ IGNORE RELEASED/DISQUALIFIED
-                AND date_granted::DATE >= $2::DATE) as tastm
-        `, [id, pdl.date_admitted_bjmp]);
+                 WHERE pdl_id = $1 AND status = 'Active' 
+                 AND (
+                    DATE_TRUNC('month', month_year) >= DATE_TRUNC('month', $2::DATE)
+                    OR remarks = 'Migration (Sentenced)'
+                 )) as tastm
+        `, [id, creditAnchor]);
 
-        const totalCredits = parseInt(creditResult.rows[0].gcta) + parseInt(creditResult.rows[0].tastm);
+        const gcta = parseInt(creditResult.rows[0].gcta) || 0;
+        const tastm = parseInt(creditResult.rows[0].tastm) || 0;
+        const totalCredits = gcta + tastm;
 
-        // 3. Calculation Engine (Stay-Specific Math)
+        // --- 🎯 4. CALCULATION ENGINE ---
         let updatedExpectedDate = null;
         let updatedOriginalDate = null;
 
-        if (pdl.date_commited_pnp && (pdl.sentence_years || pdl.sentence_months || pdl.sentence_days)) {
-            let release = new Date(pdl.date_commited_pnp);
+        const sentenceStartDate = pdl.is_legally_disqualified 
+            ? pdl.date_of_final_judgment 
+            : pdl.date_commited_pnp;
+
+        if (sentenceStartDate && (pdl.sentence_years || pdl.sentence_months || pdl.sentence_days)) {
+            let release = new Date(sentenceStartDate);
+            
+            // Add Sentence
             release.setFullYear(release.getFullYear() + (parseInt(pdl.sentence_years) || 0));
             release.setMonth(release.getMonth() + (parseInt(pdl.sentence_months) || 0));
             release.setDate(release.getDate() + (parseInt(pdl.sentence_days) || 0));
-
-            release.setDate(release.getDate() - 1); // Inclusive Rule
+            release.setDate(release.getDate() - 1); 
+            
             updatedOriginalDate = new Date(release);
 
-            release.setDate(release.getDate() - totalCredits); // Deduct only CURRENT credits
-            updatedExpectedDate = release;
+            // Subtract Credits
+            let expected = new Date(updatedOriginalDate);
+            expected.setDate(expected.getDate() - totalCredits); 
+            updatedExpectedDate = expected;
         }
 
-        // 4. THE UPSERT
+        // 5. MASTER UPDATE
         const updateQuery = `
             UPDATE pdl_tbl SET 
                 total_timeallowance_earned = $1,
@@ -274,18 +294,14 @@ const recalculatePdlSentence = async (req, res) => {
             RETURNING expected_releasedate, total_timeallowance_earned;
         `;
 
-        const finalResult = await client.query(updateQuery, [
-            totalCredits, 
-            updatedExpectedDate, 
-            updatedOriginalDate, 
-            id
-        ]);
+        const finalResult = await client.query(updateQuery, [totalCredits, updatedExpectedDate, updatedOriginalDate, id]);
 
         await client.query('COMMIT');
         res.status(200).json({ success: true, updatedData: finalResult.rows[0] });
 
     } catch (err) {
         await client.query('ROLLBACK');
+        console.error("Recalculate Error:", err.message);
         res.status(500).json({ error: err.message });
     } finally {
         client.release();
@@ -305,32 +321,29 @@ const getPdlById = async (req, res) => {
         }
 
         const pdl = profileResult.rows[0];
-        // 🎯 Use PNP Date as the boundary if available, otherwise BJMP Admission
+        
+        // 🎯 Anchor for the current stay
         const admissionDate = pdl.date_commited_pnp || pdl.date_admitted_bjmp;
 
-        // --- 🛡️ FILTER LOGS: The "Double-Lock" Strategy ---
-        // We filter by date AND status to ensure only CURRENT stay records show up.
+        // --- 🛡️ FILTER LOGS: The "History & Audit" Strategy ---
+        // 🎯 CHANGE: We now allow 'Voided' logs to show up in the history.
+        const logQuery = (tableName) => `
+            SELECT * FROM ${tableName} 
+            WHERE pdl_id = $1 
+            AND status IN ('Active', 'Voided', 'Inactive')   -- 🎯 Show both for transparency
+            AND date_granted::DATE >= $2::DATE
+            ORDER BY month_year DESC
+        `;
+
+        const gctaLogs = await client.query(logQuery('gcta_days_log'), [id, admissionDate]);
+        const tastmLogs = await client.query(logQuery('tastm_days_log'), [id, admissionDate]);
+
+        // 🔍 Migration Check (Updated for Phase-Aware remarks)
+        // We use .includes because the remark might be "Migration (Detention)" or "Migration (Sentenced)"
+        const checkMigration = (logs) => logs.rows.some(log => log.remarks && log.remarks.includes('Migration'));
         
-        const gctaLogs = await client.query(
-            `SELECT * FROM gcta_days_log 
-             WHERE pdl_id = $1 
-             AND status = 'Active'         -- 🎯 Lock 1: Ignore archived records
-             AND date_granted::DATE >= $2::DATE -- 🎯 Lock 2: Only this stay
-             ORDER BY month_year DESC`, [id, admissionDate]
-        );
-
-        const tastmLogs = await client.query(
-            `SELECT * FROM tastm_days_log 
-             WHERE pdl_id = $1 
-             AND status = 'Active'         -- 🎯 Lock 1: Ignore archived records
-             AND date_granted::DATE >= $2::DATE -- 🎯 Lock 2: Only this stay
-             ORDER BY month_year DESC`, [id, admissionDate]
-        );
-
-        // 🔍 Migration Check Logic (Remains the same but now strictly active)
-        const migrationBaselineString = "Migration";
-        const gctaMigrated = gctaLogs.rows.some(log => log.remarks === migrationBaselineString);
-        const tastmMigrated = tastmLogs.rows.some(log => log.remarks === migrationBaselineString);
+        const gctaMigrated = checkMigration(gctaLogs);
+        const tastmMigrated = checkMigration(tastmLogs);
 
         res.status(200).json({
             ...pdl,
@@ -519,19 +532,16 @@ const updatePDL = async (req, res) => {
     }
 };
 
-
-
-
 const updatePdlJudicialRecord = async (req, res) => {
     const { id } = req.params;
     const { 
-        // 1. Personal Info
         first_name, last_name, middle_name, rfid_number, crime_name,
-        // 2. Judicial Info
         pdl_status, date_commited_pnp, 
         sentence_years, sentence_months, sentence_days,
         is_locked_for_gcta,
-        // 3. Allowance Migration Data (GCTA/TASTM)
+        is_legally_disqualified, 
+        date_of_final_judgment,
+        disqualification_reason,
         gcta_days, tastm_days, tastm_hours,
         isManualOverride 
     } = req.body;
@@ -541,187 +551,303 @@ const updatePdlJudicialRecord = async (req, res) => {
     try {
         await client.query("BEGIN");
 
-        // --- 🛡️ STEP 1: FETCH FALLBACKS (System Memory) ---
-        // This ensures the math works even if only one field is updated.
+        // --- 🛡️ STEP 1: FETCH FALLBACKS ---
         const currentRecord = await client.query(
-            "SELECT sentence_years, sentence_months, sentence_days, date_commited_pnp, total_timeallowance_earned FROM pdl_tbl WHERE pdl_id = $1", 
+            "SELECT sentence_years, sentence_months, sentence_days, date_commited_pnp, pdl_status FROM pdl_tbl WHERE pdl_id = $1", 
             [id]
         );
         const db = currentRecord.rows[0];
-        if (!db) throw new Error("PDL Record not found in database.");
+        if (!db) throw new Error("PDL Record not found.");
 
         // --- 🛡️ STEP 2: VARIABLE RESOLUTION ---
-        // We force values to booleans and integers to avoid "Data Type" errors.
         const manualActive = isManualOverride === true || isManualOverride === 'true';
-        console.log("--- 📡 BACKEND RECEIVED ---");
-        console.log("Is Manual Active?:", manualActive);
-        console.log("GCTA Days Received:", gcta_days);
-        console.log("TASTM Days Received:", tastm_days);
-        console.log("Manual Override Raw:", isManualOverride);
+        const isDisqualified = is_legally_disqualified === true || is_legally_disqualified === 'true';
 
         const sY = sentence_years !== undefined ? parseInt(sentence_years) : (db.sentence_years || 0);
         const sM = sentence_months !== undefined ? parseInt(sentence_months) : (db.sentence_months || 0);
         const sD = sentence_days !== undefined ? parseInt(sentence_days) : (db.sentence_days || 0);
         const pnpDate = (date_commited_pnp && date_commited_pnp !== "") ? date_commited_pnp : db.date_commited_pnp;
 
-        let combinedTotal = 0;
-
+        // --- 🛡️ STEP 4: CLEAN MIGRATION SYNC ---
+        let tastmLogId = null;
         if (manualActive) {
-            // 🎯 1. Get the sum of all GCTA/TASTM logs that ARE NOT 'Migration'
-            const autoCredits = await client.query(`
-                SELECT 
-                    (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log WHERE pdl_id = $1 AND remarks != 'Migration') as auto_gcta,
-                    (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log WHERE pdl_id = $1 AND remarks != 'Migration') as auto_tastm
-            `, [id]);
+            if (isDisqualified && pdl_status !== 'Sentenced') {
+                console.log("Migration Blocked: Disqualified Detainee.");
+            } else {
+                const migrationDate = new Date(Date.UTC(
+                    new Date().getUTCFullYear(),
+                    new Date().getUTCMonth(),
+                    1
+                )).toISOString();
 
-            const autoG = parseInt(autoCredits.rows[0].auto_gcta);
-            const autoT = parseInt(autoCredits.rows[0].auto_tastm);
+                // ✅ Flat label — no Detention/Sentenced split
+                const baseLabel = 'Migration';
 
-            // 🎯 2. Add [Manual Migration Input] + [Existing Automated Credits]
-            combinedTotal = (parseInt(gcta_days) || 0) + (parseInt(tastm_days) || 0) + autoG + autoT;
-            
-            console.log(`[MATH] Migration(${gcta_days}+${tastm_days}) + Auto(${autoG}+${autoT}) = ${combinedTotal}`);
-        } else {
-            combinedTotal = (parseInt(db.total_timeallowance_earned) || 0);
-}
+                // -----------------------------------------------
+                // 🎯 GCTA Migration
+                // Only touch days_earned if a real positive value was explicitly sent
+                // -----------------------------------------------
+                const safeGctaDays = (
+                    gcta_days !== undefined && 
+                    gcta_days !== null && 
+                    gcta_days !== '' && 
+                    parseInt(gcta_days) > 0
+                ) ? parseInt(gcta_days) : null;
 
-        // --- 🎯 STEP 3: THE CALCULATION ENGINE ---
-        // Recalculates every time to handle the "Vice-Versa" logic you requested.
-        let expectedReleaseDate = null;
-        let originalReleaseDate = null;
+                const existingGcta = await client.query(
+                    `SELECT gcta_log_id FROM gcta_days_log 
+                     WHERE pdl_id = $1 AND remarks ILIKE 'Migration%' AND status = 'Active'`, 
+                    [id]
+                );
 
-        if (pnpDate && (sY > 0 || sM > 0 || sD > 0)) {
-            // We use UTC-style or clear date objects to avoid the "May 05" timezone shift
-            let fullTerm = new Date(pnpDate);
-            
-            // 1. Add Sentence duration
-            fullTerm.setFullYear(fullTerm.getFullYear() + sY);
-            fullTerm.setMonth(fullTerm.getMonth() + sM);
-            fullTerm.setDate(fullTerm.getDate() + sD);
+                if (safeGctaDays !== null) {
+                    // Real value sent — update or insert
+                    if (existingGcta.rows.length > 0) {
+                        await client.query(
+                            `UPDATE gcta_days_log SET days_earned = $1, remarks = $2 WHERE gcta_log_id = $3`, 
+                            [safeGctaDays, baseLabel, existingGcta.rows[0].gcta_log_id]
+                        );
+                    } else {
+                        await client.query(
+                            `INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, status, remarks, date_granted) 
+                             VALUES ($1, $2, $3, 'Active', $4, NOW())`, 
+                            [id, migrationDate, safeGctaDays, baseLabel]
+                        );
+                    }
+                } else {
+                    // Nothing sent — only relabel if row exists, never touch days_earned
+                    if (existingGcta.rows.length > 0) {
+                        await client.query(
+                            `UPDATE gcta_days_log SET remarks = $1 WHERE gcta_log_id = $2`,
+                            [baseLabel, existingGcta.rows[0].gcta_log_id]
+                        );
+                    }
+                }
 
-            // 2. The "Inclusive Day" Rule (-1 Day)
-            // This is the "Full Term" release date (if they had 0 credits)
-            fullTerm.setDate(fullTerm.getDate() - 1);
-            
-            // Clone this for the Original Release Date field
-            originalReleaseDate = new Date(fullTerm);
-            console.log("etits")
-            console.log(originalReleaseDate);
-            // 3. Subtract Time Allowance (Credits) for the Projected/Expected date
-            let projectedDate = new Date(fullTerm);
-            projectedDate.setDate(projectedDate.getDate() - combinedTotal);
-            
-            expectedReleaseDate = projectedDate;
+                // -----------------------------------------------
+                // 🎯 TASTM Migration
+                // Only touch hours/days if real positive values were explicitly sent
+                // -----------------------------------------------
+                const safeTastmDays = (
+                    tastm_days !== undefined && 
+                    tastm_days !== null && 
+                    tastm_days !== '' && 
+                    parseInt(tastm_days) > 0
+                ) ? parseInt(tastm_days) : null;
+
+                const safeTastmHours = (
+                    tastm_hours !== undefined && 
+                    tastm_hours !== null && 
+                    tastm_hours !== '' && 
+                    parseFloat(tastm_hours) > 0
+                ) ? parseFloat(tastm_hours) : null;
+
+                const existingTastm = await client.query(
+                    `SELECT tastm_log_id FROM tastm_days_log 
+                     WHERE pdl_id = $1 AND remarks ILIKE 'Migration%' AND status = 'Active'`, 
+                    [id]
+                );
+
+                if (safeTastmDays !== null || safeTastmHours !== null) {
+                    // Real value(s) sent — update or insert
+                    if (existingTastm.rows.length > 0) {
+                        tastmLogId = existingTastm.rows[0].tastm_log_id;
+                        await client.query(
+                            `UPDATE tastm_days_log 
+                             SET total_hours_accumulated = COALESCE($1, total_hours_accumulated), 
+                                 days_earned = COALESCE($2, days_earned), 
+                                 remarks = $3 
+                             WHERE tastm_log_id = $4`, 
+                            [safeTastmHours, safeTastmDays, baseLabel, tastmLogId]
+                        );
+                    } else {
+                        const newTastm = await client.query(
+                            `INSERT INTO tastm_days_log 
+                             (pdl_id, month_year, total_hours_accumulated, days_earned, remarks, status, date_granted) 
+                             VALUES ($1, $2, $3, $4, $5, 'Active', NOW()) RETURNING tastm_log_id`, 
+                            [id, migrationDate, safeTastmHours ?? 0, safeTastmDays ?? 0, baseLabel]
+                        );
+                        tastmLogId = newTastm.rows[0].tastm_log_id;
+                    }
+                } else {
+                    // Nothing sent — only relabel if row exists, never touch hours/days
+                    if (existingTastm.rows.length > 0) {
+                        tastmLogId = existingTastm.rows[0].tastm_log_id;
+                        await client.query(
+                            `UPDATE tastm_days_log SET remarks = $1 WHERE tastm_log_id = $2`,
+                            [baseLabel, tastmLogId]
+                        );
+                    }
+                }
+
+                // --- 🛡️ STEP 4.2: DETENTION WINDOW KILL SWITCH ---
+                // Only voids period-specific credits, never Migration rows
+                if (pdl_status === 'Sentenced' && isDisqualified && date_of_final_judgment && pnpDate) {
+                    const lockStamp = ` - VOIDED (System Locked): ${disqualification_reason || 'RA 10592 Exclusion'} (Judgment: ${date_of_final_judgment})`;
+                    
+                    const voidQuery = `
+                        UPDATE %I SET status = 'Voided', remarks = remarks || $1 
+                        WHERE pdl_id = $2 AND status = 'Active'
+                        AND month_year >= $3 
+                        AND month_year <= $4
+                        AND remarks NOT LIKE '%VOIDED%'
+                        AND remarks NOT ILIKE 'Migration%'
+                    `;
+                    await client.query(voidQuery.replace('%I', 'gcta_days_log'), [lockStamp, id, pnpDate, date_of_final_judgment]);
+                    await client.query(voidQuery.replace('%I', 'tastm_days_log'), [lockStamp, id, pnpDate, date_of_final_judgment]);
+                    
+                    await client.query(`
+                        UPDATE attendance_tbl SET status = 'Voided' 
+                        WHERE pdl_id = $1 AND status = 'Voided' 
+                        AND timestamp_in >= $2 AND timestamp_in <= $3
+                    `, [id, pnpDate, date_of_final_judgment]);
+
+                    // ✅ Lock Migration rows on both tables if judgment date has arrived
+                    await client.query(`
+                        UPDATE gcta_days_log 
+                        SET remarks = remarks || ' - Locked'
+                        WHERE pdl_id = $1 
+                        AND status = 'Voided'
+                        AND remarks ILIKE 'Migration%'
+                        AND remarks NOT LIKE '%Locked%'
+                        AND month_year <= DATE_TRUNC('month', $2::DATE)
+                    `, [id, date_of_final_judgment]);
+
+                    await client.query(`
+                        UPDATE tastm_days_log 
+                        SET remarks = remarks || ' - Locked'
+                        WHERE pdl_id = $1 
+                        AND status = 'Voided'
+                        AND remarks ILIKE 'Migration%'
+                        AND remarks NOT LIKE '%Locked%'
+                        AND month_year <= DATE_TRUNC('month', $2::DATE)
+                    `, [id, date_of_final_judgment]);
+                    
+                    console.log(`[Legal] Credits voided within detention window: ${pnpDate} to ${date_of_final_judgment}`);
+                    console.log(`[Legal] Migration rows locked as of judgment date: ${date_of_final_judgment}`);
+                }
+
+                // --- 🛡️ STEP 4.5: RETROACTIVE AUTOMATED UPDATE ---
+                const currentAutomatedLog = await client.query(`
+                    SELECT tastm_log_id FROM tastm_days_log 
+                    WHERE pdl_id = $1 
+                    AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
+                        = DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila')
+                    AND remarks = 'Automated TASTM' 
+                    AND status = 'Active'
+                `, [id]);
+
+                if (currentAutomatedLog.rows.length > 0 && tastmLogId) {
+                    const currentAttendance = await client.query(`
+                        SELECT COALESCE(SUM(hours_attended), 0) as monthly_sum 
+                        FROM attendance_tbl 
+                        WHERE pdl_id = $1 AND status = 'Active' 
+                        AND DATE_TRUNC('month', timestamp_in AT TIME ZONE 'Asia/Manila') 
+                            = DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila')
+                    `, [id]);
+                    const attHours = parseFloat(currentAttendance.rows[0].monthly_sum) || 0;
+
+                    // Fetch the actual saved migration hours from DB, not from request
+                    const savedMigration = await client.query(
+                        `SELECT total_hours_accumulated FROM tastm_days_log WHERE tastm_log_id = $1`,
+                        [tastmLogId]
+                    );
+                    const migHours = parseFloat(savedMigration.rows[0]?.total_hours_accumulated) || 0;
+
+                    const prevMonth = await client.query(`
+                        SELECT total_hours_accumulated, days_earned 
+                        FROM tastm_days_log 
+                        WHERE pdl_id = $1 
+                        AND month_year < DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila') 
+                        AND remarks = 'Automated TASTM' 
+                        AND status = 'Active'
+                        ORDER BY month_year DESC LIMIT 1
+                    `, [id]);
+
+                    let prevCarry = 0;
+                    if (prevMonth.rows.length > 0 && parseInt(prevMonth.rows[0].days_earned) === 0) {
+                        prevCarry = parseFloat(prevMonth.rows[0].total_hours_accumulated) || 0;
+                    }
+
+                    const finalTotal = migHours + attHours + prevCarry;
+                    const finalDays = finalTotal >= 60 ? 15 : 0;
+
+                    await client.query(
+                        `UPDATE tastm_days_log SET total_hours_accumulated = $1, days_earned = $2, date_granted = NOW() 
+                         WHERE tastm_log_id = $3`, 
+                        [finalTotal, finalDays, currentAutomatedLog.rows[0].tastm_log_id]
+                    );
+                     await client.query(
+                        `UPDATE tastm_days_log 
+                        SET remarks = remarks || ' - Locked',
+                            status = 'Inactive'
+                        WHERE tastm_log_id = $1 AND remarks NOT LIKE '%Locked%'`, 
+                        [tastmLogId]
+                    );
+                }
+            }
         }
 
-        // --- 🛡️ STEP 4: MASTER UPDATE (pdl_tbl) ---
+        // --- 🛡️ STEP 5: AGGREGATE ALL 'ACTIVE' CREDITS ---
+        const activeCredits = await client.query(`
+            SELECT 
+                (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log WHERE pdl_id = $1 AND status = 'Active') +
+                (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log WHERE pdl_id = $1 AND status = 'Active') 
+            as total
+        `, [id]);
+        
+        const combinedTotal = parseInt(activeCredits.rows[0].total) || 0;
+
+        // --- 🎯 STEP 6: CALCULATION ENGINE ---
+        let expectedReleaseDate = null;
+        let originalReleaseDate = null;
+        if (pnpDate && (sY > 0 || sM > 0 || sD > 0)) {
+            let release = new Date(pnpDate);
+            release.setFullYear(release.getFullYear() + sY);
+            release.setMonth(release.getMonth() + sM);
+            release.setDate(release.getDate() + sD);
+            release.setDate(release.getDate() - 1); 
+            originalReleaseDate = new Date(release);
+            let projected = new Date(release);
+            projected.setDate(projected.getDate() - combinedTotal);
+            expectedReleaseDate = projected;
+        }
+
+        // --- 🛡️ STEP 7: MASTER UPDATE ---
         const masterUpdateQuery = `
             UPDATE pdl_tbl SET 
-                first_name = COALESCE($1, first_name),
-                last_name = COALESCE($2, last_name),
+                first_name = COALESCE($1, first_name), 
+                last_name = COALESCE($2, last_name), 
                 middle_name = COALESCE($3, middle_name),
-                rfid_number = COALESCE($4, rfid_number),
-                crime_name = COALESCE($5, crime_name),
+                rfid_number = COALESCE($4, rfid_number), 
+                crime_name = COALESCE($5, crime_name), 
                 pdl_status = COALESCE($6, pdl_status),
-                date_commited_pnp = $7,
-                sentence_years = $8,
-                sentence_months = $9,
+                date_commited_pnp = $7, 
+                sentence_years = $8, 
+                sentence_months = $9, 
                 sentence_days = $10,
-                is_locked_for_gcta = $11,
-                total_timeallowance_earned = CASE 
-                    WHEN $12::BOOLEAN = true THEN $13 
-                    ELSE total_timeallowance_earned 
-                END,
-                expected_releasedate = $15,
-                -- 🎯 NEW: Update original release date ONLY if status is 'Sentenced'
-                original_release_date = CASE 
-                    WHEN $6 = 'Sentenced' THEN $16::DATE
-                    ELSE original_release_date 
-                END,
+                is_locked_for_gcta = $11, 
+                total_timeallowance_earned = $12, 
+                expected_releasedate = $13,
+                is_legally_disqualified = $14, 
+                date_of_final_judgment = $15, 
+                disqualification_reason = $16,
+                original_release_date = CASE WHEN $6 = 'Sentenced' THEN $17::DATE ELSE original_release_date END,
                 updated_at = NOW()
-            WHERE pdl_id = $14
-            RETURNING *;
+            WHERE pdl_id = $18 RETURNING *;
         `;
 
         const pdlValues = [
-            first_name, last_name, middle_name, rfid_number, crime_name,
-            pdl_status, pnpDate,
-            sY, sM, sD,
-            is_locked_for_gcta || false, 
-            manualActive,       // $12
-            combinedTotal,      // $13
-            id,                 // $14
-            expectedReleaseDate,// $15
-            originalReleaseDate // $16
+            first_name, last_name, middle_name, rfid_number, crime_name, pdl_status, pnpDate, sY, sM, sD,
+            is_locked_for_gcta || false, combinedTotal, expectedReleaseDate, isDisqualified, 
+            date_of_final_judgment, 
+            isDisqualified ? (disqualification_reason || "Disqualified under RA 10592") : null, 
+            originalReleaseDate, id 
         ];
 
         const result = await client.query(masterUpdateQuery, pdlValues);
-
-        // --- 🛡️ STEP 5: SMART MIGRATION LOG SYNC (Upsert) ---
-        if (manualActive) {
-            console.log("🎯 STEP 5 REACHED: Attempting Migration Upsert for PDL:", id);
-            const migrationDate = new Date();
-            migrationDate.setDate(1); 
-            const logRemark = 'Migration';
-
-            // --- GCTA UPSERT ---
-            // --- GCTA UPSERT (Recommitment Aware) ---
-            const existingGcta = await client.query(
-                `SELECT gcta_log_id FROM gcta_days_log 
-                WHERE pdl_id = $1 
-                AND remarks = $2 
-                AND status = 'Active'`, // 🎯 ONLY look for the one belonging to the CURRENT stay
-                [id, logRemark]
-            );
-
-            if (existingGcta.rows.length > 0) {
-                // Update the active migration log
-                await client.query(
-                    "UPDATE gcta_days_log SET days_earned = $1, month_year = $2 WHERE gcta_log_id = $3",
-                    [parseInt(gcta_days) || 0, migrationDate, existingGcta.rows[0].gcta_log_id]
-                );
-            } else {
-                // Create a NEW migration log for this new recommitment stay
-                await client.query(
-                    `INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, status, remarks, date_granted) 
-                    VALUES ($1, $2, $3, 'Active', $4, NOW())`, 
-                    [id, migrationDate, parseInt(gcta_days) || 0, logRemark]
-                );
-            }
-
-            // --- TASTM UPSERT ---
-            const existingTastm = await client.query(
-                `SELECT tastm_log_id FROM tastm_days_log 
-                WHERE pdl_id = $1 
-                AND remarks = $2 
-                AND status = 'Active'`, // 🎯 Triple Guard: ID + Remark + Active Status
-                [id, logRemark]
-            );
-
-            if (existingTastm.rows.length > 0) {
-                // Update the existing migration record for the CURRENT stay
-                await client.query(
-                    `UPDATE tastm_days_log 
-                    SET total_hours_accumulated = $1, days_earned = $2, month_year = $3, date_granted = NOW()
-                    WHERE tastm_log_id = $4`,
-                    [parseFloat(tastm_hours) || 0, parseInt(tastm_days) || 0, migrationDate, existingTastm.rows[0].tastm_log_id]
-                );
-            } else {
-                // Create a NEW migration record for this new recommitment stay
-                await client.query(
-                    `INSERT INTO tastm_days_log (pdl_id, month_year, total_hours_accumulated, days_earned, remarks, status, date_granted) 
-                    VALUES ($1, $2, $3, $4, $5, 'Active', NOW())`, // 🎯 Ensures date_granted is set for filtering
-                    [id, migrationDate, parseFloat(tastm_hours) || 0, parseInt(tastm_days) || 0, logRemark]
-                );
-            }
-        }
-
         await client.query("COMMIT");
-        
-        res.status(200).json({ 
-            message: "Timeline Recalculated & Logs Synchronized.", 
-            data: result.rows[0] 
-        });
+        res.status(200).json({ success: true, message: "Judicial Ledger Updated.", data: result.rows[0] });
 
     } catch (err) {
         await client.query("ROLLBACK");
@@ -731,7 +857,6 @@ const updatePdlJudicialRecord = async (req, res) => {
         client.release();
     }
 };
-
 
  const updatePersonalInfo = async (req, res) => {
   const { id } = req.params;
@@ -886,86 +1011,62 @@ const releasePdl = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 1. Fetch current data for the snapshot
-        const pdlResult = await client.query(
-            "SELECT * FROM pdl_tbl WHERE pdl_id = $1", [id]
-        );
-        
+        // 1. Fetch current data
+        const pdlResult = await client.query("SELECT * FROM pdl_tbl WHERE pdl_id = $1", [id]);
         if (pdlResult.rows.length === 0) throw new Error("PDL not found.");
         const p = pdlResult.rows[0];
 
-        // 🎯 DEFINING THE WINDOW: Use PNP Date as start to ensure migration logs are caught
+        // 🎯 Anchor Dates for the Archive Sweep
         const startDate = p.date_commited_pnp || p.date_admitted_bjmp;
         const endDate = actual_release_date;
-        console.log(startDate + endDate)
 
-        // 2. INSERT into released_tbl (The History Snapshot)
+        // 2. INSERT into released_tbl (Mapped to your schema)
         await client.query(`
             INSERT INTO released_tbl (
                 pdl_id, first_name, last_name, middle_name, birthday, gender,
                 crime_name, sentence_years, sentence_months, sentence_days,
-                total_credits_applied, date_commited_pnp, 
-                date_admitted_bjmp, actual_release_date
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                total_credits_applied, date_commited_pnp, date_admitted_bjmp, 
+                actual_release_date, is_legally_disqualified, date_of_final_judgment, 
+                remarks -- 🎯 Mapped from disqualification_reason
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
             [
                 p.pdl_id, p.first_name, p.last_name, p.middle_name, p.birthday, p.gender,
                 p.crime_name, p.sentence_years, p.sentence_months, p.sentence_days,
-                p.total_timeallowance_earned, p.date_commited_pnp, 
-                p.date_admitted_bjmp, actual_release_date
+                p.total_timeallowance_earned, p.date_commited_pnp, p.date_admitted_bjmp, 
+                actual_release_date, p.is_legally_disqualified, p.date_of_final_judgment,
+                p.disqualification_reason // Store the reason in the remarks column
             ]
         );
 
-        // --- 🛡️ STEP 3: THE ARCHIVE & FREEZE SWEEP ---
+        // --- 🛡️ STEP 3: THE ARCHIVE SWEEP ---
+        // Only flip 'Active' logs. 'Voided' logs must stay 'Voided' in history!
+        const logStatusUpdate = "UPDATE %I SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active' AND month_year <= $2";
         
-        // A. Update GCTA Logs
-        await client.query(`
-            UPDATE gcta_days_log SET status = 'Released'
-            WHERE pdl_id = $1 AND date_granted::DATE >= $2::DATE AND date_granted::DATE <= $3::DATE
-        `, [id, startDate, endDate]);
+        await client.query(`UPDATE gcta_days_log SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active'`, [id]);
+        await client.query(`UPDATE tastm_days_log SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active'`, [id]);
+        
+        // Attendance - Simple status flip
+        await client.query(`UPDATE attendance_tbl SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active'`, [id]);
 
-        // B. Update TASTM Logs
-        await client.query(`
-            UPDATE tastm_days_log SET status = 'Released'
-            WHERE pdl_id = $1 AND date_granted::DATE >= $2::DATE AND date_granted::DATE <= $3::DATE
-        `, [id, startDate, endDate]);
-
-        // C. Update Attendance Records
-        await client.query(`
-            UPDATE attendance_tbl 
-            SET status = 'Released'
-            WHERE pdl_id = $1 
-            AND timestamp_in::DATE >= $2::DATE  -- 🎯 Casts timestamp to Date
-            AND timestamp_in::DATE <= $3::DATE
-        `, [id, startDate, endDate]);
-
-        // D. Update Incident Records (Appending the Remark)
-        await client.query(`
-            UPDATE incident_tbl 
-            SET status = 'Released'
-            WHERE pdl_id = $1 
-            AND incident_date::DATE >= $2::DATE 
-            AND incident_date::DATE <= $3::DATE;
-        `, [id, startDate, endDate]);
-
-
-        // --- 🎯 STEP 4: WIPE/RESET pdl_tbl ---
+        // --- 🎯 STEP 4: WIPE/RESET pdl_tbl (Clean slate for next use) ---
         await client.query(`
             UPDATE pdl_tbl SET 
                 pdl_status = 'Released',
                 rfid_number = NULL, 
                 original_release_date = NULL,
                 date_commited_pnp = NULL,
-                date_admitted_bjmp = NULL, -- Clear this for clean recommitment
-                sentence_years = 0, 
-                sentence_months = 0, 
-                sentence_days = 0,
+                date_admitted_bjmp = NULL,
+                date_of_final_judgment = NULL,
+                is_legally_disqualified = false,
+                disqualification_reason = NULL,
+                sentence_years = 0, sentence_months = 0, sentence_days = 0,
                 total_timeallowance_earned = 0,
                 expected_releasedate = NULL,
                 updated_at = NOW()
             WHERE pdl_id = $1`, [id]);
 
         await client.query('COMMIT');
-        res.status(200).json({ success: true, message: "Archive created, logs frozen, and profile reset." });
+        res.status(200).json({ success: true, message: "PDL released and history archived." });
 
     } catch (err) {
         await client.query('ROLLBACK');
@@ -974,7 +1075,7 @@ const releasePdl = async (req, res) => {
     } finally {
         client.release();
     }
-}; 
+};
 
 module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord, grantGlobalGcta, recalculatePdlSentence, releasePdl, 
     getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL};

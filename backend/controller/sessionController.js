@@ -297,14 +297,19 @@ const silentGctaSync = async (req, res) => {
             )
         `);
 
-        // 🎯 STAGE 2: THE AUTO-GRANT
+        // 🎯 STAGE 2: THE AUTO-GRANT (With Legal Gatekeeper)
         const grantResult = await client.query(`
             INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, date_granted, status, remarks)
             SELECT pdl_id, DATE_TRUNC('month', CURRENT_DATE), 20, CURRENT_DATE, 'Active', 'Automated GCTA'
             FROM pdl_tbl 
             WHERE pdl_status NOT IN ('Released', 'Escaped', 'Deceased')
-            AND date_admitted_bjmp <= CURRENT_DATE - INTERVAL '1 month'
             AND is_locked_for_gcta = false
+            -- 🛡️ THE GATEKEEPER CHECK:
+            AND (
+                (is_legally_disqualified = false AND date_admitted_bjmp <= CURRENT_DATE - INTERVAL '1 month')
+                OR 
+                (is_legally_disqualified = true AND date_of_final_judgment IS NOT NULL AND date_of_final_judgment <= CURRENT_DATE - INTERVAL '1 month')
+            )
             AND pdl_id NOT IN (
                 SELECT pdl_id FROM gcta_days_log 
                 WHERE DATE_TRUNC('month', month_year) = DATE_TRUNC('month', CURRENT_DATE)
@@ -318,9 +323,10 @@ const silentGctaSync = async (req, res) => {
             for (let row of grantResult.rows) {
                 const pdlId = row.pdl_id;
 
-                // 🔍 1. Fetch details with Status Guard
+                // 🔍 1. Fetch details (Added is_legally_disqualified & date_of_final_judgment)
                 const pdlData = await client.query(
-                    `SELECT date_commited_pnp, date_admitted_bjmp, sentence_years, sentence_months, sentence_days 
+                    `SELECT date_commited_pnp, date_admitted_bjmp, date_of_final_judgment, 
+                            is_legally_disqualified, sentence_years, sentence_months, sentence_days 
                      FROM pdl_tbl 
                      WHERE pdl_id = $1 
                      AND date_commited_pnp IS NOT NULL 
@@ -329,17 +335,19 @@ const silentGctaSync = async (req, res) => {
                 );
 
                 if (pdlData.rows.length === 0) continue; 
-
                 const p = pdlData.rows[0];
 
-                // 🔍 2. Fixed Summation Query (Removed Syntax Ambiguity)
+                // ⚓ THE ANCHOR: Determine where the credit summation starts
+                const anchorDate = p.is_legally_disqualified ? p.date_of_final_judgment : p.date_admitted_bjmp;
+
+                // 🔍 2. Summation Query (Filtering by Anchor & Active Status)
                 const sums = await client.query(
                     `SELECT 
                         (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log 
-                         WHERE pdl_id = $1 AND date_granted >= $2) AS gcta_sum,
+                         WHERE pdl_id = $1 AND status = 'Active' AND month_year >= $2) AS gcta_sum,
                         (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log 
-                         WHERE pdl_id = $1 AND date_granted >= $2) AS tastm_sum`, 
-                    [pdlId, p.date_admitted_bjmp]
+                         WHERE pdl_id = $1 AND status = 'Active' AND month_year >= $2) AS tastm_sum`, 
+                    [pdlId, anchorDate]
                 );
                 
                 const totalCredits = parseInt(sums.rows[0].gcta_sum) + parseInt(sums.rows[0].tastm_sum);
@@ -372,6 +380,161 @@ const silentGctaSync = async (req, res) => {
     }
 };
 
+const silentTastmSync = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 🎯 1. FETCH PDLs (Including Legal Status)
+        const pdls = await client.query(`
+            SELECT pdl_id, pdl_status, is_legally_disqualified, date_of_final_judgment 
+            FROM pdl_tbl 
+            WHERE pdl_status NOT IN ('Released', 'Escaped', 'Deceased')
+            AND is_locked_for_gcta = false
+        `);
+
+        for (let p of pdls.rows) {
+            const pdlId = p.pdl_id;
+            const isDQ = p.is_legally_disqualified;
+            const judgmentDate = p.date_of_final_judgment ? new Date(p.date_of_final_judgment) : null;
+            
+            const now = new Date();
+
+            // 🔍 2. FIND THE ANCHOR (Migration or Prev Month)
+            const anchorResult = await client.query(`
+                SELECT tastm_log_id, total_hours_accumulated, days_earned, remarks 
+                FROM tastm_days_log 
+                WHERE pdl_id = $1 AND status = 'Active'
+                AND (
+                    remarks ILIKE 'Migration%' 
+                    OR (remarks = 'Automated TASTM' AND month_year < DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila'))
+                )
+                ORDER BY month_year DESC, tastm_log_id DESC LIMIT 1
+            `, [pdlId]);
+
+            let carryOver = 0;
+            if (anchorResult.rows.length > 0) {
+                const anchor = anchorResult.rows[0];
+                const isMigration = anchor.remarks.includes('Migration');
+
+                // ✅ If last month already hit 60+ (earned 15 days), start fresh at 0
+                // Only carry over if they did NOT reach the quota
+                if (isMigration) {
+                    carryOver = parseFloat(anchor.total_hours_accumulated) || 0;
+                } else {
+                    carryOver = parseInt(anchor.days_earned) === 0
+                        ? parseFloat(anchor.total_hours_accumulated) || 0
+                        : 0; // They hit 60+ last month, reset to 0
+                }
+
+                if (isMigration && !anchor.remarks.includes('Locked')) {
+                    await client.query(`
+                        UPDATE tastm_days_log 
+                        SET remarks = remarks || ' - Locked',
+                            status = 'Inactive'
+                        WHERE tastm_log_id = $1
+                    `, [anchor.tastm_log_id]);
+                }
+            }
+
+            // 🔍 3. CHECK IF PDL ALREADY REACHED 60+ THIS MONTH
+            // If they already have a completed log this month with 15 days, skip attendance
+            const existingThisMonth = await client.query(`
+                SELECT tastm_log_id, total_hours_accumulated, days_earned 
+                FROM tastm_days_log 
+                WHERE pdl_id = $1 
+                AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
+                    = DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila')
+                AND remarks = 'Automated TASTM'
+                AND status = 'Active'
+            `, [pdlId]);
+
+            const alreadyCompleted = 
+                existingThisMonth.rows.length > 0 && 
+                parseInt(existingThisMonth.rows[0].days_earned) === 15;
+
+            let totalToEvaluate;
+            if (alreadyCompleted) {
+                // ✅ Already hit quota this month — don't re-sum attendance, keep existing total
+                totalToEvaluate = parseFloat(existingThisMonth.rows[0].total_hours_accumulated) || 0;
+                console.log(`[Skip] PDL ${pdlId} already completed quota this month. Holding at ${totalToEvaluate}hrs.`);
+            } else {
+                // 🔍 Sum current month attendance normally
+                const currentHours = await client.query(`
+                    SELECT COALESCE(SUM(hours_attended), 0) as monthly_sum 
+                    FROM attendance_tbl 
+                    WHERE pdl_id = $1 AND status = 'Active' 
+                    AND DATE_TRUNC('month', timestamp_in AT TIME ZONE 'Asia/Manila') 
+                        = DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila')
+                `, [pdlId]);
+
+                const thisMonthAttendance = parseFloat(currentHours.rows[0].monthly_sum) || 0;
+                totalToEvaluate = carryOver + thisMonthAttendance;
+            }
+
+            // 🧮 4. DAYS CALCULATION
+            let daysToGrant = totalToEvaluate >= 60 ? 15 : 0;
+            let logStatus = 'Active';
+            let logRemark = 'Automated TASTM';
+
+            // 🛡️ LEGAL CHECK
+            if (isDQ && judgmentDate) {
+                if (judgmentDate <= now) { 
+                    daysToGrant = 0; 
+                    logStatus = 'Voided';
+                    logRemark = `Automated TASTM - VOIDED (System Locked): Legal Disqualification (${judgmentDate.toISOString().split('T')[0]})`;
+                    console.log(`[Legal] PDL ${pdlId} is disqualified. Granting 0 days.`);
+                }
+            }
+
+            // 🎯 5. UPSERT LOG
+            const monthYear = new Date(Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                1
+            )).toISOString();
+
+            const existingLog = await client.query(`
+                SELECT tastm_log_id FROM tastm_days_log 
+                WHERE pdl_id = $1 
+                AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
+                    = DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila')
+                AND (remarks = 'Automated TASTM' OR remarks ILIKE 'Automated TASTM - VOIDED%')
+            `, [pdlId]);
+
+            if (existingLog.rows.length > 0) {
+                // ✅ Only update if not already completed
+                if (!alreadyCompleted) {
+                    await client.query(`
+                        UPDATE tastm_days_log SET 
+                            total_hours_accumulated = $1, 
+                            days_earned = $2, 
+                            status = $3,
+                            remarks = $4,
+                            date_granted = NOW()
+                        WHERE tastm_log_id = $5`,
+                        [totalToEvaluate, daysToGrant, logStatus, logRemark, existingLog.rows[0].tastm_log_id]
+                    );
+                }
+            } else {
+                await client.query(`
+                    INSERT INTO tastm_days_log (pdl_id, month_year, total_hours_accumulated, days_earned, status, remarks, date_granted)
+                    VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+                    [pdlId, monthYear, totalToEvaluate, daysToGrant, logStatus, logRemark]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        res.status(200).json({ success: true, message: "Sync Complete with Legal Checks." });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+};
+
 // ✍️ UPDATE INDIVIDUAL ATTENDANCE HOURS (The Overtime Fix)
 const updateAttendanceHours = async (req, res) => {
     const { session_id, pdl_id, new_hours } = req.body;
@@ -397,4 +560,4 @@ const updateAttendanceHours = async (req, res) => {
 };
 
 module.exports = { startSession, logAttendance, finalizeSession, cancelSession , 
-    getSessionHistory, searchPdls, updateAttendanceHours, getSessionDetails, removeAttendance, reloadSession, silentGctaSync};
+    getSessionHistory, searchPdls, updateAttendanceHours, getSessionDetails, removeAttendance, reloadSession, silentGctaSync, silentTastmSync};

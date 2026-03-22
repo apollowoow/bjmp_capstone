@@ -320,7 +320,26 @@
     display: block;
     margin-bottom: 4px;
 }
+.judgment-info {
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+ 
+  padding: 5px 12px;
+  border-radius: 6px;
+  display: inline-block;
+}
 
+.judgment-label {
+  font-weight: 500;
+  color: #666;
+}
+
+.judgment-value {
+  font-weight: 700;
+  color: #333;
+}
+
+/* Red text specifically for DQ warning banner */
 
 .btn-recommit:hover {
   background: #4f46e5;
