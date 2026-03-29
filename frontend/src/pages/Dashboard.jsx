@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 // 📊 Import Recharts components
 import { 
@@ -22,8 +22,11 @@ const Dashboard = () => {
 
   const user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : { fullname: "Officer" };
   const IDEAL_CAPACITY = 41; // 🎯 Revision requirement: Ideal Rate 
-
+const hasSynced = useRef(false);
 useEffect(() => {
+    if (hasSynced.current) return; // 👈 block second call
+    hasSynced.current = true;      // 👈 mark as ran
+
     const runMasterSync = async () => {
         try {
             const token = localStorage.getItem("token");
@@ -44,12 +47,8 @@ useEffect(() => {
             });
             const tastmData = await tastmRes.json();
 
-            // 💡 Pro-Tip: Final Console Report
             if (gctaData.granted > 0 || tastmData.granted > 0) {
                 console.log(`[Background Sync] GCTA: ${gctaData.granted} | TASTM: ${tastmData.granted} updates applied.`);
-                
-                // Optional: If you're on the PDL List page, trigger a data refresh
-                // if (fetchPdlList) fetchPdlList(); 
             }
 
         } catch (err) {

@@ -238,16 +238,19 @@ const recalculatePdlSentence = async (req, res) => {
         const creditResult = await client.query(`
             SELECT 
                 (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log 
-                 WHERE pdl_id = $1 AND status = 'Active' 
+                 WHERE pdl_id = $1 
+                 AND status IN ('Active', 'Inactive') -- 🎯 Include Locked Migrations
                  AND (
-                    DATE_TRUNC('month', month_year) >= DATE_TRUNC('month', $2::DATE)
-                    OR remarks = 'Migration (Sentenced)'
+                    (remarks = 'Automated GCTA' AND status = 'Active' AND DATE_TRUNC('month', month_year) >= DATE_TRUNC('month', $2::DATE))
+                    OR (remarks ILIKE 'Migration%') -- 🎯 Catch "Migration" and "Migration - Locked"
                  )) as gcta,
+
                 (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log 
-                 WHERE pdl_id = $1 AND status = 'Active' 
+                 WHERE pdl_id = $1 
+                 AND status IN ('Active', 'Inactive') -- 🎯 Include Locked Migrations
                  AND (
-                    DATE_TRUNC('month', month_year) >= DATE_TRUNC('month', $2::DATE)
-                    OR remarks = 'Migration (Sentenced)'
+                    (remarks = 'Automated TASTM' AND status = 'Active' AND DATE_TRUNC('month', month_year) >= DATE_TRUNC('month', $2::DATE))
+                    OR (remarks ILIKE 'Migration%') -- 🎯 Catch "Migration" and "Migration - Locked"
                  )) as tastm
         `, [id, creditAnchor]);
 
@@ -595,8 +598,9 @@ const updatePdlJudicialRecord = async (req, res) => {
                 ) ? parseInt(gcta_days) : null;
 
                 const existingGcta = await client.query(
-                    `SELECT gcta_log_id FROM gcta_days_log 
-                     WHERE pdl_id = $1 AND remarks ILIKE 'Migration%' AND status = 'Active'`, 
+                    `SELECT gcta_log_id, status FROM gcta_days_log 
+                    WHERE pdl_id = $1 AND remarks ILIKE 'Migration%' 
+                    AND status IN ('Active', 'Inactive', 'Voided')`, 
                     [id]
                 );
 
@@ -643,10 +647,11 @@ const updatePdlJudicialRecord = async (req, res) => {
                 ) ? parseFloat(tastm_hours) : null;
 
                 const existingTastm = await client.query(
-                    `SELECT tastm_log_id FROM tastm_days_log 
-                     WHERE pdl_id = $1 AND remarks ILIKE 'Migration%' AND status = 'Active'`, 
+                    `SELECT tastm_log_id, status FROM tastm_days_log 
+                    WHERE pdl_id = $1 AND remarks ILIKE 'Migration%' 
+                    AND status IN ('Active', 'Inactive', 'Voided')`, 
                     [id]
-                );
+                );const targetStatus = isDisqualified ? 'Voided' : 'Active';
 
                 if (safeTastmDays !== null || safeTastmHours !== null) {
                     // Real value(s) sent — update or insert
@@ -686,19 +691,23 @@ const updatePdlJudicialRecord = async (req, res) => {
                     const lockStamp = ` - VOIDED (System Locked): ${disqualification_reason || 'RA 10592 Exclusion'} (Judgment: ${date_of_final_judgment})`;
                     
                     const voidQuery = `
-                        UPDATE %I SET status = 'Voided', remarks = remarks || $1 
-                        WHERE pdl_id = $2 AND status = 'Active'
+                        UPDATE %I SET 
+                            status = 'Voided', 
+                            remarks = CASE 
+                                WHEN remarks NOT LIKE '%VOIDED%' THEN remarks || $1 
+                                ELSE remarks 
+                            END
+                        WHERE pdl_id = $2 
+                        AND status IN ('Active', 'Inactive') -- 🎯 Catch them before they are voided
                         AND month_year >= $3 
                         AND month_year <= $4
-                        AND remarks NOT LIKE '%VOIDED%'
-                        AND remarks NOT ILIKE 'Migration%'
                     `;
                     await client.query(voidQuery.replace('%I', 'gcta_days_log'), [lockStamp, id, pnpDate, date_of_final_judgment]);
                     await client.query(voidQuery.replace('%I', 'tastm_days_log'), [lockStamp, id, pnpDate, date_of_final_judgment]);
                     
                     await client.query(`
                         UPDATE attendance_tbl SET status = 'Voided' 
-                        WHERE pdl_id = $1 AND status = 'Voided' 
+                        WHERE pdl_id = $1 AND status = 'Active' 
                         AND timestamp_in >= $2 AND timestamp_in <= $3
                     `, [id, pnpDate, date_of_final_judgment]);
 
@@ -731,10 +740,9 @@ const updatePdlJudicialRecord = async (req, res) => {
                 const currentAutomatedLog = await client.query(`
                     SELECT tastm_log_id FROM tastm_days_log 
                     WHERE pdl_id = $1 
-                    AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
-                        = DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila')
-                    AND remarks = 'Automated TASTM' 
+                    AND remarks = 'Automated TASTM' -- 🎯 Strictly match the label
                     AND status = 'Active'
+                    AND month_year = DATE_TRUNC('month', CURRENT_DATE)
                 `, [id]);
 
                 if (currentAutomatedLog.rows.length > 0 && tastmLogId) {
@@ -791,8 +799,10 @@ const updatePdlJudicialRecord = async (req, res) => {
         // --- 🛡️ STEP 5: AGGREGATE ALL 'ACTIVE' CREDITS ---
         const activeCredits = await client.query(`
             SELECT 
-                (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log WHERE pdl_id = $1 AND status = 'Active') +
-                (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log WHERE pdl_id = $1 AND status = 'Active') 
+                (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log 
+                WHERE pdl_id = $1 AND status IN ('Active', 'Inactive')) +
+                (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log 
+                WHERE pdl_id = $1 AND status IN ('Active', 'Inactive')) 
             as total
         `, [id]);
         
@@ -846,6 +856,7 @@ const updatePdlJudicialRecord = async (req, res) => {
         ];
 
         const result = await client.query(masterUpdateQuery, pdlValues);
+  
         await client.query("COMMIT");
         res.status(200).json({ success: true, message: "Judicial Ledger Updated.", data: result.rows[0] });
 
@@ -1043,7 +1054,13 @@ const releasePdl = async (req, res) => {
         const logStatusUpdate = "UPDATE %I SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active' AND month_year <= $2";
         
         await client.query(`UPDATE gcta_days_log SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active'`, [id]);
-        await client.query(`UPDATE tastm_days_log SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active'`, [id]);
+        await client.query(
+            `UPDATE tastm_days_log 
+            SET status = 'Released' 
+            WHERE pdl_id = $1 
+            AND status IN ('Active', 'Voided', 'Inactive')`, 
+            [id]
+            );
         
         // Attendance - Simple status flip
         await client.query(`UPDATE attendance_tbl SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active'`, [id]);

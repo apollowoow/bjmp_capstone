@@ -215,8 +215,15 @@ const Profile = () => {
                     </div>
                     <div className="ledger-value positive">
                       {/* 🎯 Added check: Only sum if status is 'Active' */}
-                      -{pdl.tastm_history?.reduce((acc, log) => 
-                        log.status === 'Active' ? acc + (parseInt(log.days_earned) || 0) : acc, 0) || 0} Days
+                    -{pdl.tastm_history?.reduce((acc, log) => {
+    const isAcceptedStatus = log.status === 'Active' || log.status === 'Inactive';
+    
+    // We only sum if it's an accepted status 
+    // This naturally excludes 'Voided' (DQ) and 'Released' (Old stays)
+    return isAcceptedStatus 
+      ? acc + (parseInt(log.days_earned) || 0) 
+      : acc;
+}, 0) || 0} Days
                     </div>
                   </div>
 

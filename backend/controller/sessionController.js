@@ -285,9 +285,12 @@ const silentGctaSync = async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+        const now = new Date(); // 🕒 Current Sync Time
+
+        console.log(`--- 🚀 Starting GCTA Monthly Sync: ${now.toDateString()} ---`);
 
         // 🎯 STAGE 1: THE AUTO-UNLOCK
-        await client.query(`
+        const unlockResult = await client.query(`
             UPDATE pdl_tbl SET is_locked_for_gcta = false 
             WHERE is_locked_for_gcta = true 
             AND pdl_status NOT IN ('Released', 'Escaped', 'Deceased')
@@ -296,34 +299,42 @@ const silentGctaSync = async (req, res) => {
                 GROUP BY pdl_id HAVING MAX(penalty_end_date)::DATE <= CURRENT_DATE
             )
         `);
+        if (unlockResult.rowCount > 0) {
+            console.log(`  └─ 🔓 Unlocked: ${unlockResult.rowCount} PDLs (Disciplinary penalty ended)`);
+        }
 
         // 🎯 STAGE 2: THE AUTO-GRANT (With Legal Gatekeeper)
+        console.log(`  └─ 🛡️  Running Gatekeeper: Checking eligibility...`);
+        // 🎯 STAGE 2: THE AUTO-GRANT (FIXED)
+        
+                // 🎯 STAGE 2: THE AUTO-GRANT (FIXED DUPLICATION)
         const grantResult = await client.query(`
             INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, date_granted, status, remarks)
-            SELECT pdl_id, DATE_TRUNC('month', CURRENT_DATE), 20, CURRENT_DATE, 'Active', 'Automated GCTA'
+            SELECT pdl_id, DATE_TRUNC('month', $1::DATE), 20, $1::DATE, 'Active', 'Automated GCTA'
             FROM pdl_tbl 
             WHERE pdl_status NOT IN ('Released', 'Escaped', 'Deceased')
             AND is_locked_for_gcta = false
             -- 🛡️ THE GATEKEEPER CHECK:
             AND (
-                (is_legally_disqualified = false AND date_admitted_bjmp <= CURRENT_DATE - INTERVAL '1 month')
+                (is_legally_disqualified = false AND date_admitted_bjmp <= $1::DATE - INTERVAL '1 month')
                 OR 
-                (is_legally_disqualified = true AND date_of_final_judgment IS NOT NULL AND date_of_final_judgment <= CURRENT_DATE - INTERVAL '1 month')
+                (is_legally_disqualified = true AND date_of_final_judgment IS NOT NULL AND date_of_final_judgment <= $1::DATE - INTERVAL '1 month')
             )
             AND pdl_id NOT IN (
                 SELECT pdl_id FROM gcta_days_log 
-                WHERE DATE_TRUNC('month', month_year) = DATE_TRUNC('month', CURRENT_DATE)
-                AND remarks ILIKE 'Automated GCTA%'
+                WHERE DATE_TRUNC('month', month_year) = DATE_TRUNC('month', $1::DATE)
+                AND remarks ILIKE 'Automated GCTA%' -- 🎯 FIXED: Now it catches its own footprints!
             )
             RETURNING pdl_id;
-        `);
+        `, [now]);
 
-        // 🎯 STAGE 3: THE UPSERT
+        console.log(`  └─ ✨ Granted GCTA to: ${grantResult.rowCount} PDLs`);
+
+        // 🎯 STAGE 3: THE UPSERT (Release Date Recalculation)
         if (grantResult.rows.length > 0) {
             for (let row of grantResult.rows) {
                 const pdlId = row.pdl_id;
 
-                // 🔍 1. Fetch details (Added is_legally_disqualified & date_of_final_judgment)
                 const pdlData = await client.query(
                     `SELECT date_commited_pnp, date_admitted_bjmp, date_of_final_judgment, 
                             is_legally_disqualified, sentence_years, sentence_months, sentence_days 
@@ -334,13 +345,21 @@ const silentGctaSync = async (req, res) => {
                     [pdlId]
                 );
 
-                if (pdlData.rows.length === 0) continue; 
+                if (pdlData.rows.length === 0) {
+                    console.log(`[PDL ${pdlId}] ⚠️ Skip: Missing PNP date or released.`);
+                    continue; 
+                }
                 const p = pdlData.rows[0];
 
-                // ⚓ THE ANCHOR: Determine where the credit summation starts
-                const anchorDate = p.is_legally_disqualified ? p.date_of_final_judgment : p.date_admitted_bjmp;
+                console.log(`\n[PDL ${pdlId}] ---------------------------------`);
 
-                // 🔍 2. Summation Query (Filtering by Anchor & Active Status)
+                // ⚓ THE ANCHOR: Where do we start counting from?
+                const anchorDate = p.is_legally_disqualified ? p.date_of_final_judgment : p.date_admitted_bjmp;
+                const anchorType = p.is_legally_disqualified ? "Final Judgment (DQ PDL)" : "BJMP Admission (Normal)";
+                
+                console.log(`  └─ ⚓ Anchor: ${new Date(anchorDate).toDateString()} (${anchorType})`);
+
+                // 🔍 2. Summation Query
                 const sums = await client.query(
                     `SELECT 
                         (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log 
@@ -350,12 +369,18 @@ const silentGctaSync = async (req, res) => {
                     [pdlId, anchorDate]
                 );
                 
-                const totalCredits = parseInt(sums.rows[0].gcta_sum) + parseInt(sums.rows[0].tastm_sum);
+                const gctaCount = parseInt(sums.rows[0].gcta_sum) || 0;
+                const tastmCount = parseInt(sums.rows[0].tastm_sum) || 0;
+                const totalCredits = gctaCount + tastmCount;
+
+                console.log(`  └─ 💰 Credits: GCTA(${gctaCount}) + TASTM(${tastmCount}) = ${totalCredits} total days`);
 
                 // 🧮 3. RUN THE MATH
                 const newReleaseDate = calculateReleaseDate(
                     p.date_commited_pnp, p.sentence_years, p.sentence_months, p.sentence_days, totalCredits
                 );
+
+                console.log(`  └─ 📅 Calculated Release: ${new Date(newReleaseDate).toDateString()}`);
 
                 // 💾 4. UPDATE PDL_TBL
                 await client.query(
@@ -365,15 +390,17 @@ const silentGctaSync = async (req, res) => {
                      WHERE pdl_id = $3`, 
                     [totalCredits, newReleaseDate, pdlId]
                 );
+                console.log(`  └─ ✅ PDL Table Updated.`);
             }
         }
 
         await client.query('COMMIT');
+        console.log(`\n--- ✅ GCTA Sync Finished Successfully ---`);
         res.status(200).json({ success: true, granted: grantResult.rowCount });
 
     } catch (err) {
         await client.query('ROLLBACK');
-        console.error("❌ Sync Failure:", err.message);
+        console.error(`\n❌ GCTA SYNC FATAL ERROR:`, err.message);
         res.status(500).json({ error: "Sync failed", details: err.message });
     } finally {
         client.release();
@@ -385,7 +412,12 @@ const silentTastmSync = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 🎯 1. FETCH PDLs (Including Legal Status)
+        const now = new Date(); 
+        const lockResult = await client.query(`SELECT pg_try_advisory_xact_lock(123456789) AS acquired`);
+        if (!lockResult.rows[0].acquired) {
+            return res.status(409).json({ message: "Sync already in progress." });
+        }
+
         const pdls = await client.query(`
             SELECT pdl_id, pdl_status, is_legally_disqualified, date_of_final_judgment 
             FROM pdl_tbl 
@@ -393,142 +425,134 @@ const silentTastmSync = async (req, res) => {
             AND is_locked_for_gcta = false
         `);
 
+        console.log(`--- 🕒 SYNC RUNNING FOR: ${now.toDateString()} ---`);
+
         for (let p of pdls.rows) {
             const pdlId = p.pdl_id;
             const isDQ = p.is_legally_disqualified;
             const judgmentDate = p.date_of_final_judgment ? new Date(p.date_of_final_judgment) : null;
             
-            const now = new Date();
+            console.log(`\n[PDL ${pdlId}] ---------------------------------`);
 
-            // 🔍 2. FIND THE ANCHOR (Migration or Prev Month)
+            // 🔍 1. FIND THE ANCHOR
             const anchorResult = await client.query(`
-                SELECT tastm_log_id, total_hours_accumulated, days_earned, remarks 
+                SELECT tastm_log_id, total_hours_accumulated, days_earned, remarks, status 
                 FROM tastm_days_log 
-                WHERE pdl_id = $1 AND status = 'Active'
+                WHERE pdl_id = $1 
                 AND (
-                    remarks ILIKE 'Migration%' 
-                    OR (remarks = 'Automated TASTM' AND month_year < DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila'))
+                    (remarks ILIKE 'Migration%') 
+                    OR 
+                    (remarks = 'Automated TASTM' AND status = 'Active' AND month_year < DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila'))
                 )
                 ORDER BY month_year DESC, tastm_log_id DESC LIMIT 1
             `, [pdlId]);
 
             let carryOver = 0;
+            let migrationToLockId = null;
+
             if (anchorResult.rows.length > 0) {
                 const anchor = anchorResult.rows[0];
                 const isMigration = anchor.remarks.includes('Migration');
 
-                // ✅ If last month already hit 60+ (earned 15 days), start fresh at 0
-                // Only carry over if they did NOT reach the quota
-                if (isMigration) {
+                // 🎯 THE DATE CHECKER (Part A): 
+                // If they are DQ'd, we do NOT carry over Migration hours into the "Sentenced" phase 
+                // because those hours belong to the "Detention" phase.
+                if (isDQ && isMigration) {
+                    carryOver = 0; 
+                    console.log(`  └─ 🛡️  Migration hours ignored (DQ Detention Phase)`);
+                    // We still lock it so it doesn't stay 'Active'
+                    if (anchor.status === 'Active' && !anchor.remarks.includes('Locked')) {
+                        migrationToLockId = anchor.tastm_log_id;
+                    }
+                } else if (isMigration) {
                     carryOver = parseFloat(anchor.total_hours_accumulated) || 0;
+                    if (anchor.status === 'Active' && !anchor.remarks.includes('Locked')) {
+                        migrationToLockId = anchor.tastm_log_id;
+                    }
                 } else {
-                    carryOver = parseInt(anchor.days_earned) === 0
-                        ? parseFloat(anchor.total_hours_accumulated) || 0
-                        : 0; // They hit 60+ last month, reset to 0
-                }
-
-                if (isMigration && !anchor.remarks.includes('Locked')) {
-                    await client.query(`
-                        UPDATE tastm_days_log 
-                        SET remarks = remarks || ' - Locked',
-                            status = 'Inactive'
-                        WHERE tastm_log_id = $1
-                    `, [anchor.tastm_log_id]);
+                    carryOver = parseInt(anchor.days_earned) === 0 ? (parseFloat(anchor.total_hours_accumulated) || 0) : 0;
                 }
             }
 
-            // 🔍 3. CHECK IF PDL ALREADY REACHED 60+ THIS MONTH
-            // If they already have a completed log this month with 15 days, skip attendance
-            const existingThisMonth = await client.query(`
-                SELECT tastm_log_id, total_hours_accumulated, days_earned 
-                FROM tastm_days_log 
-                WHERE pdl_id = $1 
-                AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
-                    = DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila')
-                AND remarks = 'Automated TASTM'
-                AND status = 'Active'
-            `, [pdlId]);
+            // 🔍 2. SUM CURRENT MONTH ATTENDANCE
+            // 🎯 THE DATE CHECKER (Part B):
+            // If DQ'd, we ONLY sum attendance that happened ON or AFTER the judgment date.
+            const currentHours = await client.query(`
+                SELECT COALESCE(SUM(hours_attended), 0) as monthly_sum 
+                FROM attendance_tbl 
+                WHERE pdl_id = $1 AND status = 'Active' 
+                AND DATE_TRUNC('month', timestamp_in AT TIME ZONE 'Asia/Manila') 
+                    = DATE_TRUNC('month', $4::DATE AT TIME ZONE 'Asia/Manila') -- 🎯 Use $4 instead of CURRENT_DATE
+                AND (
+                    $2::BOOLEAN = false 
+                    OR $3::TIMESTAMP IS NULL 
+                    OR timestamp_in >= $3::TIMESTAMP
+                )
+            `, [pdlId, isDQ, judgmentDate, now]);
 
-            const alreadyCompleted = 
-                existingThisMonth.rows.length > 0 && 
-                parseInt(existingThisMonth.rows[0].days_earned) === 15;
+            const thisMonthAttendance = parseFloat(currentHours.rows[0].monthly_sum) || 0;
+            console.log(`  └─ 📅 Eligible Attendance: ${thisMonthAttendance} hrs`);
+
+            // 🔍 3. CHECK FOR EXISTING LOG (Stop the Duplicate Rows!)
+            // 🎯 THE FIX: We search for Active OR Voided logs for this month.
+            const existingThisMonth = await client.query(`
+    SELECT tastm_log_id, total_hours_accumulated, days_earned 
+    FROM tastm_days_log 
+    WHERE pdl_id = $1 
+    AND (status = 'Active' OR status = 'Voided')
+    AND (remarks = 'Automated TASTM' OR remarks ILIKE 'Automated TASTM - VOIDED%')
+    AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
+        = DATE_TRUNC('month', $2::DATE AT TIME ZONE 'Asia/Manila') -- 🎯 Use $2 instead of CURRENT_DATE
+`, [pdlId, now]);
+
+            const alreadyCompleted = existingThisMonth.rows.length > 0 && parseInt(existingThisMonth.rows[0].days_earned) === 15;
 
             let totalToEvaluate;
             if (alreadyCompleted) {
-                // ✅ Already hit quota this month — don't re-sum attendance, keep existing total
                 totalToEvaluate = parseFloat(existingThisMonth.rows[0].total_hours_accumulated) || 0;
-                console.log(`[Skip] PDL ${pdlId} already completed quota this month. Holding at ${totalToEvaluate}hrs.`);
             } else {
-                // 🔍 Sum current month attendance normally
-                const currentHours = await client.query(`
-                    SELECT COALESCE(SUM(hours_attended), 0) as monthly_sum 
-                    FROM attendance_tbl 
-                    WHERE pdl_id = $1 AND status = 'Active' 
-                    AND DATE_TRUNC('month', timestamp_in AT TIME ZONE 'Asia/Manila') 
-                        = DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila')
-                `, [pdlId]);
-
-                const thisMonthAttendance = parseFloat(currentHours.rows[0].monthly_sum) || 0;
                 totalToEvaluate = carryOver + thisMonthAttendance;
+                console.log(`  └─ 🧮 Final Total: ${totalToEvaluate} hrs`);
             }
 
-            // 🧮 4. DAYS CALCULATION
+            // 🧮 4. DAYS & LEGAL (Keeping your 1-month window work)
             let daysToGrant = totalToEvaluate >= 60 ? 15 : 0;
             let logStatus = 'Active';
             let logRemark = 'Automated TASTM';
 
-            // 🛡️ LEGAL CHECK
-            if (isDQ && judgmentDate) {
-                if (judgmentDate <= now) { 
-                    daysToGrant = 0; 
-                    logStatus = 'Voided';
-                    logRemark = `Automated TASTM - VOIDED (System Locked): Legal Disqualification (${judgmentDate.toISOString().split('T')[0]})`;
-                    console.log(`[Legal] PDL ${pdlId} is disqualified. Granting 0 days.`);
-                }
-            }
+        
 
             // 🎯 5. UPSERT LOG
-            const monthYear = new Date(Date.UTC(
-                now.getUTCFullYear(),
-                now.getUTCMonth(),
-                1
-            )).toISOString();
+            const monthYear = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 
-            const existingLog = await client.query(`
-                SELECT tastm_log_id FROM tastm_days_log 
-                WHERE pdl_id = $1 
-                AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
-                    = DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila')
-                AND (remarks = 'Automated TASTM' OR remarks ILIKE 'Automated TASTM - VOIDED%')
-            `, [pdlId]);
-
-            if (existingLog.rows.length > 0) {
-                // ✅ Only update if not already completed
-                if (!alreadyCompleted) {
-                    await client.query(`
-                        UPDATE tastm_days_log SET 
-                            total_hours_accumulated = $1, 
-                            days_earned = $2, 
-                            status = $3,
-                            remarks = $4,
-                            date_granted = NOW()
-                        WHERE tastm_log_id = $5`,
-                        [totalToEvaluate, daysToGrant, logStatus, logRemark, existingLog.rows[0].tastm_log_id]
-                    );
-                }
-            } else {
+            if (existingThisMonth.rows.length > 0) {
+                const targetId = existingThisMonth.rows[0].tastm_log_id;
                 await client.query(`
+                    UPDATE tastm_days_log SET 
+                        total_hours_accumulated = $1, days_earned = $2, status = $3, remarks = $4, date_granted = NOW()
+                    WHERE tastm_log_id = $5`,
+                    [totalToEvaluate, daysToGrant, logStatus, logRemark, targetId]
+                );
+                console.log(`  └─ 📝 Updated Existing Log ID: ${targetId}`);
+            } else if (totalToEvaluate > 0) {
+                const newRow = await client.query(`
                     INSERT INTO tastm_days_log (pdl_id, month_year, total_hours_accumulated, days_earned, status, remarks, date_granted)
-                    VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+                    VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING tastm_log_id`,
                     [pdlId, monthYear, totalToEvaluate, daysToGrant, logStatus, logRemark]
                 );
+                console.log(`  └─ ✨ Created NEW Log ID: ${newRow.rows[0].tastm_log_id}`);
+            }
+
+            if (migrationToLockId) {
+                await client.query(`UPDATE tastm_days_log SET remarks = remarks || ' - Locked', status = 'Inactive' WHERE tastm_log_id = $1`, [migrationToLockId]);
             }
         }
 
         await client.query('COMMIT');
-        res.status(200).json({ success: true, message: "Sync Complete with Legal Checks." });
+        res.status(200).json({ success: true, message: "Sync Complete." });
     } catch (err) {
         await client.query('ROLLBACK');
+        console.error("❌ SYNC FATAL ERROR:", err.message);
         res.status(500).json({ error: err.message });
     } finally {
         client.release();

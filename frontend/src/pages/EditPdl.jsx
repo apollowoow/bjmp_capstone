@@ -176,7 +176,8 @@ const fetchCurrentPdl = async () => {
     });
 
     console.log("Final FormData State set. UI should now respect locks.");
-    console.log("--- 🔍 DEBUG: FETCH PDL END ---");
+    console.log(formData.isTastmLocked);
+    console.log(formData.isGctaLocked);
 
   } catch (error) { 
     console.error("Fetch error:", error); 
