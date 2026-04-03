@@ -228,29 +228,38 @@ const recalculatePdlSentence = async (req, res) => {
         if (pdlResult.rows.length === 0) throw new Error("PDL not found.");
         const pdl = pdlResult.rows[0];
 
+        // 🎯 NEW: Fetch Subsidiary Days (Added Days)
+        const subResult = await client.query(`
+            SELECT COALESCE(SUM(
+                LEAST(FLOOR((total_fine_amount - amount_paid) / daily_rate), max_subsidiary_days)
+            ), 0) as total_sub_days
+            FROM pdl_subsidiary_tbl 
+            WHERE pdl_id = $1 AND status = 'Active'
+        `, [id]);
+        const subsidiaryDays = parseInt(subResult.rows[0].total_sub_days) || 0;
+
         // 🎯 2. The Anchor (Judgment for DQ, Admission for Normal)
         const creditAnchor = pdl.is_legally_disqualified 
             ? pdl.date_of_final_judgment 
             : pdl.date_admitted_bjmp;
 
         // 🛡️ 3. AGGREGATE WITH MIGRATION OVERRIDE
-        // This query now says: "Include it if it's after the anchor OR if it's labeled 'Sentenced Migration'"
         const creditResult = await client.query(`
             SELECT 
                 (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log 
                  WHERE pdl_id = $1 
-                 AND status IN ('Active', 'Inactive') -- 🎯 Include Locked Migrations
+                 AND status IN ('Active', 'Inactive') 
                  AND (
                     (remarks = 'Automated GCTA' AND status = 'Active' AND DATE_TRUNC('month', month_year) >= DATE_TRUNC('month', $2::DATE))
-                    OR (remarks ILIKE 'Migration%') -- 🎯 Catch "Migration" and "Migration - Locked"
+                    OR (remarks ILIKE 'Migration%')
                  )) as gcta,
 
                 (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log 
                  WHERE pdl_id = $1 
-                 AND status IN ('Active', 'Inactive') -- 🎯 Include Locked Migrations
+                 AND status IN ('Active', 'Inactive') 
                  AND (
                     (remarks = 'Automated TASTM' AND status = 'Active' AND DATE_TRUNC('month', month_year) >= DATE_TRUNC('month', $2::DATE))
-                    OR (remarks ILIKE 'Migration%') -- 🎯 Catch "Migration" and "Migration - Locked"
+                    OR (remarks ILIKE 'Migration%')
                  )) as tastm
         `, [id, creditAnchor]);
 
@@ -266,13 +275,17 @@ const recalculatePdlSentence = async (req, res) => {
             ? pdl.date_of_final_judgment 
             : pdl.date_commited_pnp;
 
-        if (sentenceStartDate && (pdl.sentence_years || pdl.sentence_months || pdl.sentence_days)) {
+        if (sentenceStartDate && (pdl.sentence_years || pdl.sentence_months || pdl.sentence_days || subsidiaryDays > 0)) {
             let release = new Date(sentenceStartDate);
             
             // Add Sentence
             release.setFullYear(release.getFullYear() + (parseInt(pdl.sentence_years) || 0));
             release.setMonth(release.getMonth() + (parseInt(pdl.sentence_months) || 0));
             release.setDate(release.getDate() + (parseInt(pdl.sentence_days) || 0));
+            
+            // 🎯 NEW: ADD THE SUBSIDIARY DAYS HERE!
+            release.setDate(release.getDate() + subsidiaryDays);
+
             release.setDate(release.getDate() - 1); 
             
             updatedOriginalDate = new Date(release);
@@ -348,10 +361,19 @@ const getPdlById = async (req, res) => {
         const gctaMigrated = checkMigration(gctaLogs);
         const tastmMigrated = checkMigration(tastmLogs);
 
+       const subQuery = `
+            SELECT * FROM pdl_subsidiary_tbl 
+            WHERE pdl_id = $1 AND status = 'Active' 
+            ORDER BY created_at DESC LIMIT 1
+        `;
+        const subResult = await client.query(subQuery, [id]);
+        const subsidiaryRecord = subResult.rows[0] || null;
+
         res.status(200).json({
             ...pdl,
             pdl_picture: pdl.pdl_picture ? `${req.protocol}://${req.get('host')}/public/uploads/${pdl.pdl_picture}` : null,
             gcta_history: gctaLogs.rows,
+            subsidiary: subsidiaryRecord,
             tastm_history: tastmLogs.rows,
             hasMigrated: gctaMigrated || tastmMigrated, 
             is_recommitted: !!pdl.date_admitted_bjmp 
@@ -922,7 +944,7 @@ const updatePdlJudicialRecord = async (req, res) => {
 
    
     if (result.rowCount === 0) {
-      // 🛡️ Cleanup: If DB fails but file was uploaded, delete it
+      // 🛡️ Cleanup: If DB fails but file was uploaded, delte it
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(404).json({ error: "PDL Record not found." });
     }
@@ -1094,5 +1116,50 @@ const releasePdl = async (req, res) => {
     }
 };
 
+const upsertSubsidiary = async (req, res) => {
+    const { pdl_id, subsidiary_id, total_fine_amount, daily_rate, max_subsidiary_days } = req.body;
+    const client = await pool.connect();
+    
+    console.log("\n--- 💾 SUBSIDIARY SAVE START ---");
+    console.log("📥 Payload Received:", req.body);
+
+    try {
+        await client.query('BEGIN');
+
+        if (subsidiary_id) {
+            console.log(` 🔄 Action: UPDATING Subsidiary ID: ${subsidiary_id}`);
+            await client.query(`
+                UPDATE pdl_subsidiary_tbl SET 
+                    total_fine_amount = $1, 
+                    daily_rate = $2, 
+                    max_subsidiary_days = $3, 
+                    updated_at = NOW()
+                WHERE subsidiary_id = $4`,
+                [total_fine_amount, daily_rate, max_subsidiary_days, subsidiary_id]
+            );
+        } else {
+            console.log(` ✨ Action: INSERTING New Fine for PDL ${pdl_id}`);
+            await client.query(`
+                INSERT INTO pdl_subsidiary_tbl (pdl_id, total_fine_amount, daily_rate, max_subsidiary_days)
+                VALUES ($1, $2, $3, $4)`,
+                [pdl_id, total_fine_amount, daily_rate, max_subsidiary_days]
+            );
+        }
+
+        await client.query('COMMIT');
+        console.log("--- ✅ SUCCESS: RECORD SAVED ---\n");
+        res.status(200).json({ success: true, message: "Subsidiary record saved successfully." });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("\n--- ❌ DATABASE ERROR ---");
+        console.error("Message:", err.message);
+        console.error("--------------------------\n");
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord, grantGlobalGcta, recalculatePdlSentence, releasePdl, 
-    getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL};
+    getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary};

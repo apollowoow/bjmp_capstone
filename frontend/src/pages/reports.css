@@ -1,73 +1,117 @@
-/* --- Root Layout --- */
+/* --- 1. Root & Layout --- */
 .rpt-main-scope {
   padding: 2.5rem;
-  background-color: #ffffff;
+  background-color: #f8fafc; /* Slate 50 for better contrast */
   min-height: 100vh;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: #1e293b;
 }
 
 .rpt-content-wrapper {
-  max-width: 1150px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
-/* --- Header Section --- */
+/* --- 2. Official BJMP Letterhead (Visible ONLY in Print) --- */
+.rpt-print-header {
+  display: none; /* Hidden on screen */
+  text-align: center;
+  font-family: 'Times New Roman', serif;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #000;
+  padding-bottom: 10px;
+}
+
+.rpt-print-header p {
+  margin: 2px 0;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.rpt-print-header h2 {
+  margin-top: 15px;
+  font-size: 20px;
+  text-transform: uppercase;
+  text-decoration: underline;
+}
+
+/* --- 3. Screen Header --- */
 .rpt-simple-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 2rem;
-  background: #f8fafc;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   margin-bottom: 2rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-.rpt-h1 { font-size: 1.6rem; font-weight: 700; margin: 0; color: #0f172a; }
-.rpt-p-sub { font-size: 0.95rem; color: #64748b; margin: 4px 0 0 0; }
+.rpt-h1 { 
+  font-size: 1.75rem; 
+  font-weight: 800; 
+  margin: 0; 
+  color: #0f172a; 
+  letter-spacing: -0.025em;
+}
 
-/* --- Filter Control Panel --- */
+.rpt-p-sub { 
+  font-size: 0.95rem; 
+  color: #64748b; 
+  margin: 4px 0 0 0; 
+}
+
+/* --- 4. Control Panel (Filters) --- */
 .rpt-control-panel {
   display: grid;
   grid-template-columns: 1.2fr 1.5fr 1fr auto;
   gap: 1.5rem;
   background: #ffffff;
-  padding: 1rem 0;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   margin-bottom: 1.5rem;
   align-items: flex-end;
 }
 
-.rpt-input-group { display: flex; flex-direction: column; gap: 8px; }
+.rpt-input-group { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
+}
+
 .rpt-input-group label { 
-  font-size: 0.75rem; 
-  font-weight: 700; 
-  color: #64748b; 
+  font-size: 0.7rem; 
+  font-weight: 800; 
+  color: #475569; 
   text-transform: uppercase; 
   letter-spacing: 0.05em;
 }
 
 .rpt-select, .rpt-search {
-  padding: 10px 14px;
-  border: 1px solid #cbd5e1;
+  padding: 12px 14px;
+  border: 1.5px solid #cbd5e1;
   border-radius: 8px;
-  background: white;
+  background: #fcfcfc;
   font-size: 0.9rem;
+  font-weight: 500;
   outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
 }
 
-.rpt-select:focus, .rpt-search:focus { border-color: #0f172a; }
+.rpt-select:focus, .rpt-search:focus { 
+  border-color: #0f172a; 
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+}
 
-/* --- Table Card --- */
+/* --- 5. Table Container --- */
 .rpt-table-container {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
   background: white;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
 }
 
 .rpt-table-header {
@@ -79,10 +123,28 @@
   background: #f8fafc;
 }
 
-.rpt-h3 { font-size: 1.1rem; font-weight: 700; margin: 0; color: #1e293b; }
-.rpt-count { font-size: 0.85rem; color: #64748b; font-weight: 600; }
+.rpt-h3 { 
+  font-size: 1.1rem; 
+  font-weight: 700; 
+  margin: 0; 
+  color: #1e293b; 
+}
 
-.rpt-table { width: 100%; border-collapse: collapse; text-align: left; }
+.rpt-count { 
+  font-size: 0.8rem; 
+  color: #2563eb; 
+  font-weight: 700;
+  background: #eff6ff;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.rpt-table { 
+  width: 100%; 
+  border-collapse: collapse; 
+  text-align: left; 
+}
+
 .rpt-table th { 
   background: #f8fafc; 
   padding: 14px 16px; 
@@ -91,79 +153,148 @@
   color: #64748b; 
   border-bottom: 2px solid #e2e8f0; 
   letter-spacing: 0.05em;
+  font-weight: 700;
 }
-.rpt-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; vertical-align: middle; }
 
-/* --- Progress Bar --- */
+.rpt-table td { 
+  padding: 16px; 
+  border-bottom: 1px solid #f1f5f9; 
+  font-size: 0.95rem; 
+  vertical-align: middle; 
+}
+
+/* --- 6. Report-Specific Components --- */
+
+/* 🟢 Status Badges */
+.rpt-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.rpt-badge-green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.rpt-badge-red { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+/* ⏱️ TASTM Progress */
 .rpt-tastm-info { display: flex; flex-direction: column; gap: 6px; }
-.rpt-mini-progress { width: 130px; height: 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
-.rpt-bar { height: 100%; background: #10b981; transition: width 0.4s ease; }
+.rpt-mini-progress { 
+  width: 140px; 
+  height: 10px; 
+  background: #f1f5f9; 
+  border: 1px solid #e2e8f0; 
+  border-radius: 10px; 
+  overflow: hidden; 
+}
+.rpt-bar { 
+  height: 100%; 
+  background: linear-gradient(90deg, #10b981, #059669); 
+  transition: width 0.4s ease; 
+}
 
-.rpt-text-small { font-size: 0.7rem; color: #94a3b8; margin: 0; }
-.text-emerald-700 { color: #047857; }
-.text-blue-700 { color: #1d4ed8; }
+/* 🔮 Predictive Analytics Highlight */
+.rpt-predict-cell {
+  background-color: #f0f9ff;
+  color: #0369a1;
+  font-weight: 800;
+  border-left: 4px solid #3b82f6 !important;
+}
 
-/* --- Buttons --- */
+.rpt-bold-col {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* --- 7. Buttons --- */
 .rpt-btn-print {
   background: #0f172a;
   color: #fff;
   border: none;
-  padding: 10px 20px;
+  padding: 12px 24px;
   font-weight: 700;
   cursor: pointer;
-  border-radius: 8px;
-  transition: background 0.2s;
+  border-radius: 10px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.rpt-btn-print:hover { background: #334155; }
+.rpt-btn-print:hover { 
+  background: #334155; 
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
 
 .rpt-btn-view {
-  background-color: transparent;
-  color: #1e293b;
-  border: 1px solid #cbd5e1;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  background: white;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
+  transition: all 0.2s;
 }
 .rpt-btn-view:hover {
-  background-color: #f8fafc;
+  background: #f8fafc;
   border-color: #0f172a;
-  color: #000;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  color: #0f172a;
 }
 
-/* --- Pagination --- */
+/* --- 8. Pagination --- */
 .rpt-pagination {
-  padding: 1.25rem;
+  padding: 1.5rem;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1.5rem;
+  gap: 2rem;
   background: #f8fafc;
   border-top: 1px solid #e2e8f0;
 }
-.rpt-page-btn {
-  padding: 6px 16px;
-  border: 1px solid #cbd5e1;
-  background: white;
-  cursor: pointer;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: 0.2s;
-}
-.rpt-page-btn:hover:not(:disabled) { border-color: #0f172a; background: #f8fafc; }
-.rpt-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.rpt-page-info { font-size: 0.9rem; color: #64748b; font-weight: 600; }
 
-/* --- Printing --- */
+/* --- 9. Loading State --- */
+.rpt-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 60vh;
+  font-weight: 700;
+  color: #64748b;
+  font-size: 1.2rem;
+  gap: 15px;
+}
+
+/* --- 10. Printing (The Magic) --- */
 @media print {
+  @page { margin: 1cm; }
+  
+  body { background: white !important; }
+  .rpt-main-scope { padding: 0 !important; background: white !important; }
   .rpt-hide-print { display: none !important; }
-  .rpt-main-scope { padding: 0; }
-  .rpt-simple-header { border: 2px solid #000; box-shadow: none; }
-  .rpt-table-container { border: 2px solid #000; box-shadow: none; }
+  
+  .rpt-print-header { display: block !important; }
+  
+  .rpt-table-container { 
+    border: 1px solid #000; 
+    box-shadow: none !important; 
+    border-radius: 0;
+  }
+  
+  .rpt-table th { 
+    background: #f0f0f0 !important; 
+    color: #000; 
+    border-bottom: 2px solid #000;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  .rpt-table td { 
+    border-bottom: 1px solid #ccc; 
+  }
+
+  .rpt-predict-cell {
+    background-color: #f0f9ff !important;
+    -webkit-print-color-adjust: exact;
+  }
 }

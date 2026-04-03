@@ -9,7 +9,7 @@ const pool = require("../db/pool");
 // IMPORT CONTROLLERS
 // ==========================
 const { addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord, grantGlobalGcta, 
-  recalculatePdlSentence, releasePdl, getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL} = require("../controller/pdlController");
+  recalculatePdlSentence, releasePdl, getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary} = require("../controller/pdlController");
 
 // ==========================
 // IMPORT MIDDLEWARE
@@ -90,6 +90,7 @@ router.post("/grant-global-gcta", authenticateToken, grantGlobalGcta);
 router.post("/release/:id", authenticateToken, releasePdl);
 router.get("/releaseall", authenticateToken, getReleasedPdls);
 router.get('/getrelease/:id', authenticateToken, getReleasedPdlById);
+router.post('/upsert', authenticateToken, upsertSubsidiary);
 router.put(
   '/update-personal/:id', 
   authenticateToken, 

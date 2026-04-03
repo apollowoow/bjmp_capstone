@@ -16,36 +16,30 @@ const Reports = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 15;
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
-    fetchReportData();
-  }, []);
+  fetchReportData();
+}, [reportType, selectedMonth]);
 
   // Sync filtered data whenever search, filters, or source data changes
   useEffect(() => {
   let results = summary;
 
-  // 🕵️‍♂️ DEBUG: Check datatypes here if filtering fails
-  if (summary.length > 0) {
-    console.log("Filter Debug - is_locked_for_gcta Type:", typeof summary[0].is_locked_for_gcta);
-    console.log("Filter Debug - Value:", summary[0].is_locked_for_gcta);
-  }
-
+  // 1. Text Search
   if (searchTerm) {
-    const lowerSearch = searchTerm.toLowerCase();
     results = results.filter(p => 
-      p.last_name.toLowerCase().includes(lowerSearch) ||
-      p.first_name.toLowerCase().includes(lowerSearch) ||
+      p.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.pdl_id.toString().includes(searchTerm)
     );
   }
 
-  // 🎯 THE FILTER LOGIC
+  // 2. 🎯 Status Filter Fix
   if (statusFilter === "locked") {
-    // We check for true (boolean) OR "true" (string) just in case
-    results = results.filter(p => p.is_locked_for_gcta === true || p.is_locked_for_gcta === "true");
+    // Check both boolean and string just to be bulletproof
+    results = results.filter(p => p.is_locked_for_gcta === true || String(p.is_locked_for_gcta) === "true");
   } else if (statusFilter === "good") {
-    results = results.filter(p => p.is_locked_for_gcta === false || p.is_locked_for_gcta === "false");
+    results = results.filter(p => p.is_locked_for_gcta === false || String(p.is_locked_for_gcta) === "false");
   }
 
   setFilteredData(results);
@@ -55,19 +49,23 @@ const Reports = () => {
   
 
   const fetchReportData = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const headers = { Authorization: `Bearer ${token}` };
-      const response = await fetch(`${API_BASE_URL}/api/reports/summary`, { headers });
-      setSummary(await response.json());
-    } catch (err) { 
-      console.error(err); 
-    } finally { 
-      setLoading(false); 
-    }
-  };
-
+  try {
+    setLoading(true);
+    const token = localStorage.getItem("token");
+    const headers = { Authorization: `Bearer ${token}` };
+    
+    let endpoint = `/api/reports/summary?month=${selectedMonth}`;
+    if (reportType === "forecast") endpoint = `/api/reports/predictive`; // Forecast is usually all-time
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
+    const data = await response.json();
+    setSummary(Array.isArray(data) ? data : []);
+  } catch (err) { 
+    console.error(err); 
+  } finally { 
+    setLoading(false); 
+  }
+};
   const currentRows = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
 
@@ -114,6 +112,15 @@ const Reports = () => {
               <option value="good">Good Standing / Eligible</option>
               <option value="locked">Locked / Disqualified</option>
             </select>
+          </div>
+          <div className="rpt-input-group">
+            <label>Select Month</label>
+            <input 
+              type="month" 
+              className="rpt-select" 
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(e.target.value)} 
+            />
           </div>
         </div>
 

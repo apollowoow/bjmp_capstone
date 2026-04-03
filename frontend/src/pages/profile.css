@@ -176,7 +176,7 @@
   border: 1.5px dashed #cbd5e1;
   border-radius: 16px;
   padding: 25px;
-  margin-bottom: 30px;
+  margin-bottom: 15px;
 }
 
 .profile-scope .allowance-ledger h4 { font-size: 0.75rem; color: #64748b; text-transform: uppercase; margin-bottom: 15px; }
@@ -215,9 +215,43 @@
 .profile-scope .release-text { font-size: 2.2rem; color: #0369a1; font-weight: 900; margin: 5px 0; }
 .profile-scope .algo-tag { font-size: 0.7rem; font-weight: 700; color: #0ea5e9; opacity: 0.8; }
 
-.profile-scope .timeline-item { margin-bottom: 15px; }
-.profile-scope .timeline-item p { font-size: 0.8rem; color: #64748b; margin-bottom: 4px; }
-.profile-scope .timeline-item strong { font-size: 1.1rem; color: #1e293b; }
+/* 📦 The Main Outer Container (The Soft Box) */
+.profile-scope .timeline-card-box {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px 16px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+/* ↕️ The Individual Rows Inside the Box */
+.profile-scope .timeline-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+}
+
+/* 📏 Add a separator line between the two rows */
+.profile-scope .timeline-row:first-child {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* 📝 Label Styles */
+.profile-scope .timeline-row p {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* 📅 Date/Strong Styles */
+.profile-scope .timeline-row strong {
+  font-size: 0.95rem;
+  color: #1e293b;
+  font-weight: 700;
+}
 
 .profile-scope .detained-notice {
   display: flex;
@@ -349,4 +383,92 @@
 
 .btn-recommit:active {
   transform: translateY(0);
+}
+
+/* 🚨 Compact Sidebar Container */
+.subsidiary-penalty-box {
+  background: #fff5f5;
+  border: 1px solid #fee2e2;
+  border-left: 4px solid #f87171;
+  padding: 12px; /* Reduced padding for narrow space */
+  border-radius: 8px;
+  margin-top: 50px;
+  box-shadow: 0 2px 5px rgba(248, 113, 113, 0.05);
+}
+
+/* 📘 Compact Header */
+.sub-penalty-header {
+  display: flex;
+  flex-direction: column; /* Stack title and badge */
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.sub-penalty-header h4 {
+  margin: 0;
+  color: #991b1b;
+  font-size: 0.85rem; /* Smaller font */
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.penalty-tag {
+  background: #fecaca;
+  color: #991b1b;
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+/* 🧮 Vertical Stack Detail Box */
+.penalty-details {
+  display: flex;
+  flex-direction: column; /* VERTICAL FLOW FOR SIDEBAR */
+  gap: 10px;
+  background: white;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px dashed #fca5a5;
+}
+
+.penalty-info, .penalty-days {
+  text-align: left; /* Align left for readability */
+}
+
+.penalty-info span, .penalty-days span {
+  display: block;
+  font-size: 0.65rem;
+  color: #64748b;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.penalty-info strong {
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+/* 🚫 Hide Arrow for Sidebar Version */
+.penalty-arrow {
+  display: none; 
+}
+
+/* 🔴 Hero Number: Added Days */
+.text-danger {
+  color: #dc2626 !important;
+  font-size: 1.2rem !important; /* Slightly smaller for sidebar */
+  font-weight: 900;
+}
+
+/* 📝 Minimalist Note */
+.penalty-note {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  margin-top: 8px;
+  line-height: 1.3;
+  display: block;
+  text-align: center;
 }

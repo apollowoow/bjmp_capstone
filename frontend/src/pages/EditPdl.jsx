@@ -45,7 +45,17 @@ const EditPdl = () => {
   const [showLockWarning, setShowLockWarning] = useState(false); 
   const [showValidationError, setShowValidationError] = useState(false);
   const [validationMessage, setValidationMessage] = useState("");
+  const [showSubConfirm, setShowSubConfirm] = useState(false);
+  const [subsidiary, setSubsidiary] = useState(false);
+  const [subsidiaryForm, setSubsidiaryForm] = useState({
+      total_fine_amount: "",
+      daily_rate: 1000,
+      judgment_date: new Date().toISOString().split('T')[0],
+      remarks: ""
+    });
 
+
+    
   const [isJudicialUnlocked, setIsJudicialUnlocked] = useState(false); // 🛡️ Gatekeeper for Judicial Info
 
   // ... (fetchCurrentPdl logic remains the same)
@@ -119,10 +129,10 @@ const fetchCurrentPdl = async () => {
     if (data.hasMigrated) {
       console.log("Migration Detected. Running Universal Lock Scan...");
 
-      const gctaEntry = data.gcta_history?.find(l => 
+      const gctaEntry = data.gcta_history?.find(l =>
         l.remarks?.toLowerCase().includes('migration')
       );
-      const tastmEntry = data.tastm_history?.find(l => 
+      const tastmEntry = data.tastm_history?.find(l =>
         l.remarks?.toLowerCase().includes('migration')
       );
 
@@ -158,6 +168,7 @@ const fetchCurrentPdl = async () => {
       if (gctaEntry) console.log("GCTA Remark:", gctaEntry.remarks, "| Status:", gctaEntry.status);
     }
 
+    // --- Date Formatting Logic ---
     if (data.date_commited_pnp) {
       data.date_commited_pnp = new Date(data.date_commited_pnp).toISOString().split('T')[0];
     }
@@ -165,26 +176,69 @@ const fetchCurrentPdl = async () => {
       data.date_of_final_judgment = new Date(data.date_of_final_judgment).toISOString().split('T')[0];
     }
 
+    // --- 💰 Subsidiary Imprisonment Logic ---
+    if (data.subsidiary) {
+      // 🆔 Map the ID so the Edit function knows which row to update
+      data.subsidiary_id = data.subsidiary.subsidiary_id;
+
+      data.total_fine_amount = data.subsidiary.total_fine_amount;
+      data.amount_paid = data.subsidiary.amount_paid;
+      data.daily_rate = data.subsidiary.daily_rate;
+      data.max_subsidiary_days = data.subsidiary.max_subsidiary_days;
+      data.subsidiary_status = data.subsidiary.status;
+      data.remarks = data.subsidiary.remarks || ""; 
+
+      if (data.subsidiary.judgment_date) {
+        data.subsidiary_judgment_date = new Date(data.subsidiary.judgment_date).toISOString().split('T')[0];
+      }
+
+      // 🚩 FLAG: Tell the UI we are in Edit Mode
+      data.isEditingSubsidiary = true;
+
+      // 🎯 MODAL PRE-FILL: Set the draft state to existing data
+      setSubsidiaryForm({
+        fine: data.subsidiary.total_fine_amount,
+        rate: data.subsidiary.daily_rate
+      });
+
+    } else {
+      // 🚩 FLAG: No active fine, stay in Add Mode
+      data.isEditingSubsidiary = false;
+      data.subsidiary_id = null; 
+      data.total_fine_amount = ""; 
+      data.amount_paid = 0;
+      data.daily_rate = 1000; 
+      data.subsidiary_judgment_date = "";
+
+      // 🎯 MODAL RESET: Clear the draft state
+      setSubsidiaryForm({
+        fine: "",
+        rate: 1000
+      });
+    }
+
     setPreviewUrl(data.pdl_picture || null);
 
-    setFormData({ 
-      ...data, 
+    // --- State Update ---
+    setFormData({
+      ...data,
       originalStatus: data.pdl_status,
-      isMigrationLocked: data.isMigrationLocked || false, 
+      isMigrationLocked: data.isMigrationLocked || false,
       isTastmLocked: data.isTastmLocked || false,
       isGctaLocked: data.isGctaLocked || false
     });
 
     console.log("Final FormData State set. UI should now respect locks.");
-    console.log(formData.isTastmLocked);
-    console.log(formData.isGctaLocked);
+    console.log("TASTM Lock State:", data.isTastmLocked);
+    console.log("GCTA Lock State:", data.isGctaLocked);
 
-  } catch (error) { 
-    console.error("Fetch error:", error); 
-  } finally { 
-    setLoading(false); 
+  } catch (error) {
+    console.error("Fetch error:", error);
+  } finally {
+    setLoading(false);
   }
 };
+
 
    const [previewUrl, setPreviewUrl] = useState(formData.pdl_picture || null);
 
@@ -204,6 +258,10 @@ const fetchCurrentPdl = async () => {
       [name]: type === 'checkbox' ? checked : value 
     }));
   };
+
+  const openSubsidiary = () =>{
+    setSubsidiary(true);
+  }
 
   // 🛡️ LOCK TOGGLE LOGIC
   const handleLockToggle = () => {
@@ -319,6 +377,69 @@ const fetchCurrentPdl = async () => {
         });
     }
 };
+
+// --- ⚖️ Add this inside your EditPdl component ---
+const calculateLegalLimit = () => {
+  // Use formData because that's where your PDL's sentence info is stored
+  const years = parseInt(formData.sentence_years) || 0;
+  const months = parseInt(formData.sentence_months) || 0;
+  const days = parseInt(formData.sentence_days) || 0;
+
+  // Convert to total days and divide by 3 (The RPC Art. 39 Rule)
+  const totalDays = (years * 365) + (months * 30) + days;
+  return Math.floor(totalDays / 3);
+};
+
+const handleSaveSubsidiary = () => {
+    if (!subsidiaryForm.fine || !subsidiaryForm.rate) {
+      setModal({ show: true, title: "Missing Information", message: "Please provide both the fine amount and the daily rate.", type: "error" });
+      return;
+    }
+    // Instead of saving, show the "Yes/No" modal
+    setShowSubConfirm(true);
+  };
+
+  // 🎯 STEP 2: The Actual Execution (Yes clicked)
+  const confirmSaveSubsidiary = async () => {
+    setShowSubConfirm(false); // Close confirmation
+    try {
+      const finalDays = Math.min(
+        Math.floor(subsidiaryForm.fine / subsidiaryForm.rate),
+        calculateLegalLimit()
+      );
+
+      const payload = {
+        pdl_id: id,
+        subsidiary_id: formData.subsidiary_id || null,
+        total_fine_amount: subsidiaryForm.fine,
+        daily_rate: subsidiaryForm.rate,
+        max_subsidiary_days: calculateLegalLimit(),
+        final_subsidiary_days: finalDays,
+        judgment_date: formData.subsidiary_judgment_date || new Date().toISOString().split('T')[0],
+        remarks: formData.remarks || ""
+      };
+
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE_URL}/api/pdl/upsert`, {
+        method: "POST", 
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        setModal({
+          show: true,
+          title: "Success!",
+          message: formData.isEditingSubsidiary ? "Fine updated." : "Fine record added.",
+          type: "success"
+        });
+        setSubsidiary(false); 
+        fetchCurrentPdl(); 
+      } else { throw new Error("Update failed."); }
+    } catch (err) {
+      setModal({ show: true, title: "Update Failed", message: "Database sync error.", type: "error" });
+    }
+  };
 
 const handleSubmit = async () => {
   // 🛡️ GUARD 1: Block if currently editing specs
@@ -650,6 +771,9 @@ useEffect(() => {
           >
             💾 Save Changes
           </button>
+          <button  className="submit-btn" onClick={() => openSubsidiary()}>
+          {formData.isEditingSubsidiary ? "✏️ Edit Active Fine" : "💾 Add New Fine"}
+        </button>
         </div>
 
           {/* 3. RIGHT COLUMN: FORM */}
@@ -950,6 +1074,81 @@ useEffect(() => {
     </div>
   </div>
 )}
+
+  {subsidiary && (
+  <div className="subsidiary-overlay">
+    <div className="subsidiary-card">
+      <div className="modal-header">
+        <h3>💰 Subsidiary Imprisonment Fine</h3>
+      </div>
+
+      <div className="modal-body">
+        <div className="input-group">
+          <label>Total Fine (PHP)</label>
+          <input 
+            type="number" 
+            placeholder="e.g. 50000"
+            // ✅ Make sure this matches your state
+            value={subsidiaryForm.fine || ""} 
+            onChange={(e) => setSubsidiaryForm({...subsidiaryForm, fine: e.target.value})}
+          />
+        </div>
+
+        <div className="input-group">
+          <label>Minimum Wage / Daily Rate (PHP)</label>
+          <input 
+            type="number" 
+            placeholder="e.g. 1000"
+            // ✅ Make sure this matches your state
+            value={subsidiaryForm.rate || ""}
+            onChange={(e) => setSubsidiaryForm({...subsidiaryForm, rate: e.target.value})}
+          />
+        </div>
+
+        {/* 📊 THE AUTOMATED CHECK */}
+        {subsidiaryForm.fine > 0 && subsidiaryForm.rate > 0 && (
+          <div className="calculation-preview" style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginTop: '10px' }}>
+            <p>Calculated Days: <strong>{Math.floor(subsidiaryForm.fine / subsidiaryForm.rate)} days</strong></p>
+            <p>Legal Cap (1/3 of Sentence): <strong>{calculateLegalLimit()} days</strong></p>
+            <hr />
+            <p className="final-days" style={{ color: '#d9534f', fontSize: '1.1rem' }}>
+              Final Days Added: <strong>
+                {Math.min(Math.floor(subsidiaryForm.fine / subsidiaryForm.rate), calculateLegalLimit())} Days
+              </strong>
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="modal-footer">
+        {/* ✅ Don't forget to link the close/cancel function */}
+        <button onClick={() => setSubsidiary(false)}>Cancel</button>
+     <button 
+        className="confirm-btn" 
+        onClick={handleSaveSubsidiary} // 🎯 Attach the logic here
+      >
+        💾 Save Fine
+      </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{showSubConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-content warning-border">
+            <div className="modal-header"><h3>⚖️ Confirm Subsidiary Entry</h3></div>
+            <div className="modal-body">
+              <p>Are you sure you want to {formData.isEditingSubsidiary ? "update" : "add"} this fine?</p>
+              <p>This will add <strong>{Math.min(Math.floor(subsidiaryForm.fine / subsidiaryForm.rate), calculateLegalLimit())} days</strong> to the PDL's incarceration time.</p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-modal-cancel" onClick={() => setShowSubConfirm(false)}>No, Go Back</button>
+              <button className="btn-modal-confirm" onClick={confirmSaveSubsidiary}>Yes, Finalize Fine</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 🛡️ MODAL A: MIGRATION LOCK WARNING */}
       {showLockWarning && (

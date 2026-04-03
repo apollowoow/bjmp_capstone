@@ -583,5 +583,139 @@ const updateAttendanceHours = async (req, res) => {
     }
 };
 
+
+
+const getMonthlyEvaluation = async (req, res) => {
+    const { month } = req.query; 
+
+    console.log("\n--- ⚖️ MSEC DEBUG START ---");
+    console.log("📅 Targeted Month-Year:", month);
+
+    try {
+        const query = `
+            SELECT 
+                p.pdl_id, 
+                p.first_name, 
+                p.last_name, 
+                p.pdl_picture,
+                -- 🎯 Logic: Sum credits if they are Active OR were Voided specifically by MSEC
+                COALESCE(SUM(CASE 
+                    WHEN (g.status = 'Active' OR g.remarks ILIKE 'MSEC DQ%') THEN g.days_earned 
+                    ELSE 0 
+                END), 0) as monthly_gcta,
+                
+                COALESCE(SUM(CASE 
+                    WHEN (t.status = 'Active' OR t.remarks ILIKE 'MSEC DQ%') THEN t.days_earned 
+                    ELSE 0 
+                END), 0) as monthly_tastm,
+
+                -- 🚩 Status Logic
+                CASE 
+                    WHEN EXISTS (
+                        SELECT 1 FROM gcta_days_log g2 
+                        WHERE g2.pdl_id = p.pdl_id AND TO_CHAR(g2.month_year, 'YYYY-MM') = $1 AND g2.remarks ILIKE 'MSEC DQ%'
+                    ) OR EXISTS (
+                        SELECT 1 FROM tastm_days_log t2 
+                        WHERE t2.pdl_id = p.pdl_id AND TO_CHAR(t2.month_year, 'YYYY-MM') = $1 AND t2.remarks ILIKE 'MSEC DQ%'
+                    ) THEN 'Voided'
+                    ELSE 'Active'
+                END as msec_status
+            FROM pdl_tbl p
+            -- 🛡️ FIX: JOIN records that are Automated OR already Voided by MSEC
+            LEFT JOIN gcta_days_log g ON p.pdl_id = g.pdl_id 
+                AND TO_CHAR(g.month_year, 'YYYY-MM') = $1 
+                AND (g.remarks ILIKE '%Automated%' OR g.remarks ILIKE 'MSEC DQ%')
+            LEFT JOIN tastm_days_log t ON p.pdl_id = t.pdl_id 
+                AND TO_CHAR(t.month_year, 'YYYY-MM') = $1 
+                AND (t.remarks ILIKE '%Automated%' OR t.remarks ILIKE 'MSEC DQ%')
+            GROUP BY p.pdl_id, p.first_name, p.last_name, p.pdl_picture
+            -- 🎯 Show if it has records (Active or MSEC-Voided)
+            HAVING COUNT(g.gcta_log_id) > 0 OR COUNT(t.tastm_log_id) > 0
+            ORDER BY p.last_name ASC;
+        `;
+
+        const result = await pool.query(query, [month]);
+
+        // 📝 Console Logging the Results
+        console.log(`✅ Query Successful. Rows found: ${result.rows.length}`);
+        if (result.rows.length > 0) {
+            console.table(result.rows.map(row => ({
+                ID: row.pdl_id,
+                Name: `${row.last_name}, ${row.first_name}`,
+                GCTA: row.monthly_gcta,
+                TASTM: row.monthly_tastm,
+                Status: row.msec_status
+            })));
+        } else {
+            console.log("⚠️ No matching PDL records found for this month.");
+        }
+        console.log("--- ⚖️ MSEC DEBUG END ---\n");
+
+        res.status(200).json(result.rows);
+    } catch (err) {
+        console.error("❌ MSEC Load Error:", err.message);
+        res.status(500).json({ error: "Failed to load MSEC list." });
+    }
+};
+
+// 🚫 THE DISQUALIFY HAMMER (With MSEC Tag)
+const disqualifyPdlMonthly = async (req, res) => {
+    const { pdl_id, month_year } = req.body;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const msecTag = `MSEC DQ: Manual Disqualification (${month_year})`;
+
+        // Only void 'Active' automated logs
+        await client.query(`
+            UPDATE gcta_days_log SET status = 'Voided', remarks = $1 
+            WHERE pdl_id = $2 AND TO_CHAR(month_year, 'YYYY-MM') = $3 AND status = 'Active'
+        `, [msecTag, pdl_id, month_year]);
+
+        await client.query(`
+            UPDATE tastm_days_log SET status = 'Voided', remarks = $1 
+            WHERE pdl_id = $2 AND TO_CHAR(month_year, 'YYYY-MM') = $3 AND status = 'Active'
+        `, [msecTag, pdl_id, month_year]);
+
+        await client.query('COMMIT');
+        res.status(200).json({ success: true });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    } finally { client.release(); }
+};
+
+// ✅ THE RESTORE BUTTON (Targets ONLY MSEC Tags)
+const reenablePdlMonthly = async (req, res) => {
+    const { pdl_id, month_year } = req.body;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        // 🛡️ CRITICAL: The WHERE clause now checks for the 'MSEC DQ%' remark
+        // This ensures we NEVER reactivate records voided by the Disciplinary/Detention logic!
+        await client.query(`
+            UPDATE gcta_days_log SET status = 'Active', remarks = 'Automated GCTA (Restored by MSEC)'
+            WHERE pdl_id = $1 AND TO_CHAR(month_year, 'YYYY-MM') = $2 
+            AND status = 'Voided' AND remarks ILIKE 'MSEC DQ%'
+        `, [pdl_id, month_year]);
+
+        await client.query(`
+            UPDATE tastm_days_log SET status = 'Active', remarks = 'Automated TASTM (Restored by MSEC)'
+            WHERE pdl_id = $1 AND TO_CHAR(month_year, 'YYYY-MM') = $2 
+            AND status = 'Voided' AND remarks ILIKE 'MSEC DQ%'
+        `, [pdl_id, month_year]);
+
+        await client.query('COMMIT');
+        res.status(200).json({ success: true });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    } finally { client.release(); }
+};
+
+
+
 module.exports = { startSession, logAttendance, finalizeSession, cancelSession , 
-    getSessionHistory, searchPdls, updateAttendanceHours, getSessionDetails, removeAttendance, reloadSession, silentGctaSync, silentTastmSync};
+    getSessionHistory, searchPdls, updateAttendanceHours, getSessionDetails, removeAttendance, 
+    reloadSession, silentGctaSync, silentTastmSync, getMonthlyEvaluation, disqualifyPdlMonthly, reenablePdlMonthly};

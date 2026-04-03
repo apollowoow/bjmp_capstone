@@ -30,7 +30,8 @@ const Education = () => {
     const scansPerPage = 5;
 
     const [showLeaveModal, setShowLeaveModal] = useState(false);
-const [pendingNavigation, setPendingNavigation] = useState(null);
+    const [pendingNavigation, setPendingNavigation] = useState(null);
+    
 
    
 
@@ -476,7 +477,9 @@ return (
                         <p>Manage Program Attendance (TASTM) and Automated Monthly Credits (GCTA).</p>
                     </div>
                     <div className="header-actions">
-                      
+                      <button className="btn-primary" onClick={() => navigate("/msec")}>
+    ⚖️ MSEC Final Screening
+</button>
                         <button className="btn-primary" onClick={() => setShowSessionModal(true)}>🚀 Start Attendance Session</button>
                     </div>
                 </header>

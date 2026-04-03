@@ -146,7 +146,46 @@ const Profile = () => {
                 </div>
             )}
           </div>
-                 
+               {pdl.subsidiary && (() => {
+              // 🎯 Extract the numbers first so the JSX stays clean
+              const fine = Number(pdl.subsidiary.total_fine_amount) || 0;
+              const paid = Number(pdl.subsidiary.amount_paid) || 0;
+              const rate = Number(pdl.subsidiary.daily_rate) || 0;
+              const cap = pdl.subsidiary.max_subsidiary_days || 0;
+
+              // Calculate the impact
+              const balance = fine - paid;
+              const addedDays = rate > 0 ? Math.min(Math.floor(balance / rate), cap) : 0;
+
+              return (
+                <div className="subsidiary-penalty-box">
+                  <div className="sub-penalty-header">
+                    <h4>⚖️ Subsidiary Penalty (Unpaid Fine)</h4>
+                    <span className="penalty-tag">Art. 39 RPC</span>
+                  </div>
+
+                  <div className="penalty-details">
+                    <div className="penalty-info">
+                      <span>Current Balance:</span>
+                      <strong>₱{balance.toLocaleString()}</strong>
+                    </div>
+
+                    <div className="penalty-arrow">➡️</div>
+
+                    <div className="penalty-days">
+                      <span>Added Jail Time:</span>
+                      <strong className="text-danger">
+                        + {addedDays} Days
+                      </strong>
+                    </div>
+                  </div>
+
+                  <p className="penalty-note">
+                    Penalty is based on a daily rate of ₱{rate} and capped at {cap} days.
+                  </p>
+                </div>
+              );
+            })()}  
         </div>
 
           {/* 3. ANALYTICS CARD (Conditional Rendering based on Status) */}
@@ -174,6 +213,8 @@ const Profile = () => {
                 </div>
               </div>
             )}
+
+            
 
               {/* 📈 SECTION: TIME ALLOWANCE LEDGER (Always Visible) */}
            <div className="allowance-ledger">
@@ -241,14 +282,17 @@ const Profile = () => {
           
               <div className="prediction-results">
                   {/* Standard Timeline Items (Admission/Committal) */}
-                  <div className="timeline-item">
+                 <div className="timeline-card-box">
+                  <div className="timeline-row">
                     <p>Admission Date (BJMP)</p>
                     <strong>{pdl.date_admitted_bjmp ? new Date(pdl.date_admitted_bjmp).toLocaleDateString('en-PH') : "---"}</strong>
                   </div>
-                  <div className="timeline-item">
+                  
+                  <div className="timeline-row">
                     <p>Committal Date (PNP)</p>
                     <strong>{pdl.date_commited_pnp ? new Date(pdl.date_commited_pnp).toLocaleDateString('en-PH') : "---"}</strong>
                   </div>
+                </div>
 
                   {/* 🎯 MAIN LOGIC SPLIT */}
                   {pdl.pdl_status === "Released" ? (

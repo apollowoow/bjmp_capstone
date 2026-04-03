@@ -69,4 +69,22 @@ router.get('/details/:id', authenticateToken, sessionCtrl.getSessionDetails);
  */
 router.put('/update-attendance-hours', authenticateToken, sessionCtrl.updateAttendanceHours);
 
+// ==========================
+// ⚖️ MSEC EVALUATION ROUTES (NEW)
+// ==========================
+
+/**
+ * @route   GET /api/sessions/msec/evaluation
+ * @desc    Aggregate all GCTA/TASTM for a specific month for screening
+ */
+router.get('/msec/evaluation', authenticateToken, sessionCtrl.getMonthlyEvaluation);
+
+/**
+ * @route   POST /api/sessions/msec/disqualify
+ * @desc    VOID all credits for a PDL for the selected month (MSEC decision)
+ */
+router.post('/msec/disqualify', authenticateToken, sessionCtrl.disqualifyPdlMonthly);
+
+router.post('/msec/reenable', authenticateToken, sessionCtrl.reenablePdlMonthly);
+
 module.exports = router;

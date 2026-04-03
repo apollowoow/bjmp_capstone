@@ -1,11 +1,12 @@
 const pool = require("../db/pool");
 
+// 1. 📊 HIGH-LEVEL STATS (For the Dashboard/Report Widgets)
 const getReportStats = async (req, res) => {
   try {
     const statsQuery = `
       SELECT 
-        (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log) as total_gcta,
-        (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log) as total_tastm,
+        (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log WHERE status = 'Active') as total_gcta,
+        (SELECT COALESCE(SUM(days_earned), 0) FROM tastm_days_log WHERE status = 'Active') as total_tastm,
         (SELECT COUNT(*) FROM incident_tbl WHERE date_part('month', incident_date) = date_part('month', CURRENT_DATE)) as monthly_incidents,
         (SELECT COUNT(*) FROM pdl_tbl) as total_pdls
     `;
@@ -13,57 +14,83 @@ const getReportStats = async (req, res) => {
     res.status(200).json(result.rows[0]);
   } catch (err) {
     console.error("Stats Error:", err.message);
-    res.status(200).json({ total_gcta: 0, total_tastm: 0, monthly_incidents: 0, total_pdls: 0 });
+    res.status(500).json({ error: "Failed to fetch stats" });
   }
 };
 
-
-const getMonthlySummary = async (req, res) => {
+// 2. 📋 GENERAL SUMMARY (GCTA + TASTM Combined)
+const getGeneralSummary = async (req, res) => {
   try {
-    const query = `
-      WITH LastLog AS (
-        SELECT DISTINCT ON (pdl_id) 
-          pdl_id, days_earned, total_hours_accumulated, month_year
-        FROM tastm_days_log
-        ORDER BY pdl_id, month_year DESC
-      )
-      SELECT 
-        p.pdl_id, 
-        p.last_name, 
-        p.first_name,
-        p.is_locked_for_gcta, 
-        
-        -- ⏱️ TASTM CALCULATIONS (Labor)
-        CASE WHEN ll.days_earned = 0 THEN ll.total_hours_accumulated ELSE 0 END as carry_over_hours,
-        COALESCE((SELECT SUM(hours_attended) FROM attendance_tbl a WHERE a.pdl_id = p.pdl_id AND date_part('month', a.timestamp_in) = date_part('month', CURRENT_DATE)), 0) as current_month_hours,
-        (CASE WHEN ll.days_earned = 0 THEN ll.total_hours_accumulated ELSE 0 END + 
-         COALESCE((SELECT SUM(hours_attended) FROM attendance_tbl a WHERE a.pdl_id = p.pdl_id AND date_part('month', a.timestamp_in) = date_part('month', CURRENT_DATE)), 0)
-        ) as running_balance_hours,
+    const { month } = req.query; 
 
-        -- ⚖️ GCTA CALCULATIONS (Conduct)
-        -- Summing ALL days ever earned from the GCTA log for this specific PDL
-        COALESCE((SELECT SUM(days_earned) FROM gcta_days_log g WHERE g.pdl_id = p.pdl_id), 0) as total_gcta_days,
+    const query = `
+      SELECT 
+        p.pdl_id, p.last_name, p.first_name, p.is_locked_for_gcta,
         
-        -- ⏱️ TASTM BANKED TOTAL
-        COALESCE((SELECT SUM(days_earned) FROM tastm_days_log WHERE pdl_id = p.pdl_id), 0) as total_tastm_days,
+        -- 🟢 ACTIVE CREDITS
+        COALESCE((SELECT SUM(days_earned) FROM gcta_days_log g 
+                  WHERE g.pdl_id = p.pdl_id AND g.status = 'Active' AND TO_CHAR(g.month_year, 'YYYY-MM') = $1), 0) as active_gcta,
         
-        -- ⚠️ INCIDENT TRACKING
-        (SELECT COUNT(*) FROM incident_tbl i WHERE i.pdl_id = p.pdl_id) as incident_count
+        -- 🔴 VOIDED/DQ'D CREDITS
+        COALESCE((SELECT SUM(days_earned) FROM gcta_days_log g 
+                  WHERE g.pdl_id = p.pdl_id AND g.status = 'Voided' AND TO_CHAR(g.month_year, 'YYYY-MM') = $1), 0) as voided_gcta,
+
+        -- 📝 REMARKS AGGREGATION (The "Why")
+        -- This joins all remarks from GCTA and TASTM logs for that month into one line
+        COALESCE((
+          SELECT STRING_AGG(DISTINCT remarks, ' | ') 
+          FROM (
+            SELECT remarks FROM gcta_days_log WHERE pdl_id = p.pdl_id AND TO_CHAR(month_year, 'YYYY-MM') = $1
+            UNION
+            SELECT remarks FROM tastm_days_log WHERE pdl_id = p.pdl_id AND TO_CHAR(month_year, 'YYYY-MM') = $1
+          ) AS combined_remarks
+        ), 'No specific remarks') as msec_remarks,
+
+        -- TASTM Totals (Active Only)
+        COALESCE((SELECT SUM(days_earned) FROM tastm_days_log t 
+                  WHERE t.pdl_id = p.pdl_id AND t.status = 'Active' AND TO_CHAR(t.month_year, 'YYYY-MM') = $1), 0) as active_tastm
 
       FROM pdl_tbl p
-      LEFT JOIN LastLog ll ON p.pdl_id = ll.pdl_id
-      ORDER BY p.last_name ASC
+      -- Show PDL if they have ANY record (Active or Voided) this month
+      WHERE EXISTS (
+          SELECT 1 FROM gcta_days_log g WHERE g.pdl_id = p.pdl_id AND TO_CHAR(g.month_year, 'YYYY-MM') = $1
+      ) OR EXISTS (
+          SELECT 1 FROM tastm_days_log t WHERE t.pdl_id = p.pdl_id AND TO_CHAR(t.month_year, 'YYYY-MM') = $1
+      )
+      ORDER BY p.last_name ASC;
     `;
     
-    const result = await pool.query(query);
-    console.log(result.rows);
+    const result = await pool.query(query, [month]);
     res.status(200).json(result.rows);
   } catch (err) {
-    console.error("Monthly Summary Error:", err.message);
-    res.status(500).json({ error: "Check SQL Logic for GCTA Summing" });
+    console.error("Audit Report Error:", err.message);
+    res.status(500).json({ error: "Failed to pull full audit logs." });
+  }
+};
+// 3. 🎯 PREDICTIVE RELEASE FORECAST (The "Analytics" Logic)
+const getPredictiveReport = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        p.pdl_id, p.last_name, p.first_name, p.sentence_expiry_date,
+        -- Calculate total days earned
+        (COALESCE((SELECT SUM(days_earned) FROM gcta_days_log WHERE pdl_id = p.pdl_id AND status = 'Active'), 0) +
+         COALESCE((SELECT SUM(days_earned) FROM tastm_days_log WHERE pdl_id = p.pdl_id AND status = 'Active'), 0)) as total_credits,
+        -- Calculate current predicted release date
+        (p.sentence_expiry_date - (
+            COALESCE((SELECT SUM(days_earned) FROM gcta_days_log WHERE pdl_id = p.pdl_id AND status = 'Active'), 0) +
+            COALESCE((SELECT SUM(days_earned) FROM tastm_days_log WHERE pdl_id = p.pdl_id AND status = 'Active'), 0)
+        ) * INTERVAL '1 day') as predicted_release_date
+      FROM pdl_tbl p
+      WHERE p.sentence_expiry_date > CURRENT_DATE
+      ORDER BY predicted_release_date ASC
+    `;
+    const result = await pool.query(query);
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error("Predictive Error:", err.message);
+    res.status(500).json({ error: "Predictive Analytics failed" });
   }
 };
 
-
-
-module.exports = { getReportStats, getMonthlySummary };
+module.exports = { getReportStats, getGeneralSummary, getPredictiveReport };

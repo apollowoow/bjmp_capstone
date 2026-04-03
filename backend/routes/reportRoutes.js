@@ -5,7 +5,7 @@ const pool = require("../db/pool");
 // ==========================
 // IMPORT CONTROLLERS
 // ==========================
-const { getReportStats, getMonthlySummary } = require("../controller/reportController");
+const { getReportStats, getGeneralSummary, getPredictiveReport } = require("../controller/reportController");
 
 // ==========================
 // IMPORT MIDDLEWARE
@@ -20,6 +20,6 @@ const { authenticateToken } = require("../middleware/authMiddleware");
 router.get("/stats", authenticateToken, getReportStats);
 
 // Get the table data for the monthly report preview
-router.get("/summary", authenticateToken, getMonthlySummary);
-
+router.get("/summary", authenticateToken, getGeneralSummary);
+router.get('/predictive', authenticateToken, getPredictiveReport);
 module.exports = router;

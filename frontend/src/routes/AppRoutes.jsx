@@ -12,6 +12,7 @@ import Add from "../pages/Add";
 import Profile from "../pages/Profile"; 
 import EditPdl from "../pages/EditPdl"; 
 import Reports from "../pages/Reports";
+import Msec from "../pages/Msec";
 import SessionDetails from "../pages/SessionDetails";
 import ProtectedRoute from "../components/ProtectedRoute";
 
@@ -36,6 +37,7 @@ const AppRoutes = () => {
             <Route path="/education/session/:id" element={<SessionDetails />} />
            <Route path="/education" element={<Education />} />
            <Route path="/incidents" element={<Incidents />} />
+           <Route path="/msec" element={<Msec />} />
             <Route path="/reports" element={<Reports />} />
         </Route>
       </Route>

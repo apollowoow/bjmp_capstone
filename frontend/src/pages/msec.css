@@ -1,0 +1,500 @@
+/* 🏢 Main Scope & Background */
+.msec-scope {
+  padding: 2rem;
+  background-color: #f8fafc; /* Slate 50 */
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.msec-container {
+  max-width: 1250px;
+  margin: 0 auto;
+}
+
+/* ⬅️ Header & Navigation */
+.msec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.msec-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.btn-back {
+  background: white;
+  border: 1px solid #e2e8f0;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  color: #64748b;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-back:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.title-group h1 {
+  font-size: 1.8rem;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.title-group p {
+  color: #64748b;
+  margin: 2px 0 0 0;
+  font-size: 0.95rem;
+}
+
+/* 🛠️ Toolbar: Search & Filters */
+.msec-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.2rem 1.5rem;
+  background: white;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.toolbar-main {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.msec-search, .msec-select {
+  padding: 0.7rem 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.msec-search { width: 800px; }
+.msec-search:focus, .msec-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+
+.msec-select {
+  background: #f8fafc;
+  cursor: pointer;
+  font-weight: 600;
+  color: #475569;
+}
+
+/* 📊 Evaluation Table */
+.msec-table-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.msec-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.msec-table th {
+  background: #f8fafc;
+  padding: 1rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.msec-table td {
+  padding: 1.2rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+/* 🔴 VOIDED ROW STATE */
+.row-voided {
+  background-color: #fffafb !important;
+}
+
+.row-voided td {
+  opacity: 0.8;
+}
+
+.row-voided .pdl-info strong {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+/* 👤 PDL Cell */
+.pdl-cell {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pdl-cell img {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 2px solid #f1f5f9;
+}
+
+.pdl-info strong { display: block; color: #1e293b; font-size: 1rem; }
+.pdl-info span { font-size: 0.8rem; color: #94a3b8; font-weight: 500; }
+
+/* 🏷️ Status Badges */
+.badge-gcta { color: #059669; font-weight: 700; }
+.badge-tastm { color: #2563eb; font-weight: 700; }
+.total-days { font-size: 1.1rem; color: #0f172a; font-weight: 800; }
+
+.msec-status-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* ✅ MSEC Specific Active State */
+.msec-status-tag.status-active {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #d1fae5;
+}
+
+/* ❌ MSEC Specific Voided State */
+.msec-status-tag.status-voided {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fee2e2;
+}
+
+/* ⚡ Action Buttons */
+.btn-dq {
+  background: white;
+  color: #e11d48;
+  border: 1.5px solid #fee2e2;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-dq:hover { background: #e11d48; color: white; border-color: #e11d48; }
+
+.btn-enable {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1.5px solid #bbf7d0;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-enable:hover { background: #16a34a; color: white; border-color: #16a34a; }
+
+/* 🏁 Footer */
+.msec-footer {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: #1e293b;
+  border-radius: 16px;
+  color: white;
+  box-shadow: 0 10px 25px rgba(30, 41, 59, 0.2);
+}
+
+.btn-finalize {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+}
+
+.btn-finalize:hover { background: #2563eb; transform: translateY(-1px); }
+
+/* 🧱 Responsive Extras */
+.loading-row, .empty-row {
+  text-align: center;
+  padding: 4rem !important;
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 1.1rem;
+}
+
+/* 🌑 MSEC Specific Overlay */
+.msec-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 11000; /* Extra high to be safe */
+  animation: msecFadeIn 0.2s ease-out;
+}
+
+/* 📦 MSEC Specific Card */
+.msec-modal-card {
+  background: white;
+  width: 90%;
+  max-width: 440px;
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+/* 🚥 Specific Alert Accents */
+.msec-alert-danger { border-top: 6px solid #ef4444; }
+.msec-alert-info { border-top: 6px solid #3b82f6; }
+
+.msec-modal-card h3 {
+  margin: 0 0 10px 0;
+  color: #1e293b;
+  font-weight: 800;
+}
+
+.msec-modal-card p {
+  color: #64748b;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+/* 🔘 MSEC Specific Buttons */
+.msec-modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.msec-modal-actions button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.msec-modal-actions button:active {
+  transform: scale(0.97);
+}
+
+.msec-btn-cancel {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* Confirm Button Colors based on the Parent Card */
+.msec-alert-danger .msec-btn-confirm {
+  background: #ef4444;
+  color: white;
+}
+
+.msec-alert-info .msec-btn-confirm {
+  background: #3b82f6;
+  color: white;
+}
+
+/* ✨ Scoped Animations */
+@keyframes msecFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 🏛️ Main Header Container */
+.msec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  margin-bottom: 2rem;
+}
+
+/* ⬅️ Left Section: Navigation & Titles */
+.msec-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* 🔙 Back Button Styling */
+.msec-header .btn-back {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.msec-header .btn-back:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-color: #cbd5e1;
+  transform: translateX(-3px); /* Subtle nudge effect */
+}
+
+/* 📝 Title & Subtitle Group */
+.msec-header .title-group h1 {
+  font-size: 1.6rem;
+  color: #0f172a;
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.msec-header .title-group p {
+  color: #64748b;
+  margin: 4px 0 0 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.msec-header .title-group strong {
+  color: #2563eb; /* Primary blue for the month */
+  background: #eff6ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* 📅 Right Section: Month Selector */
+.msec-header .header-right {
+  background: #f8fafc;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.msec-header .month-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.msec-header .month-selector label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.msec-header .month-selector input[type="month"] {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  cursor: pointer;
+  outline: none;
+}
+
+/* 📱 Responsive Tweak */
+@media (max-width: 768px) {
+  .msec-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+  
+  .msec-header .header-right {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* 📟 Pagination Styles */
+.msec-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 1.5rem;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+.pagination-info {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.pagination-info strong {
+    color: #1e293b;
+}
+
+.pagination-buttons {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.page-number {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #475569;
+}
+
+.pag-btn {
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1e293b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pag-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #2563eb;
+}
+
+.pag-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f8fafc;
+}
