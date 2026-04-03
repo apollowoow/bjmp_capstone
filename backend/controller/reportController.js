@@ -19,52 +19,59 @@ const getReportStats = async (req, res) => {
 };
 
 // 2. 📋 GENERAL SUMMARY (GCTA + TASTM Combined)
+// In your reportsController.js -> getGeneralSummary
 const getGeneralSummary = async (req, res) => {
+  const { month } = req.query; 
+  console.log(`[REPORTS] 📥 Request received for Audit Month: ${month}`);
+
   try {
-    const { month } = req.query; 
-
     const query = `
-      SELECT 
-        p.pdl_id, p.last_name, p.first_name, p.is_locked_for_gcta,
-        
-        -- 🟢 ACTIVE CREDITS
-        COALESCE((SELECT SUM(days_earned) FROM gcta_days_log g 
-                  WHERE g.pdl_id = p.pdl_id AND g.status = 'Active' AND TO_CHAR(g.month_year, 'YYYY-MM') = $1), 0) as active_gcta,
-        
-        -- 🔴 VOIDED/DQ'D CREDITS
-        COALESCE((SELECT SUM(days_earned) FROM gcta_days_log g 
-                  WHERE g.pdl_id = p.pdl_id AND g.status = 'Voided' AND TO_CHAR(g.month_year, 'YYYY-MM') = $1), 0) as voided_gcta,
+        SELECT 
+          p.pdl_id, p.last_name, p.first_name, 
+          p.is_locked_for_gcta, 
+          p.expected_releasedate, 
+          p.date_commited_pnp,           
+          p.original_release_date,       
+          p.total_timeallowance_earned,  
+          p.crime_name,                  
 
-        -- 📝 REMARKS AGGREGATION (The "Why")
-        -- This joins all remarks from GCTA and TASTM logs for that month into one line
-        COALESCE((
-          SELECT STRING_AGG(DISTINCT remarks, ' | ') 
-          FROM (
-            SELECT remarks FROM gcta_days_log WHERE pdl_id = p.pdl_id AND TO_CHAR(month_year, 'YYYY-MM') = $1
-            UNION
-            SELECT remarks FROM tastm_days_log WHERE pdl_id = p.pdl_id AND TO_CHAR(month_year, 'YYYY-MM') = $1
-          ) AS combined_remarks
-        ), 'No specific remarks') as msec_remarks,
+          -- Monthly active sums
+          COALESCE((SELECT SUM(days_earned) FROM gcta_days_log WHERE pdl_id = p.pdl_id AND status = 'Active' AND TO_CHAR(month_year, 'YYYY-MM') = $1), 0) as active_gcta,
+          COALESCE((SELECT SUM(days_earned) FROM tastm_days_log WHERE pdl_id = p.pdl_id AND status = 'Active' AND TO_CHAR(month_year, 'YYYY-MM') = $1), 0) as active_tastm,
+          
+          -- Audit Remarks logic
+          COALESCE((SELECT SUM(days_earned) FROM gcta_days_log WHERE pdl_id = p.pdl_id AND status = 'Voided' AND TO_CHAR(month_year, 'YYYY-MM') = $1), 0) as voided_gcta,
+          COALESCE((SELECT SUM(days_earned) FROM tastm_days_log WHERE pdl_id = p.pdl_id AND status = 'Voided' AND TO_CHAR(month_year, 'YYYY-MM') = $1), 0) as voided_tastm,
 
-        -- TASTM Totals (Active Only)
-        COALESCE((SELECT SUM(days_earned) FROM tastm_days_log t 
-                  WHERE t.pdl_id = p.pdl_id AND t.status = 'Active' AND TO_CHAR(t.month_year, 'YYYY-MM') = $1), 0) as active_tastm
+          COALESCE((
+            SELECT STRING_AGG(DISTINCT remarks, ' | ') 
+            FROM (
+              SELECT remarks FROM gcta_days_log WHERE pdl_id = p.pdl_id AND status = 'Voided' AND TO_CHAR(month_year, 'YYYY-MM') = $1
+              UNION
+              SELECT remarks FROM tastm_days_log WHERE pdl_id = p.pdl_id AND status = 'Voided' AND TO_CHAR(month_year, 'YYYY-MM') = $1
+            ) AS r
+          ), 'No violations') as audit_remarks
 
-      FROM pdl_tbl p
-      -- Show PDL if they have ANY record (Active or Voided) this month
-      WHERE EXISTS (
-          SELECT 1 FROM gcta_days_log g WHERE g.pdl_id = p.pdl_id AND TO_CHAR(g.month_year, 'YYYY-MM') = $1
-      ) OR EXISTS (
-          SELECT 1 FROM tastm_days_log t WHERE t.pdl_id = p.pdl_id AND TO_CHAR(t.month_year, 'YYYY-MM') = $1
-      )
-      ORDER BY p.last_name ASC;
-    `;
+        FROM pdl_tbl p
+        WHERE 
+            EXISTS (SELECT 1 FROM gcta_days_log WHERE pdl_id = p.pdl_id AND status IN ('Active', 'Voided') AND TO_CHAR(month_year, 'YYYY-MM') = $1) 
+            OR EXISTS (SELECT 1 FROM tastm_days_log WHERE pdl_id = p.pdl_id AND status IN ('Active', 'Voided') AND TO_CHAR(month_year, 'YYYY-MM') = $1)
+            OR (p.expected_releasedate IS NOT NULL AND p.expected_releasedate <= CURRENT_DATE + INTERVAL '45 days')
+        ORDER BY p.expected_releasedate ASC NULLS LAST;
+      `;
     
     const result = await pool.query(query, [month]);
+    
+    // 📝 BACKEND LOG: You'll see this in your terminal
+    console.log(`[REPORTS] ✅ Success. Audit Month: ${month}`);
+    console.log("--- START OF RETURNED ROWS ---");
+    console.log(JSON.stringify(result.rows, null, 2)); // 🎯 This prints the actual data
+    console.log("--- END OF RETURNED ROWS ---");
     res.status(200).json(result.rows);
+
   } catch (err) {
-    console.error("Audit Report Error:", err.message);
-    res.status(500).json({ error: "Failed to pull full audit logs." });
+    console.error("[REPORTS] ❌ FATAL ERROR:", err.message);
+    res.status(500).json({ error: "Failed to generate audit data." });
   }
 };
 // 3. 🎯 PREDICTIVE RELEASE FORECAST (The "Analytics" Logic)

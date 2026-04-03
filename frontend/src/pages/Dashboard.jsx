@@ -23,6 +23,7 @@ const Dashboard = () => {
   const user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : { fullname: "Officer" };
   const IDEAL_CAPACITY = 41; // 🎯 Revision requirement: Ideal Rate 
 const hasSynced = useRef(false);
+
 useEffect(() => {
     if (hasSynced.current) return; // 👈 block second call
     hasSynced.current = true;      // 👈 mark as ran

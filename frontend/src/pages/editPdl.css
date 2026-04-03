@@ -822,13 +822,13 @@
 }
 
 /* 📘 Header */
-.modal-header {
+.edit-modal-header {
   background: #1e3a8a; 
   color: white;
   padding: 15px 20px;
 }
 
-.modal-header h3 {
+.edit-modal-header h3 {
   margin: 0;
   font-size: 1.2rem;
   display: flex;

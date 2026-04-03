@@ -298,3 +298,162 @@
     -webkit-print-color-adjust: exact;
   }
 }
+.rpt-export-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.rpt-btn-csv {
+    background-color: #10b981; /* Emerald 500 */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rpt-btn-pdf {
+    background-color: #0f172a; /* Slate 900 */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rpt-btn-csv:hover { background-color: #059669; transform: translateY(-1px); }
+.rpt-btn-pdf:hover { background-color: #334155; transform: translateY(-1px); }
+
+/* --- Pagination Container --- */
+.rpt-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding: 1rem 0;
+    border-top: 1px solid #e2e8f0; /* Light slate border */
+}
+
+/* --- Pagination Buttons --- */
+.rpt-page-btn {
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155; /* Slate 700 */
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1; /* Slate 300 */
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+}
+
+/* Hover State */
+.rpt-page-btn:hover:not(:disabled) {
+    background-color: #f8fafc;
+    border-color: #94a3b8;
+    color: #1e293b;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Active/Click State */
+.rpt-page-btn:active:not(:disabled) {
+    transform: translateY(1px);
+    background-color: #f1f5f9;
+}
+
+/* 🚫 Disabled State (Crucial for your fix!) */
+.rpt-page-btn:disabled {
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* --- Page Info Text (e.g., "Page 1 of 5") --- */
+.rpt-page-info {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #64748b; /* Slate 500 */
+    padding: 0 0.5rem;
+    user-select: none;
+}
+
+/* --- Responsive Tweak --- */
+@media (max-width: 640px) {
+    .rpt-pagination {
+        flex-direction: row;
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .rpt-page-btn {
+        flex: 1;
+    }
+}
+
+/* --- Tighten the Status/Timeline Column --- */
+.rpt-table th:nth-child(2),
+.rpt-table td.rpt-col-status {
+    width: 220px; /* 🎯 Fixed width so it doesn't stretch */
+    min-width: 200px;
+    vertical-align: top; /* Keeps text aligned at the top */
+}
+
+/* --- Timeline Styling --- */
+.rpt-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.2;
+}
+
+.rpt-orig-date {
+    color: #64748b;
+    text-decoration: line-through;
+    font-size: 0.75rem;
+}
+
+.rpt-expected-row {
+    font-size: 0.875rem;
+    color: #1e293b;
+    white-space: nowrap; /* 🎯 Prevents the date from breaking into two lines */
+}
+
+/* --- Status & Audit Note --- */
+.rpt-status-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rpt-badge {
+    display: inline-flex;
+    width: fit-content; /* 🎯 Badge only takes as much space as the text */
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.rpt-audit-note {
+    max-width: 200px; /* 🎯 Prevents long remarks from stretching the row */
+    line-height: 1.3;
+    color: #ef4444; /* Red-500 */
+}
+
+.rpt-audit-note small {
+    display: block;
+    word-wrap: break-word; /* 🎯 Forces long text to wrap instead of push */
+    font-size: 0.7rem;
+}

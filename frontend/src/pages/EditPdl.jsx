@@ -1078,7 +1078,7 @@ useEffect(() => {
   {subsidiary && (
   <div className="subsidiary-overlay">
     <div className="subsidiary-card">
-      <div className="modal-header">
+      <div className="edit-modal-header">
         <h3>💰 Subsidiary Imprisonment Fine</h3>
       </div>
 
@@ -1137,7 +1137,7 @@ useEffect(() => {
 {showSubConfirm && (
         <div className="modal-overlay">
           <div className="modal-content warning-border">
-            <div className="modal-header"><h3>⚖️ Confirm Subsidiary Entry</h3></div>
+            <div className="edit-modal-header"><h3>⚖️ Confirm Subsidiary Entry</h3></div>
             <div className="modal-body">
               <p>Are you sure you want to {formData.isEditingSubsidiary ? "update" : "add"} this fine?</p>
               <p>This will add <strong>{Math.min(Math.floor(subsidiaryForm.fine / subsidiaryForm.rate), calculateLegalLimit())} days</strong> to the PDL's incarceration time.</p>
@@ -1154,7 +1154,7 @@ useEffect(() => {
       {showLockWarning && (
         <div className="modal-overlay">
           <div className="modal-content warning-border">
-            <div className="modal-header"><h3>⚠️ Migration Data Warning</h3></div>
+            <div className="edit-modal-header"><h3>⚠️ Migration Data Warning</h3></div>
             <div className="modal-body">
               <p>Unlocking will allow manual modification of established GCTA/TASTM baselines.</p>
             </div>
@@ -1170,7 +1170,7 @@ useEffect(() => {
       {showJudicialLockWarning && (
         <div className="modal-overlay">
           <div className="modal-content warning-border">
-            <div className="modal-header"><h3>🚨 Judicial Record Alert</h3></div>
+            <div className="edit-modal-header"><h3>🚨 Judicial Record Alert</h3></div>
             <div className="modal-body">
               <p>You are attempting to unlock **Court-Mandated Information**.</p>
               <p>Modifying the Committal Date or Sentence Duration will force a recalculation of the release analytics.</p>
@@ -1187,7 +1187,7 @@ useEffect(() => {
       {showModal && (
     <div className="modal-overlay">
         <div className={`modal-content ${isUnlocked || isJudicialUnlocked ? 'tamper-danger' : ''}`}>
-            <div className="modal-header">
+            <div className="edit-modal-header">
                 <h3>{formData.pdl_status === "Released" ? "Confirm PDL Release" : "Confirm Record Update"}</h3>
             </div>
             
@@ -1229,7 +1229,7 @@ useEffect(() => {
       {showValidationError && (
   <div className="modal-overlay">
     <div className="modal-content danger-border">
-      <div className="modal-header">
+      <div className="edit-modal-header">
         {/* We can make the title dynamic too if we want */}
         <h3 className="text-danger">
             {formData.pdl_status === "Released" ? "🚨 Release Validation Error" : "🚫 Invalid Chronology"}
