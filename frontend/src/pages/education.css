@@ -1045,4 +1045,297 @@
     color: #94a3b8;
 }
 
+/* 🔐 Scoped Repair Modal Styles */
+.education-scope .repair-modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.8); /* Dark blur */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+}
 
+.education-scope .repair-modal-content {
+    background: white;
+    width: 450px;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    animation: modalSlide 0.3s ease-out;
+}
+
+.education-scope .modal-header {
+    padding: 20px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.education-scope .modal-header h3 { margin: 0; font-size: 1.1rem; color: #1e293b; }
+
+.education-scope .alert-box {
+    background: #fff7ed;
+    border: 1px solid #ffedd5;
+    color: #9a3412;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+}
+
+.education-scope .modal-body { padding: 20px; }
+
+.education-scope .input-group { margin-bottom: 15px; }
+.education-scope .input-group label { display: block; font-size: 0.85rem; margin-bottom: 5px; color: #64748b; }
+.education-scope .input-group input {
+    width: 100%; padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: inherit;
+}
+
+.education-scope .modal-footer {
+    padding: 15px 20px;
+    background: #f8fafc;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.education-scope .btn-confirm-repair {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.education-scope .btn-cancel {
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* 🔒 MODAL REPAIR STYLES - SCOPED */
+.education-scope .repair-modal-content {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.education-scope .confirm-mode {
+    border-top: 5px solid #ef4444; /* Red Security Border */
+}
+
+.education-scope .modal-subtitle {
+    font-size: 0.9rem; color: #64748b; margin-bottom: 20px;
+}
+
+/* Review Card Styling */
+.education-scope .review-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.education-scope .review-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 0.9rem;
+}
+
+.education-scope .text-highlight { color: #2563eb; font-weight: 800; }
+
+.education-scope .security-notice {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-align: center;
+    font-style: italic;
+}
+
+/* Modern Buttons */
+.education-scope .btn-next {
+    background: #1e293b; color: white;
+    border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;
+}
+
+.education-scope .btn-authorize {
+    background: #ef4444; color: white;
+    border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 800;
+}
+
+.education-scope .btn-back {
+    background: transparent; border: none; color: #64748b; cursor: pointer; text-decoration: underline;
+}
+
+.education-scope .security-header { background: #fee2e2; }
+/* 🔐 Scoped UI Tweaks */
+.education-scope .modal-status-banner {
+    padding: 12px;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    animation: slideDown 0.3s ease;
+}
+
+.education-scope .modal-status-banner.error { background: #fee2e2; color: #b91c1c; border-bottom: 1px solid #fecaca; }
+.education-scope .modal-status-banner.success { background: #dcfce7; color: #15803d; border-bottom: 1px solid #bbf7d0; }
+.education-scope .modal-status-banner.loading { background: #eff6ff; color: #1d4ed8; border-bottom: 1px solid #dbeafe; }
+
+/* ✍️ Modern Checkbox */
+.education-scope .checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: #475569;
+    cursor: pointer;
+    margin-top: 15px;
+    padding: 10px;
+    background: #f8fafc;
+    border-radius: 6px;
+}
+
+.education-scope .btn-authorize:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+}
+
+/* 🔒 Modern Close Button Styling */
+.education-scope .close-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%; /* Makes the hover effect circular */
+    transition: all 0.2s ease;
+}
+
+.education-scope .close-btn:hover {
+    background-color: #f1f5f9; /* Subtle light gray */
+    color: #1e293b; /* Darkens the X on hover */
+    transform: rotate(90deg); /* Modern flair: icon spins slightly on hover */
+}
+
+/* Header alignment fix */
+.education-scope .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* 🔄 Spinning animation for the loading icon */
+.education-scope .animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Ensure the banner looks balanced */
+.education-scope .modal-status-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.education-scope .verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #f0fdf4; /* Light green */
+    color: #16a34a; /* Text green */
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border: 1px solid #bbf7d0;
+}
+
+/* Tampered State Container */
+.education-scope .tamper-column-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Tampered Badge */
+.education-scope .tamper-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #fef2f2; /* Light red */
+    color: #dc2626; /* Text red */
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    border: 1px solid #fecaca;
+}
+
+/* Repair Button Styling */
+.education-scope .btn-repair-trigger {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background-color: #1e293b; /* Dark Slate */
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.education-scope .btn-repair-trigger:hover {
+    background-color: #334155;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* 💓 Subtle Pulse Animation for Compromised Data */
+.education-scope .pulse {
+    animation: alertPulse 2s infinite;
+}
+
+@keyframes alertPulse {
+    0% { transform: scale(1); }
+    50% { background-color: #fee2e2; border-color: #ef4444; }
+    100% { transform: scale(1); }
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+}
+
+@keyframes modalSlide {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}

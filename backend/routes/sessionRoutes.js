@@ -68,6 +68,12 @@ router.post('/reload/:session_id',
 );//aduit done
 
 
+router.post('/repair-integrity', 
+    authenticateToken, 
+    authorize("Attendance & Sessions", "canedit"), 
+    sessionCtrl.repairAttendanceIntegrity
+);
+
 // ==========================================
 // ⚖️ MODULE: "Time Allowance Computation (GCTA/TASTM)"
 // ==========================================

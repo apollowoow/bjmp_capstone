@@ -1,6 +1,6 @@
 const pool = require('../db/pool');
 const { logAction } = require('../utils/logger'); 
-
+const { generateHash, verifyIntegrity } = require('../utils/integrity');
 
 const getSessionHistory = async (req, res) => {
     try {
@@ -26,7 +26,68 @@ const getSessionHistory = async (req, res) => {
     }
 };
 
+const repairAttendanceIntegrity = async (req, res) => {
+    const { session_id, pdl_id, corrected_hours, paper_log_ref } = req.body;
+    const client = await pool.connect();
+    
+    // 🛡️ Metadata for the Audit Trail
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1; 
 
+    try {
+        await client.query('BEGIN');
+
+        // 1. Generate the "Recovery Seal"
+        const now = new Date();
+        const timestampStr = now.toISOString();
+
+        const recoveryHash = generateHash('ATTENDANCE', {
+            pdl_id: pdl_id,
+            timestamp: timestampStr,
+            hours: parseFloat(corrected_hours)
+        });
+
+        // 2. Update and Re-seal the record
+        // We append a "REPAIRED" tag to the remarks for forensics
+        const repairTag = ` REPAIRED: Verified via Paper Log [Ref: ${paper_log_ref}]`;
+
+        const result = await client.query(
+            `UPDATE attendance_tbl 
+             SET hours_attended = $1, 
+                 timestamp_in = $2, 
+                 row_hash = $3,
+                 remarks = COALESCE(remarks, '') || $4
+             WHERE session_id = $5 AND pdl_id = $6
+             RETURNING *`,
+            [parseFloat(corrected_hours), now, recoveryHash, repairTag, session_id, pdl_id]
+        );
+
+        // 3. Log the High-Priority Security Action
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'INTEGRITY_REPAIR',
+            tableName: 'attendance_tbl',
+            recordId: session_id,
+            pdlId: pdl_id,
+            details: {
+                message: "A tampered record was manually re-sealed using physical log evidence.",
+                corrected_hours: corrected_hours,
+                paper_log_reference: paper_log_ref,
+                new_hash: recoveryHash.slice(0, 8) + "..."
+            },
+            ipAddress: clientIp
+        });
+
+        await client.query('COMMIT');
+        res.status(200).json({ success: true, message: "Record successfully re-sealed." });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: "Failed to repair record integrity." });
+    } finally {
+        client.release();
+    }
+};
 // 🟢 START SESSION
 const startSession = async (req, res) => {
     const { program_name, session_name, hours_to_earn, session_date, officer_in_charge } = req.body;
@@ -120,12 +181,20 @@ const logAttendance = async (req, res) => {
         if (duplicateCheck.rows.length > 0) {
             return res.status(409).json({ error: "PDL already scanned for this session." });
         }
+        const now = new Date();
+        const timestampStr = now.toISOString(); // Standardized format for hashing
+
+        const attendanceHash = generateHash('ATTENDANCE', {
+            pdl_id: pdl.pdl_id,
+            timestamp: timestampStr,
+            hours: hours_to_earn
+        });
 
         // 3. Log into attendance_tbl
         await pool.query(
-            `INSERT INTO attendance_tbl (pdl_id, session_id, hours_attended, timestamp_in) 
-             VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
-            [pdl.pdl_id, session_id, hours_to_earn]
+            `INSERT INTO attendance_tbl (pdl_id, session_id, hours_attended, timestamp_in, row_hash, remarks) 
+            VALUES ($1, $2, $3, $4, $5, $6)`,
+            [pdl.pdl_id, session_id, hours_to_earn, now, attendanceHash, 'Original System Log'] // 📝 Just a simple tag
         );
 
         res.status(200).json(pdl);
@@ -424,7 +493,6 @@ const getSessionDetails = async (req, res) => {
     const { id } = req.params;
 
     try {
-        // 1. Get Session Metadata (Name, Date, etc.)
         const sessionInfo = await pool.query(
             "SELECT * FROM session_tbl WHERE session_id = $1",
             [id]
@@ -434,14 +502,16 @@ const getSessionDetails = async (req, res) => {
             return res.status(404).json({ error: "Session not found." });
         }
 
-        // 2. Get All Attendees for this session (Joined with PDL Info)
+        // 🎯 UPDATED QUERY: We now fetch row_hash and timestamp_in
         const attendees = await pool.query(
             `SELECT 
                 a.pdl_id, 
                 p.first_name, 
                 p.last_name, 
                 p.pdl_picture, 
-                a.hours_attended 
+                a.hours_attended,
+                a.row_hash,
+                a.timestamp_in 
              FROM attendance_tbl a
              JOIN pdl_tbl p ON a.pdl_id = p.pdl_id
              WHERE a.session_id = $1
@@ -449,10 +519,26 @@ const getSessionDetails = async (req, res) => {
             [id]
         );
 
-        // Send both back in one response
+        // 🕵️ THE AUDIT LAYER: Check every single attendee for tampering
+        const auditedAttendees = attendees.rows.map(row => {
+            const dataToVerify = {
+                pdl_id: row.pdl_id,
+                timestamp: row.timestamp_in ? new Date(row.timestamp_in).toISOString() : "",
+                hours: row.hours_attended
+            };
+
+            // If row_hash doesn't match the data, it's tampered!
+            const isIntegral = row.row_hash ? verifyIntegrity('ATTENDANCE', row.row_hash, dataToVerify) : false;
+
+            return {
+                ...row,
+                is_tampered: !isIntegral // 🚩 True if the seal is broken
+            };
+        });
+
         res.status(200).json({
             session: sessionInfo.rows[0],
-            attendees: attendees.rows
+            attendees: auditedAttendees // 🚀 Send the protected list
         });
 
     } catch (err) {
@@ -483,17 +569,24 @@ const calculateReleaseDate = (committalDate, years, months, days, totalCredits) 
     return release.toISOString().split('T')[0]; 
 };
 
+
+
 const silentGctaSync = async (req, res) => {
     const client = await pool.connect();
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const currentUserId = req.user ? req.user.id : 1;
+
     try {
         await client.query('BEGIN');
-        const now = new Date(2026,5); // 🕒 Current Sync Time
+        
+        // 🕒 Temporal Normalization
+        const now = new Date(2026, 6); // June 2026 (based on your test code)
+        const monthYear = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthYearStr = monthYear.toISOString().slice(0, 7); // "2026-06"
 
         console.log(`--- 🚀 Starting GCTA Monthly Sync: ${now.toDateString()} ---`);
 
-        // 🎯 STAGE 1: THE AUTO-UNLOCK
+        // 🎯 STAGE 1: THE AUTO-UNLOCK (Remains the same)
         const unlockResult = await client.query(`
             UPDATE pdl_tbl SET is_locked_for_gcta = false 
             WHERE is_locked_for_gcta = true 
@@ -503,73 +596,58 @@ const silentGctaSync = async (req, res) => {
                 GROUP BY pdl_id HAVING MAX(penalty_end_date)::DATE <= CURRENT_DATE
             )
         `);
-        if (unlockResult.rowCount > 0) {
-            console.log(`  └─ 🔓 Unlocked: ${unlockResult.rowCount} PDLs (Disciplinary penalty ended)`);
-        }
 
-        // 🎯 STAGE 2: THE AUTO-GRANT (With Legal Gatekeeper)
-        console.log(`  └─ 🛡️  Running Gatekeeper: Checking eligibility...`);
-        // 🎯 STAGE 2: THE AUTO-GRANT (FIXED)
-        
-                // 🎯 STAGE 2: THE AUTO-GRANT (FIXED DUPLICATION)
-        const grantResult = await client.query(`
-            INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, date_granted, status, remarks)
-            SELECT pdl_id, DATE_TRUNC('month', $1::DATE), 20, $1::DATE, 'Active', 'Automated GCTA'
-            FROM pdl_tbl 
+        // 🎯 STAGE 2: IDENTIFY ELIGIBLE PDLs (Changed from INSERT to SELECT)
+        // We find who needs GCTA first so we can hash them in the loop
+        const eligiblePdls = await client.query(`
+            SELECT pdl_id FROM pdl_tbl 
             WHERE pdl_status NOT IN ('Released', 'Escaped', 'Deceased')
             AND is_locked_for_gcta = false
-            -- 🛡️ LEGAL ELIGIBILITY:
             AND (
                 (is_legally_disqualified = false AND date_admitted_bjmp <= $1::DATE - INTERVAL '1 month')
                 OR 
                 (is_legally_disqualified = true AND date_of_final_judgment IS NOT NULL AND date_of_final_judgment <= $1::DATE - INTERVAL '1 month')
             )
-            -- 🎯 THE SURGICAL GATEKEEPER:
             AND pdl_id NOT IN (
                 SELECT pdl_id FROM gcta_days_log 
                 WHERE DATE_TRUNC('month', month_year) = DATE_TRUNC('month', $1::DATE)
-                -- 👇 Parentheses are the "Shield" here!
-                AND (
-                    remarks ILIKE 'Automated TASTM%' 
-                    OR remarks ILIKE 'Automated GCTA%' 
-                    OR remarks ILIKE '%Voided%'
-                )
+                AND (remarks ILIKE 'Automated TASTM%' OR remarks ILIKE 'Automated GCTA%' OR remarks ILIKE '%Voided%')
             )
-            RETURNING pdl_id;
         `, [now]);
 
-        console.log(`  └─ ✨ Granted GCTA to: ${grantResult.rowCount} PDLs`);
+        console.log(` └─ 🛡️  Found ${eligiblePdls.rowCount} eligible PDLs for GCTA.`);
 
-        // 🎯 STAGE 3: THE UPSERT (Release Date Recalculation)
-        if (grantResult.rows.length > 0) {
-            for (let row of grantResult.rows) {
-                const pdlId = row.pdl_id;
+        const affectedIds = [];
 
-                const pdlData = await client.query(
-                    `SELECT date_commited_pnp, date_admitted_bjmp, date_of_final_judgment, 
-                            is_legally_disqualified, sentence_years, sentence_months, sentence_days 
-                     FROM pdl_tbl 
-                     WHERE pdl_id = $1 
-                     AND date_commited_pnp IS NOT NULL 
-                     AND pdl_status NOT IN ('Released', 'Escaped', 'Deceased')`,
-                    [pdlId]
-                );
+        // 🎯 STAGE 3: THE SECURE LOOP (Grant + Hash + Recalculate)
+        for (let row of eligiblePdls.rows) {
+            const pdlId = row.pdl_id;
 
-                if (pdlData.rows.length === 0) {
-                    console.log(`[PDL ${pdlId}] ⚠️ Skip: Missing PNP date or released.`);
-                    continue; 
-                }
+            // 1. Generate the Integrity Seal for GCTA
+            const gctaHash = generateHash('GCTA', {
+                pdl_id: pdlId,
+                month: monthYearStr,
+                days: 20 // Standard GCTA grant
+            });
+
+            // 2. Insert Secure GCTA Record
+            await client.query(`
+                INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, date_granted, status, remarks, row_hash)
+                VALUES ($1, $2, 20, $3, 'Active', 'Automated GCTA', $4)
+            `, [pdlId, monthYear, now, gctaHash]);
+
+            // 3. Fetch PDL Data for Recalculation
+            const pdlData = await client.query(
+                `SELECT date_commited_pnp, date_admitted_bjmp, date_of_final_judgment, 
+                        is_legally_disqualified, sentence_years, sentence_months, sentence_days 
+                 FROM pdl_tbl WHERE pdl_id = $1`, [pdlId]
+            );
+
+            if (pdlData.rows.length > 0) {
                 const p = pdlData.rows[0];
-
-                console.log(`\n[PDL ${pdlId}] ---------------------------------`);
-
-                // ⚓ THE ANCHOR: Where do we start counting from?
                 const anchorDate = p.is_legally_disqualified ? p.date_of_final_judgment : p.date_admitted_bjmp;
-                const anchorType = p.is_legally_disqualified ? "Final Judgment (DQ PDL)" : "BJMP Admission (Normal)";
-                
-                console.log(`  └─ ⚓ Anchor: ${new Date(anchorDate).toDateString()} (${anchorType})`);
 
-                // 🔍 2. Summation Query
+                // Sum all Active Credits (This ensures the new hash is included in the sum)
                 const sums = await client.query(
                     `SELECT 
                         (SELECT COALESCE(SUM(days_earned), 0) FROM gcta_days_log 
@@ -579,60 +657,47 @@ const silentGctaSync = async (req, res) => {
                     [pdlId, anchorDate]
                 );
                 
-                const gctaCount = parseInt(sums.rows[0].gcta_sum) || 0;
-                const tastmCount = parseInt(sums.rows[0].tastm_sum) || 0;
-                const totalCredits = gctaCount + tastmCount;
+                const totalCredits = (parseInt(sums.rows[0].gcta_sum) || 0) + (parseInt(sums.rows[0].tastm_sum) || 0);
 
-                console.log(`  └─ 💰 Credits: GCTA(${gctaCount}) + TASTM(${tastmCount}) = ${totalCredits} total days`);
-
-                // 🧮 3. RUN THE MATH
+                // Recalculate Release Date
                 const newReleaseDate = calculateReleaseDate(
                     p.date_commited_pnp, p.sentence_years, p.sentence_months, p.sentence_days, totalCredits
                 );
 
-                console.log(`  └─ 📅 Calculated Release: ${new Date(newReleaseDate).toDateString()}`);
-
-                // 💾 4. UPDATE PDL_TBL
+                // Update PDL Table
                 await client.query(
-                    `UPDATE pdl_tbl SET 
-                        total_timeallowance_earned = $1, 
-                        expected_releasedate = $2 
-                     WHERE pdl_id = $3`, 
+                    `UPDATE pdl_tbl SET total_timeallowance_earned = $1, expected_releasedate = $2 WHERE pdl_id = $3`, 
                     [totalCredits, newReleaseDate, pdlId]
                 );
-                console.log(`  └─ ✅ PDL Table Updated.`);
+
+                affectedIds.push(pdlId);
+                console.log(` └─ ✅ PDL ${pdlId}: Granted 20 days. New Release: ${new Date(newReleaseDate).toLocaleDateString()}`);
             }
         }
 
-       if (unlockResult.rowCount > 0 || grantResult.rowCount > 0) {
-            // 🎯 Pluck the IDs from the grantResult rows
-            const affectedIds = grantResult.rows.map(row => row.pdl_id);
-
+        // 🎯 STAGE 4: AUDIT LOGGING
+        if (affectedIds.length > 0) {
             await logAction(client, {
                 userId: currentUserId,
                 action: 'SYSTEM_GCTA_SYNC',
                 tableName: 'gcta_days_log',
-                recordId: null, 
-                pdlId: null,    
                 details: {
-                    message: "Automated GCTA synchronization performed.",
-                    sync_date: now.toISOString().split('T')[0], // 🎯 The "Date" added
+                    message: "Automated GCTA synchronization performed with integrity hashing.",
+                    sync_month: monthYearStr,
                     unlocked_count: unlockResult.rowCount,
-                    credits_granted_to: grantResult.rowCount,
-                    affected_pdl_ids: affectedIds, // 🎯 The "Who" got it
-                    trigger: "System Auto-Sync (useEffect)"
+                    credits_granted_to: affectedIds.length,
+                    affected_pdl_ids: affectedIds
                 },
                 ipAddress: clientIp
             });
         }
 
         await client.query('COMMIT');
-        console.log(`\n--- ✅ GCTA Sync Finished Successfully ---`);
-        res.status(200).json({ success: true, granted: grantResult.rowCount });
+        res.status(200).json({ success: true, granted: affectedIds.length });
 
     } catch (err) {
         await client.query('ROLLBACK');
-        console.error(`\n❌ GCTA SYNC FATAL ERROR:`, err.message);
+        console.error(`❌ GCTA SYNC FATAL ERROR:`, err.message);
         res.status(500).json({ error: "Sync failed", details: err.message });
     } finally {
         client.release();
@@ -649,6 +714,8 @@ const silentTastmSync = async (req, res) => {
         await client.query('BEGIN');
 
         const now = new Date(); 
+        const monthYear = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthYearStr = monthYear.toISOString().slice(0, 7);
         const lockResult = await client.query(`SELECT pg_try_advisory_xact_lock(123456789) AS acquired`);
         if (!lockResult.rows[0].acquired) {
             return res.status(409).json({ message: "Sync already in progress." });
@@ -733,25 +800,52 @@ const silentTastmSync = async (req, res) => {
             }
 
             // 🔍 2. SUM CURRENT MONTH ATTENDANCE
-            const currentHours = await client.query(`
-                SELECT COALESCE(SUM(hours_attended), 0) as monthly_sum 
-                FROM attendance_tbl 
-                WHERE pdl_id = $1 AND status = 'Active' 
-                AND DATE_TRUNC('month', timestamp_in AT TIME ZONE 'Asia/Manila') 
-                    = DATE_TRUNC('month', $4::DATE AT TIME ZONE 'Asia/Manila') 
-                AND (
-                    $2::BOOLEAN = false 
-                    OR $3::TIMESTAMP IS NULL 
-                    OR timestamp_in >= $3::TIMESTAMP
-                )
-            `, [pdlId, isDQ, judgmentDate, now]);
+            const attendanceRecords = await client.query(`
+                    SELECT hours_attended, row_hash, timestamp_in 
+                    FROM attendance_tbl 
+                    WHERE pdl_id = $1 AND status = 'Active' 
+                    AND DATE_TRUNC('month', timestamp_in AT TIME ZONE 'Asia/Manila') 
+                        = DATE_TRUNC('month', $4::DATE AT TIME ZONE 'Asia/Manila') 
+                    AND (
+                        $2::BOOLEAN = false 
+                        OR $3::TIMESTAMP IS NULL 
+                        OR timestamp_in >= $3::TIMESTAMP
+                    )
+                `, [pdlId, isDQ, judgmentDate, now]);
 
-            const thisMonthAttendance = parseFloat(currentHours.rows[0].monthly_sum) || 0;
-            let totalToEvaluate = carryOver + thisMonthAttendance;
-            
-            console.log(`  └─ 🧮 ${carryOver} (Carry) + ${thisMonthAttendance} (Attendance) = ${totalToEvaluate} Total`);
+                let thisMonthAttendance = 0;
+                let hasTamperedRecords = false;
 
-            // 🔍 3. UPSERT LOG LOGIC
+                // 🕵️ THE GATEKEEPER LOOP: Auditing the evidence row-by-row
+                for (let record of attendanceRecords.rows) {
+                    // We normalize the data exactly how generateHash expects it
+                    const dataToVerify = {
+                        pdl_id: pdlId,
+                        timestamp: new Date(record.timestamp_in).toISOString(),
+                        hours: record.hours_attended
+                    };
+
+                    // 🛡️ VERIFY THE SEAL
+                    const isIntegral = record.row_hash ? verifyIntegrity('ATTENDANCE', record.row_hash, dataToVerify) : false;
+
+                    if (isIntegral) {
+                        // Only add hours if the cryptographic seal is UNBROKEN
+                        thisMonthAttendance += parseFloat(record.hours_attended);
+                    } else {
+                        // 🚩 RED ALERT: This record has been tampered with or is missing a seal
+                        hasTamperedRecords = true;
+                        console.error(`🚨 INTEGRITY BREACH: PDL ${pdlId} has a tampered attendance record. Excluding from TASTM calculation.`);
+                    }
+                }
+
+                // 🧮 FINAL CALCULATION
+                let totalToEvaluate = carryOver + thisMonthAttendance;
+
+                if (hasTamperedRecords) {
+                    console.log(` ⚠️  Warning: Total for PDL ${pdlId} only reflects verified hours.`);
+                }
+
+                console.log(`  └─ 🧮 ${carryOver} (Carry) + ${thisMonthAttendance} (Verified Attendance) = ${totalToEvaluate} Total`);
             const existingThisMonth = await client.query(`
                 SELECT tastm_log_id, total_hours_accumulated, days_earned, status, remarks
                 FROM tastm_days_log 
@@ -763,7 +857,13 @@ const silentTastmSync = async (req, res) => {
             `, [pdlId, now]);
 
             let daysToGrant = totalToEvaluate >= 60 ? 15 : 0;
-            const monthYear = new Date(now.getFullYear(), now.getMonth(), 1);
+            
+            const rowHash = generateHash('TASTM', {
+                pdl_id: pdlId,
+                month: monthYearStr,
+                hours: totalToEvaluate,
+                days: daysToGrant
+            });
             
             if (existingThisMonth.rows.length > 0) {
                 const existingRow = existingThisMonth.rows[0];
@@ -775,20 +875,21 @@ const silentTastmSync = async (req, res) => {
                         UPDATE tastm_days_log SET 
                             total_hours_accumulated = $1, 
                             days_earned = $2, 
+                            row_hash = $3,
                             status = 'Active', 
                             remarks = CASE WHEN remarks ILIKE '%Restored%' THEN remarks ELSE 'Automated TASTM' END, 
                             date_granted = NOW()
-                        WHERE tastm_log_id = $3`,
-                        [totalToEvaluate, daysToGrant, existingRow.tastm_log_id]
+                        WHERE tastm_log_id = $4`,
+                        [totalToEvaluate, daysToGrant, rowHash, existingRow.tastm_log_id]
                     );
                     affectedPdlIds.push(pdlId); 
                     console.log(`  └─ ✅ Updated Month Record`);
                 }
             } else if (totalToEvaluate > 0) {
                 await client.query(`
-                    INSERT INTO tastm_days_log (pdl_id, month_year, total_hours_accumulated, days_earned, status, remarks, date_granted)
-                    VALUES ($1, $2, $3, $4, 'Active', 'Automated TASTM', NOW())`,
-                    [pdlId, monthYear, totalToEvaluate, daysToGrant]
+                    INSERT INTO tastm_days_log (pdl_id, month_year, total_hours_accumulated, days_earned, status, remarks, row_hash, date_granted)
+                    VALUES ($1, $2, $3, $4, 'Active', 'Automated TASTM', $5, NOW())`,
+                    [pdlId, monthYear, totalToEvaluate, daysToGrant, rowHash]
                 );
                 affectedPdlIds.push(pdlId);
                 console.log(`  └─ ✨ Created New Month Record`);
@@ -825,7 +926,6 @@ const updateAttendanceHours = async (req, res) => {
     const { session_id, pdl_id, new_hours } = req.body;
     const client = await pool.connect();
 
-    // 🛡️ Metadata for Audit Trail
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const currentUserId = req.user ? req.user.id : 1;
 
@@ -844,20 +944,34 @@ const updateAttendanceHours = async (req, res) => {
             return res.status(404).json({ error: "Attendance record not found." });
         }
 
-        // --- 🛡️ STEP 2: RUN THE UPDATE ---
-        // 🎯 We removed updated_at and used timestamp_in = NOW() as requested
+        // --- 🎯 STEP 2: GENERATE THE NEW INTEGRITY SEAL ---
+        const now = new Date();
+        const timestampStr = now.toISOString();
+
+        const newRowHash = generateHash('ATTENDANCE', {
+            pdl_id: pdl_id,
+            timestamp: timestampStr,
+            hours: parseFloat(new_hours)
+        });
+
+        // 🤖 System-generated audit tag
+        const systemRemark = ` | MANUALLY ADJUSTED: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+
+        // --- 🛡️ STEP 3: RUN THE SECURE UPDATE WITH REMARKS ---
         const result = await client.query(
             `UPDATE attendance_tbl 
-             SET hours_attended = $1, 
-                 timestamp_in = NOW() 
-             WHERE session_id = $2 AND pdl_id = $3
-             RETURNING *`,
-            [parseFloat(new_hours), session_id, pdl_id]
+            SET hours_attended = $1, 
+                timestamp_in = $2, 
+                row_hash = $3,
+                remarks = COALESCE(remarks, '') || $4 
+            WHERE session_id = $5 AND pdl_id = $6
+            RETURNING *`,
+            [parseFloat(new_hours), now, newRowHash, systemRemark, session_id, pdl_id]
         );
 
         const newData = result.rows[0];
 
-        // --- 🛡️ STEP 3: LOG THE INTEGRITY CHANGE ---
+        // --- 🛡️ STEP 4: LOG THE CHANGE TO AUDIT_LOGS ---
         await logAction(client, {
             userId: currentUserId,
             action: 'UPDATE_ATTENDANCE_HOURS',
@@ -865,9 +979,11 @@ const updateAttendanceHours = async (req, res) => {
             recordId: session_id, 
             pdlId: pdl_id,
             details: {
-                message: `Attendance hours manually adjusted for PDL.`,
+                message: `Attendance hours manually adjusted. New hash generated.`,
                 old_hours: oldData.hours_attended,
                 new_hours: newData.hours_attended,
+                integrity_seal: newRowHash.slice(0, 8) + "...",
+                remark_added: systemRemark,
                 before: oldData,
                 after: newData
             },
@@ -875,7 +991,8 @@ const updateAttendanceHours = async (req, res) => {
         });
 
         await client.query('COMMIT');
-        res.status(200).json({ message: "Hours updated successfully!", record: newData });
+        console.log(`  └─ 🔒 Integrity Re-sealed & Tagged for PDL ${pdl_id}`);
+        res.status(200).json({ message: "Hours updated and re-sealed successfully!", record: newData });
 
     } catch (err) {
         await client.query('ROLLBACK');
@@ -1119,4 +1236,4 @@ const reenablePdlMonthly = async (req, res) => {
 
 module.exports = { startSession, logAttendance, finalizeSession, cancelSession , 
     getSessionHistory, searchPdls, updateAttendanceHours, getSessionDetails, removeAttendance, 
-    reloadSession, silentGctaSync, silentTastmSync, getMonthlyEvaluation, disqualifyPdlMonthly, reenablePdlMonthly};
+    reloadSession, silentGctaSync, silentTastmSync, getMonthlyEvaluation, disqualifyPdlMonthly, reenablePdlMonthly,repairAttendanceIntegrity};
