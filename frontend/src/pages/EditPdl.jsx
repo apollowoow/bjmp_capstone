@@ -405,7 +405,7 @@ const handleSaveSubsidiary = () => {
       setModal({ show: true, title: "Missing Information", message: "Please provide both the fine amount and the daily rate.", type: "error" });
       return;
     }
-    // Instead of saving, show the "Yes/No" modal
+   
     setShowSubConfirm(true);
   };
 
@@ -921,7 +921,35 @@ return (
         </div>
       </div>
     )}
+  {showSubConfirm && (
 
+        <div className="modal-overlay">
+
+          <div className="modal-content warning-border">
+
+            <div className="edit-modal-header"><h3>⚖️ Confirm Subsidiary Entry</h3></div>
+
+            <div className="modal-body">
+
+              <p>Are you sure you want to {formData.isEditingSubsidiary ? "update" : "add"} this fine?</p>
+
+              <p>This will add <strong>{Math.min(Math.floor(subsidiaryForm.fine / subsidiaryForm.rate), calculateLegalLimit())} days</strong> to the PDL's incarceration time.</p>
+
+            </div>
+
+            <div className="modal-actions">
+
+              <button className="btn-modal-cancel" onClick={() => setShowSubConfirm(false)}>No, Go Back</button>
+
+              <button className="btn-modal-confirm" onClick={confirmSaveSubsidiary}>Yes, Finalize Fine</button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
     {/* 💰 SUBSIDIARY MODAL */}
     {subsidiary && (
       <div className="subsidiary-overlay">

@@ -563,3 +563,100 @@
 .rpt-row-priority {
   background-color: #f0fdf4 !important; /* Very light green hint for focus */
 }
+
+.rpt-main-scope {
+    width: 100%;
+    padding: 20px;
+    background-color: #f8fafc; /* Slate 50 background */
+    min-height: 100vh;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    color: #1e293b;
+}
+
+.rpt-content-wrapper {
+    width: 100%;
+    max-width: 1600px; /* 🚀 UNLEASHED: Optimized for large monitors */
+    margin: 0 auto;
+}
+
+/* ============================================================
+    🔝 PAGE HEADER (Analytics Blue Theme)
+   ============================================================ */
+.rpt-simple-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 25px 35px;
+    background: #1e293b;
+    color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.rpt-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rpt-h1 { 
+    display: flex;
+    align-items: center;
+    font-size: 1.8rem; 
+    font-weight: 800; 
+    margin: 0; 
+    color: #ffffff; 
+    letter-spacing: -0.025em;
+}
+
+.rpt-header-icon {
+    color: #3b82f6; /* Analytics Cobalt Blue */
+    margin-right: 15px;
+}
+
+.rpt-p-sub { 
+    font-size: 0.95rem; 
+    color: #a1a7af; 
+    margin: 0; 
+}
+
+/* Export Buttons */
+.rpt-export-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.rpt-btn-csv {
+    background-color: #10b981; /* Success Green */
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.rpt-btn-pdf {
+    background-color: #204db8; /* Professional Slate */
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.rpt-btn-csv:hover, .rpt-btn-pdf:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}

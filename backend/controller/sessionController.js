@@ -489,7 +489,7 @@ const silentGctaSync = async (req, res) => {
     const currentUserId = req.user ? req.user.id : 1;
     try {
         await client.query('BEGIN');
-        const now = new Date(); // 🕒 Current Sync Time
+        const now = new Date(2026,5); // 🕒 Current Sync Time
 
         console.log(`--- 🚀 Starting GCTA Monthly Sync: ${now.toDateString()} ---`);
 
@@ -518,16 +518,22 @@ const silentGctaSync = async (req, res) => {
             FROM pdl_tbl 
             WHERE pdl_status NOT IN ('Released', 'Escaped', 'Deceased')
             AND is_locked_for_gcta = false
-            -- 🛡️ THE GATEKEEPER CHECK:
+            -- 🛡️ LEGAL ELIGIBILITY:
             AND (
                 (is_legally_disqualified = false AND date_admitted_bjmp <= $1::DATE - INTERVAL '1 month')
                 OR 
                 (is_legally_disqualified = true AND date_of_final_judgment IS NOT NULL AND date_of_final_judgment <= $1::DATE - INTERVAL '1 month')
             )
+            -- 🎯 THE SURGICAL GATEKEEPER:
             AND pdl_id NOT IN (
                 SELECT pdl_id FROM gcta_days_log 
                 WHERE DATE_TRUNC('month', month_year) = DATE_TRUNC('month', $1::DATE)
-                AND remarks ILIKE 'Automated GCTA%' -- 🎯 FIXED: Now it catches its own footprints!
+                -- 👇 Parentheses are the "Shield" here!
+                AND (
+                    remarks ILIKE 'Automated TASTM%' 
+                    OR remarks ILIKE 'Automated GCTA%' 
+                    OR remarks ILIKE '%Voided%'
+                )
             )
             RETURNING pdl_id;
         `, [now]);
@@ -637,7 +643,8 @@ const silentTastmSync = async (req, res) => {
     const client = await pool.connect();
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const currentUserId = req.user ? req.user.id : 1;
-    const affectedPdlIds = []; // 🎯 Track who gets updated
+    const affectedPdlIds = []; 
+
     try {
         await client.query('BEGIN');
 
@@ -654,8 +661,6 @@ const silentTastmSync = async (req, res) => {
             AND is_locked_for_gcta = false
         `);
 
-        console.log(`--- 🕒 SYNC RUNNING FOR: ${now.toDateString()} ---`);
-
         for (let p of pdls.rows) {
             const pdlId = p.pdl_id;
             const isDQ = p.is_legally_disqualified;
@@ -663,19 +668,37 @@ const silentTastmSync = async (req, res) => {
             
             console.log(`\n[PDL ${pdlId}] ---------------------------------`);
 
-            // 🔍 1. FIND THE ANCHOR
+            const msecManualOverride = await client.query(`
+                SELECT tastm_log_id 
+                FROM tastm_days_log 
+                WHERE pdl_id = $1 
+                AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
+                    = DATE_TRUNC('month', $2::DATE AT TIME ZONE 'Asia/Manila')
+                AND remarks ILIKE '%MSEC DQ: TASTM Voided%' -- 🎯 THE ONLY TARGET
+                LIMIT 1
+            `, [pdlId, now]);
+
+            if (msecManualOverride.rows.length > 0) {
+                console.log(`  └─ 🛑 MSEC OVERRIDE: Skipping PDL ${pdlId} due to disciplinary record.`);
+                continue; // 🚀 Skip to next PDL
+            }
+
+            // 🔍 1. FIND THE ANCHOR (The "Save Point")
+            // 🎯 THE FIX: We must search for Migration records even if they are 'Inactive'.
+            // If we don't, and we already locked the migration, the script finds NO anchor, 
+            // sets carryOver to 0, and wipes the current month's progress.
             const anchorResult = await client.query(`
                 SELECT tastm_log_id, total_hours_accumulated, days_earned, remarks, status 
                 FROM tastm_days_log 
                 WHERE pdl_id = $1 
                 AND (
-                    (remarks ILIKE 'Migration%') 
+                    remarks ILIKE 'Migration%' 
+                    AND remarks NOT ILIKE '%VOIDED%' 
+                    AND status != 'Voided'
                     OR 
                     (
-                        /* 🚀 FIX: Catch Restored records so May can see April's fix */
                         remarks ILIKE 'Automated TASTM%' 
                         AND status = 'Active' 
-                        /* 🎯 FIX: Use $2 instead of CURRENT_DATE */
                         AND month_year < DATE_TRUNC('month', $2::DATE AT TIME ZONE 'Asia/Manila')
                     )
                 )
@@ -689,29 +712,27 @@ const silentTastmSync = async (req, res) => {
                 const anchor = anchorResult.rows[0];
                 const isMigration = anchor.remarks.includes('Migration');
 
-                // 🎯 THE DATE CHECKER (Part A): 
-                // If they are DQ'd, we do NOT carry over Migration hours into the "Sentenced" phase 
-                // because those hours belong to the "Detention" phase.
-                if (isDQ && isMigration) {
+                // 🎯 THE JUDGMENT CHECKER (Part A):
+                // We ONLY wipe migration hours if they are DQ'd AND have NO judgment date (Detention).
+                // If they have a judgmentDate, the migration record represents "Sentenced" starting hours.
+                if (isDQ && isMigration && judgmentDate === null) {
                     carryOver = 0; 
-                    console.log(`  └─ 🛡️  Migration hours ignored (DQ Detention Phase)`);
-                    // We still lock it so it doesn't stay 'Active'
-                    if (anchor.status === 'Active' && !anchor.remarks.includes('Locked')) {
-                        migrationToLockId = anchor.tastm_log_id;
-                    }
+                    console.log(`  └─ 🛡️  Migration hours ignored (Still in DQ Detention Phase)`);
                 } else if (isMigration) {
                     carryOver = parseFloat(anchor.total_hours_accumulated) || 0;
-                    if (anchor.status === 'Active' && !anchor.remarks.includes('Locked')) {
-                        migrationToLockId = anchor.tastm_log_id;
-                    }
+                    console.log(`  └─ ✅ Migration hours used: ${carryOver} hrs`);
                 } else {
+                    // For existing Automated logs, only carry over if the 60hr milestone wasn't hit
                     carryOver = parseInt(anchor.days_earned) === 0 ? (parseFloat(anchor.total_hours_accumulated) || 0) : 0;
+                }
+
+                // Prepare to lock Migration row once it's been handshaked into the system
+                if (isMigration && anchor.status === 'Active' && !anchor.remarks.includes('Locked')) {
+                    migrationToLockId = anchor.tastm_log_id;
                 }
             }
 
             // 🔍 2. SUM CURRENT MONTH ATTENDANCE
-            // 🎯 THE DATE CHECKER (Part B):
-            // If DQ'd, we ONLY sum attendance that happened ON or AFTER the judgment date.
             const currentHours = await client.query(`
                 SELECT COALESCE(SUM(hours_attended), 0) as monthly_sum 
                 FROM attendance_tbl 
@@ -726,95 +747,68 @@ const silentTastmSync = async (req, res) => {
             `, [pdlId, isDQ, judgmentDate, now]);
 
             const thisMonthAttendance = parseFloat(currentHours.rows[0].monthly_sum) || 0;
-            console.log(`  └─ 📅 Eligible Attendance: ${thisMonthAttendance} hrs`);
+            let totalToEvaluate = carryOver + thisMonthAttendance;
+            
+            console.log(`  └─ 🧮 ${carryOver} (Carry) + ${thisMonthAttendance} (Attendance) = ${totalToEvaluate} Total`);
 
-            // 🔍 3. CHECK FOR EXISTING LOG (Stop the Duplicate Rows!)
-            // 🎯 THE FIX: We search for Active OR Voided logs for this month.
+            // 🔍 3. UPSERT LOG LOGIC
             const existingThisMonth = await client.query(`
                 SELECT tastm_log_id, total_hours_accumulated, days_earned, status, remarks
                 FROM tastm_days_log 
                 WHERE pdl_id = $1 
-                /* 🚀 1. Catch ANY version of the automated log (Standard, Voided, or Restored) */
                 AND remarks ILIKE 'Automated TASTM%'
-                /* 🎯 2. Match the month exactly */
                 AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
                     = DATE_TRUNC('month', $2::DATE AT TIME ZONE 'Asia/Manila')
-                /* 🔃 3. If multiple exist (due to past bugs), get the latest one to fix it */
-                ORDER BY tastm_log_id DESC
-                LIMIT 1
+                ORDER BY tastm_log_id DESC LIMIT 1
             `, [pdlId, now]);
 
-        
-            let totalToEvaluate = carryOver + thisMonthAttendance;
-            console.log(`  └─ 🧮 Final Total: ${totalToEvaluate} hrs`);
-
-            // 🧮 4. DAYS & LEGAL (Keeping your 1-month window work)
             let daysToGrant = totalToEvaluate >= 60 ? 15 : 0;
-            let logStatus = 'Active';
-            let logRemark = 'Automated TASTM';
-
-        
-
-            // 🎯 5. UPSERT LOG
             const monthYear = new Date(now.getFullYear(), now.getMonth(), 1);
             
             if (existingThisMonth.rows.length > 0) {
-                    const existingRow = existingThisMonth.rows[0];
-                    const targetId = existingRow.tastm_log_id;
-                    
-                    const hoursChanged = parseFloat(existingRow.total_hours_accumulated) !== totalToEvaluate;
-                    const daysChanged = parseInt(existingRow.days_earned) !== daysToGrant;
+                const existingRow = existingThisMonth.rows[0];
+                const hoursChanged = parseFloat(existingRow.total_hours_accumulated) !== totalToEvaluate;
+                const daysChanged = parseInt(existingRow.days_earned) !== daysToGrant;
 
-                    if (hoursChanged || daysChanged) {
-                        await client.query(`
-                            UPDATE tastm_days_log SET 
-                                total_hours_accumulated = $1, 
-                                days_earned = $2, 
-                                status = $3, 
-                                remarks = CASE WHEN remarks ILIKE '%Restored%' THEN remarks ELSE $4 END, 
-                                date_granted = NOW()
-                            WHERE tastm_log_id = $5`,
-                            [totalToEvaluate, daysToGrant, logStatus, logRemark, targetId]
-                        );
-                        
-                        // ✅ Only track them if data actually moved!
-                        affectedPdlIds.push(pdlId); 
-                        console.log(` └─ ✅ Data Changed for PDL ${pdlId}: ${existingRow.total_hours_accumulated} -> ${totalToEvaluate}`);
-                    } else {
-                        // ℹ️ If numbers are the same, we do NOTHING. No update, no log.
-                        console.log(` └─ ⏭️ No change for PDL ${pdlId}. Skipping...`);
-                    }
-                } else if (totalToEvaluate > 0) {
-                const newRow = await client.query(`
+                if (hoursChanged || daysChanged) {
+                    await client.query(`
+                        UPDATE tastm_days_log SET 
+                            total_hours_accumulated = $1, 
+                            days_earned = $2, 
+                            status = 'Active', 
+                            remarks = CASE WHEN remarks ILIKE '%Restored%' THEN remarks ELSE 'Automated TASTM' END, 
+                            date_granted = NOW()
+                        WHERE tastm_log_id = $3`,
+                        [totalToEvaluate, daysToGrant, existingRow.tastm_log_id]
+                    );
+                    affectedPdlIds.push(pdlId); 
+                    console.log(`  └─ ✅ Updated Month Record`);
+                }
+            } else if (totalToEvaluate > 0) {
+                await client.query(`
                     INSERT INTO tastm_days_log (pdl_id, month_year, total_hours_accumulated, days_earned, status, remarks, date_granted)
-                    VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING tastm_log_id`,
-                    [pdlId, monthYear, totalToEvaluate, daysToGrant, logStatus, logRemark]
+                    VALUES ($1, $2, $3, $4, 'Active', 'Automated TASTM', NOW())`,
+                    [pdlId, monthYear, totalToEvaluate, daysToGrant]
                 );
                 affectedPdlIds.push(pdlId);
-                console.log(`  └─ ✨ pumasokdito NEW Log ID: ${newRow.rows[0].tastm_log_id}`);
+                console.log(`  └─ ✨ Created New Month Record`);
             }
 
             if (migrationToLockId) {
                 await client.query(`UPDATE tastm_days_log SET remarks = remarks || ' - Locked', status = 'Inactive' WHERE tastm_log_id = $1`, [migrationToLockId]);
             }
         }
+
         if (affectedPdlIds.length > 0) {
             await logAction(client, {
                 userId: currentUserId,
                 action: 'SYSTEM_TASTM_SYNC',
                 tableName: 'tastm_days_log',
-                recordId: null, 
-                pdlId: null,    
-                details: {
-                    message: "Automated TASTM synchronization performed.",
-                    sync_date: now.toISOString().split('T')[0],
-                    pdls_affected_count: affectedPdlIds.length,
-                    affected_pdl_ids: affectedPdlIds, // 🎯 The "Who"
-                    trigger: "System Auto-Sync (useEffect)"
-                },
+                details: { message: "Automated TASTM sync completed.", affected_count: affectedPdlIds.length, pdls: affectedPdlIds },
                 ipAddress: clientIp
             });
         }
+
         await client.query('COMMIT');
         res.status(200).json({ success: true, message: "Sync Complete." });
     } catch (err) {
@@ -1042,8 +1036,7 @@ const disqualifyPdlMonthly = async (req, res) => {
 
 // ✅ THE RESTORE BUTTON (Targets ONLY MSEC Tags)
 const reenablePdlMonthly = async (req, res) => {
-    // 📥 Destructure 'target' from the request body
-    const { pdl_id, month_year, target } = req.body;
+    const { pdl_id, month_year, target } = req.body; // month_year expected as 'YYYY-MM'
     const client = await pool.connect();
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const currentUserId = req.user ? req.user.id : 1;
@@ -1051,7 +1044,7 @@ const reenablePdlMonthly = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 🎯 1. Restore GCTA if target is 'GCTA' or 'BOTH'
+        // 🎯 1. Restore GCTA log entry
         if (target === 'GCTA' || target === 'BOTH') {
             await client.query(`
                 UPDATE gcta_days_log 
@@ -1064,7 +1057,7 @@ const reenablePdlMonthly = async (req, res) => {
             `, [pdl_id, month_year]);
         }
 
-        // 🎯 2. Restore TASTM if target is 'TASTM' or 'BOTH'
+        // 🎯 2. Restore TASTM log entry
         if (target === 'TASTM' || target === 'BOTH') {
             await client.query(`
                 UPDATE tastm_days_log 
@@ -1077,18 +1070,32 @@ const reenablePdlMonthly = async (req, res) => {
             `, [pdl_id, month_year]);
         }
 
+        // 🎯 3. REACTIVATE ATTENDANCE ROWS (The Missing Piece)
+        // We only do this for TASTM or BOTH since GCTA is conduct-based, 
+        // but TASTM strictly relies on these hours to stay Active.
+        if (target === 'TASTM' || target === 'BOTH') {
+            const attendanceRestore = await client.query(`
+                UPDATE attendance_tbl 
+                SET status = 'Active'
+                WHERE pdl_id = $1 
+                AND TO_CHAR(timestamp_in, 'YYYY-MM') = $2
+                AND status = 'Voided'
+            `, [pdl_id, month_year]);
+            
+            console.log(`  └─ ✅ Reactivated ${attendanceRestore.rowCount} attendance records for ${month_year}`);
+        }
+
         await logAction(client, {
             userId: currentUserId,
             action: 'MSEC_RESTORE_CREDITS',
-            tableName: 'multiple_credit_logs',
+            tableName: 'multiple_tables',
             recordId: pdl_id, 
             pdlId: pdl_id,
             details: {
-                message: `MSEC officially RESTORED ${target} credits for the period of ${month_year}.`,
+                message: `MSEC RESTORED ${target} and reactivated attendance for ${month_year}.`,
                 target_restored: target,
                 month_affected: month_year,
-                status_change: "Voided -> Active",
-                reason: "MSEC Appeal/Review Approval"
+                status_change: "Voided -> Active"
             },
             ipAddress: clientIp
         });
@@ -1096,7 +1103,7 @@ const reenablePdlMonthly = async (req, res) => {
         await client.query('COMMIT');
         res.status(200).json({ 
             success: true, 
-            message: `Successfully restored ${target} for ${month_year}` 
+            message: `Successfully restored ${target} and reactivated attendance for ${month_year}` 
         });
 
     } catch (err) {

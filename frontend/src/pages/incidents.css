@@ -1,345 +1,377 @@
-/* Main Layout */
-.inc-main-scope { 
-  padding: 3rem; 
-  background: #fdfdfd; 
-  min-height: 100vh; 
-  font-family: 'Inter', -apple-system, sans-serif; 
+/* ============================================================
+    🌐 GLOBAL SCOPE & LAYOUT
+   ============================================================ */
+.inc-main-scope {
+    width: 100%;
+    padding: 20px;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f8fafc; /* Professional light-slate background */
+    min-height: 100vh;
 }
 
-.inc-content-wrapper { 
-  max-width: 1100px; 
-  margin: 0 auto; 
+.inc-content-wrapper {
+    width: 100%;       /* Takes up all available space */
+    margin: 0 auto;
 }
 
-.inc-h1 { 
-  font-size: 2rem; 
-  font-weight: 850; 
-  color: #1e293b; 
-  margin-bottom: 0.5rem;
-  letter-spacing: -0.02em;
+/* ============================================================
+    🔝 PAGE HEADER (Matches Education/MSEC)
+   ============================================================ */
+.inc-page-header {
+    display: flex;
+    color: white;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    background: #1e293b;
+    padding: 25px 30px;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-.inc-p { 
-  color: #64748b; 
-  font-size: 1rem;
+.inc-page-header .header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
 
-/* Grid & Cards */
-.inc-card-grid { 
-  display: grid; 
-  grid-template-columns: 1fr 1.6fr; 
-  gap: 2.5rem; 
-  margin-top: 3rem; 
+.inc-h1 {
+    display: flex;
+    align-items: center;
+ 
+
+    margin: 0;
+    letter-spacing: -0.025em;
+
+    font-size: 1.6rem; color: #ffffff;
 }
 
-.inc-card { 
-  background: #ffffff; 
-  border: 1px solid #e2e8f0; 
-  border-radius: 16px; 
-  padding: 2rem; 
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+.inc-header-icon {
+    color: #ef4444; /* Alert Red */
+    margin-right: 15px;
 }
 
-.inc-card-title { 
-  font-size: 0.8rem; 
-  text-transform: uppercase; 
-  letter-spacing: 0.1em; 
-  color: #94a3b8; 
-  margin-bottom: 1.5rem; 
-  font-weight: 700;
+.inc-p {
+    color: #e2e2e2;
+    font-size: 0.95rem;
+    margin: 4px 0 0 0;
 }
 
-/* Search Box */
-.inc-search-box { 
-  display: flex; 
-  gap: 12px; 
-  margin-bottom: 2rem; 
+/* ============================================================
+    🗄️ GRID & CARDS
+   ============================================================ */
+.inc-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 2rem;
+    align-items: start;
 }
 
-.inc-search-box input { 
-  flex: 1; 
-  padding: 12px 16px; 
-  border: 1.5px solid #e2e8f0; 
-  border-radius: 10px; 
-  font-size: 0.95rem;
-  transition: border-color 0.2s;
+.inc-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.inc-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #94a3b8;
+    margin-bottom: 2rem;
+    font-weight: 700;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 10px;
+}
+
+/* ============================================================
+    🔍 SEARCH & PDL IDENTITY
+   ============================================================ */
+.inc-search-box {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 2rem;
+}
+
+.inc-input-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.inc-search-icon-inner {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.inc-search-box input {
+    width: 100%;
+    padding: 14px 14px 14px 45px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 1rem;
+    transition: all 0.2s;
 }
 
 .inc-search-box input:focus {
-  border-color: #0f172a;
-  outline: none;
+    border-color: #1e293b;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(30, 41, 59, 0.05);
 }
 
-.inc-btn-search { 
-  background: #0f172a; 
-  color: #fff; 
-  border: none; 
-  padding: 0 20px; 
-  border-radius: 10px; 
-  font-weight: 600;
-  cursor: pointer; 
-  transition: transform 0.1s;
+.inc-btn-search {
+    background: #0f172a;
+    color: white;
+    border: none;
+    padding: 0 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.2s;
 }
 
-.inc-btn-search:active { transform: scale(0.96); }
+.inc-btn-search:hover { background: #1e293b; }
+.inc-btn-search:active { transform: scale(0.97); }
 
 /* PDL Profile Card */
-.inc-pdl-info-card { 
-  display: flex; 
-  gap: 1.5rem; 
-  align-items: center; 
-  padding: 1.5rem; 
-  background: #f8fafc; 
-  border-radius: 14px; 
-  border: 1px solid #f1f5f9;
+.inc-pdl-info-card {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-radius: 16px;
+    border: 1px solid #f1f5f9;
+    animation: slideIn 0.3s ease-out;
 }
 
-.inc-avatar-container img { 
-  width: 70px; 
-  height: 70px; 
-  border-radius: 12px; 
-  object-fit: cover; 
-  border: 3px solid #fff; 
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-.inc-details strong { font-size: 1.1rem; color: #1e293b; display: block; }
-.inc-sub-text { font-size: 0.85rem; color: #64748b; margin: 2px 0 8px 0; }
+.inc-avatar-container img {
+    width: 85px;
+    height: 85px;
+    border-radius: 16px;
+    object-fit: cover;
+    border: 4px solid white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
 
-.inc-status { 
-  font-size: 0.75rem; 
-  font-weight: 800; 
-  padding: 4px 10px; 
-  border-radius: 6px; 
-  display: inline-block;
+.inc-details strong { font-size: 1.2rem; color: #0f172a; display: block; }
+.inc-sub-text { font-size: 0.9rem; color: #64748b; margin: 4px 0 10px 0; }
+
+.inc-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 6px 12px;
+    border-radius: 8px;
+    text-transform: uppercase;
 }
 
 .inc-status.locked { background: #fee2e2; color: #991b1b; }
 .inc-status.good { background: #dcfce7; color: #166534; }
 
-/* Form Elements */
+/* ============================================================
+    ⚖️ FORM STYLING
+   ============================================================ */
 .inc-form-group { margin-bottom: 1.5rem; }
-.inc-form-group label { 
-  display: block; 
-  font-size: 0.75rem; 
-  font-weight: 800; 
-  color: #475569; 
-  margin-bottom: 8px; 
-  text-transform: uppercase;
+
+.inc-form-group label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
 }
 
 .inc-form-group select, 
 .inc-form-group input, 
 .inc-form-group textarea {
-  width: 100%; 
-  padding: 12px; 
-  border: 1.5px solid #e2e8f0; 
-  border-radius: 10px; 
-  font-size: 0.95rem; 
-  background: #fff;
+    width: 100%;
+    padding: 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 1rem;
+    background: #fff;
+    transition: border-color 0.2s;
 }
 
-.inc-form-row { 
-  display: grid; 
-  grid-template-columns: 1fr 1fr; 
-  gap: 1.5rem; 
+.inc-form-group select:focus, 
+.inc-form-group input:focus {
+    border-color: #ef4444; /* Focused red to indicate penalty data */
+    outline: none;
 }
 
-/* 🎯 NEW: Calculated Date Styling */
+.inc-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+/* Date Input Icons */
+.inc-relative-input { position: relative; }
+.inc-field-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+}
+.inc-form-group input[type="date"] { padding-left: 45px; }
+
+/* Calculated Result Box */
 .inc-calculated-date {
-  background: #f1f5f9;
-  border: 1px dashed #cbd5e1;
-  padding: 12px;
-  border-radius: 10px;
-  text-align: center;
-  min-height: 48px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+    background: #fff5f5;
+    border: 2px dashed #fecaca;
+    padding: 12px;
+    border-radius: 12px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 56px;
 }
 
 .inc-calculated-date strong {
-  color: #ef4444;
-  font-size: 1.1rem;
-  display: block;
+    color: #b91c1c;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
-.rpt-text-small {
-  font-size: 0.65rem;
-  color: #94a3b8;
-  margin-top: 2px;
-  font-weight: 600;
-}
-
-textarea { height: 120px; resize: none; line-height: 1.5; }
-
-/* Status Messages */
-.inc-msg { font-size: 0.85rem; margin-top: 1rem; font-weight: 600; text-align: center; }
-.inc-msg.error { color: #ef4444; }
-.inc-msg.success { color: #10b981; }
-
+/* Submit Button */
 .inc-btn-submit {
-  width: 100%; 
-  padding: 16px; 
-  background: #ef4444; 
-  color: #fff; 
-  border: none; 
-  border-radius: 12px; 
-  font-size: 1rem;
-  font-weight: 800; 
-  cursor: pointer; 
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
-  margin-top: 1rem;
+    width: 100%;
+    padding: 18px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25);
+    margin-top: 1rem;
 }
 
-.inc-btn-submit:hover:not(:disabled) { 
-  background: #dc2626; 
-  box-shadow: 0 6px 15px rgba(239, 68, 68, 0.3);
-  transform: translateY(-2px);
+.inc-btn-submit:hover:not(:disabled) {
+    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35);
 }
 
-.inc-btn-submit:disabled { 
-  background: #f1f5f9; 
-  color: #94a3b8; 
-  cursor: not-allowed; 
-  box-shadow: none;
-  transform: none;
-}
-/* --- Root Styles --- */
-.inc-main-scope { padding: 3rem; background: #f8fafc; min-height: 100vh; font-family: 'Inter', sans-serif; }
-.inc-content-wrapper { max-width: 1100px; margin: 0 auto; }
-.inc-h1 { font-size: 1.8rem; font-weight: 800; color: #0f172a; }
-
-/* --- Grid & Cards --- */
-.inc-card-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 2rem; margin-top: 2rem; }
-.inc-card { background: white; padding: 2rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-.inc-card-title { font-size: 0.8rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.1em; margin-bottom: 1.5rem; }
-
-/* --- Search UI --- */
-.inc-search-box { display: flex; gap: 10px; margin-bottom: 2rem; }
-.inc-search-box input { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
-.inc-btn-search { background: #0f172a; color: white; border: none; padding: 0 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
-
-/* --- PDL Info --- */
-.inc-pdl-info-card { display: flex; gap: 15px; align-items: center; padding: 1.25rem; background: #f1f5f9; border-radius: 12px; }
-.inc-avatar-container img { width: 65px; height: 65px; border-radius: 50%; object-fit: cover; border: 3px solid white; }
-.inc-status { font-size: 0.75rem; font-weight: 800; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 5px; }
-.inc-status.locked { background: #fee2e2; color: #991b1b; }
-.inc-status.good { background: #dcfce7; color: #166534; }
-
-/* --- Form Logic --- */
-.inc-form-group { margin-bottom: 1.5rem; }
-.inc-form-group label { display: block; font-size: 0.75rem; font-weight: 700; color: #475569; margin-bottom: 6px; }
-.inc-form-group input, .inc-form-group select, .inc-form-group textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; }
-.inc-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.inc-calculated-date { background: #f1f5f9; padding: 12px; border: 1px dashed #cbd5e1; border-radius: 8px; text-align: center; }
-.inc-calculated-date strong { color: #ef4444; font-size: 1.1rem; }
-textarea { height: 100px; resize: none; }
-.inc-btn-submit { width: 100%; padding: 15px; background: #ef4444; color: white; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; }
-.inc-btn-submit:hover:not(:disabled) { background: #dc2626; transform: translateY(-2px); }
-
-/* --- 🛑 MODAL STYLES --- */
-.inc-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 999; }
-.inc-modal-content { background: white; padding: 2.5rem; border-radius: 20px; width: 400px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
-.inc-confirm-box { background: #f8fafc; padding: 1rem; border-radius: 12px; margin: 1.5rem 0; text-align: left; font-size: 0.9rem; }
-.inc-modal-footer { display: flex; gap: 1rem; margin-top: 2rem; }
-.inc-btn-no { flex: 1; padding: 12px; background: #e2e8f0; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
-.inc-btn-yes { flex: 1.5; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
-/* Layout Alignment & Icons */
-.inc-header-icon {
-  margin-right: 15px;
-  color: #ef4444;
+.inc-btn-submit:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    box-shadow: none;
+    cursor: not-allowed;
 }
 
-.inc-h1 {
-  display: flex;
-  align-items: center;
+.inc-spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ============================================================
+    🛑 CONFIRMATION MODAL (High-Priority Alert)
+   ============================================================ */
+.inc-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
 }
 
-.inc-card-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.inc-modal-content {
+    background: white;
+    width: 100%;
+    max-width: 480px;
+    padding: 2.5rem;
+    border-radius: 24px;
+    text-align: center;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Search Box Tweaks */
-.inc-input-wrapper {
-  position: relative;
-  flex: 1;
+@keyframes modalPop {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
 }
 
-.inc-search-icon-inner {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-}
-
-.inc-search-box input {
-  padding-left: 40px !important;
-}
-
-.inc-btn-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Status Badges */
-.inc-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Form Icons */
-.inc-relative-input {
-  position: relative;
-}
-
-.inc-field-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  pointer-events: none;
-}
-
-.inc-form-group input[type="date"] {
-  padding-left: 40px !important;
-}
-
-/* Submit & Modal Buttons */
-.inc-btn-submit, .inc-btn-yes, .inc-btn-no {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-/* Spin Animation for Syncing */
-.inc-spin {
-  animation: inc-rotate 1s linear infinite;
-}
-
-@keyframes inc-rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* Modal Styling Refinement */
-.inc-modal-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.inc-confirm-box {
+    background: #f8fafc;
+    padding: 1.25rem;
+    border-radius: 16px;
+    margin: 1.5rem 0;
+    text-align: left;
+    border: 1px solid #e2e8f0;
 }
 
 .inc-confirm-box p {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 10px 0;
+    color: #1e293b;
+    font-size: 0.95rem;
 }
+
+.inc-modal-footer {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.inc-btn-no {
+    flex: 1;
+    padding: 14px;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+}
+
+.inc-btn-yes {
+    flex: 1.8;
+    padding: 14px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.inc-btn-yes:hover { background: #dc2626; }

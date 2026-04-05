@@ -504,10 +504,8 @@ return (
                     <div className="ledger-filters" style={{ 
                         display: 'flex', 
                         gap: '10px', 
-                        padding: '15px', 
-                        background: '#f1f5f9', 
                         borderRadius: '8px', 
-                        margin: '0 20px 15px 20px' 
+                  
                     }}>
                         <input 
                             type="text" 

@@ -2,15 +2,15 @@
    📦 SCOPE & CONTAINER
    ============================================================ */
 .education-scope {
-    background: #f8fafc;
-    min-height: 100vh;
-    padding: 40px 20px;
-    font-family: 'Inter', sans-serif;
+    width: 100%;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .education-scope .education-container {
-    max-width: 1200px;
+    width: 100%;       /* Takes up all available space */
     margin: 0 auto;
+
 }
 
 /* ============================================================
@@ -21,15 +21,22 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 35px;
-    background: white;
-    padding: 25px;
+   
+ 
     border-radius: 16px;
     border: 1px solid #e2e8f0;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+
+        background: #1e293b;
+    color: white;
+    padding: 2rem;
+ 
+    justify-content: space-between;
+    align-items: center;
 }
 
-.education-scope .header-text h1 { font-size: 1.6rem; color: #0f172a; margin-bottom: 5px; }
-.education-scope .header-text p { color: #64748b; font-size: 0.9rem; }
+.education-scope .header-text h1 { font-size: 1.6rem; color: #ffffff; margin-bottom: 5px; }
+.education-scope .header-text p { color: #9da1a7; font-size: 0.9rem; }
 
 .education-scope .header-actions {
     display: flex;
@@ -62,10 +69,10 @@
 
 /* 🚀 Primary Session Button */
 .education-scope .btn-primary {
-    background: #0f172a;
+    background: #2563eb;
     color: white;
     border: none;
-    padding: 14px 28px;
+    padding: 0.8rem 1.5rem;
     border-radius: 12px;
     font-weight: 700;
     font-size: 0.95rem;
@@ -77,8 +84,8 @@
 }
 
 .education-scope .btn-primary:hover {
-    background: #1e293b;
-    transform: translateY(-2px);
+    background: #1d4ed8;
+  transform: translateY(-1px);
     box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.2);
 }
 

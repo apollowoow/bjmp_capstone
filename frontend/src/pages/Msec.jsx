@@ -14,6 +14,7 @@ const Msec = () => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
     const [filterType, setFilterType] = useState("All");
     const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState("All");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
     const [alert, setAlert] = useState({ show: false, title: "", message: "", type: "info" });
@@ -84,30 +85,39 @@ const Msec = () => {
     // --- ⚡ Filter & Pagination Logic ---
     // --- ⚡ Updated Filter & Pagination Logic ---
     const filteredList = evaluationList.filter(pdl => {
-        // 1. Search Logic
-        const matchesSearch = pdl.last_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            pdl.pdl_id.toString().includes(searchTerm);
+    // 1. Search Logic
+    const matchesSearch = pdl.last_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          pdl.pdl_id.toString().includes(searchTerm);
 
-        // 2. Category Logic (The Granular Fix)
-        let matchesCategory = true;
+    // 2. Category Logic
+    let matchesCategory = true;
+    if (filterType === "GCTA") {
+        matchesCategory = Number(pdl.monthly_gcta) > 0 || pdl.gcta_status === 'Voided';
+    } else if (filterType === "TASTM") {
+        matchesCategory = Number(pdl.monthly_tastm) > 0 || pdl.tastm_status === 'Voided';
+    } else if (filterType === "Both") {
+        const hasG = Number(pdl.monthly_gcta) > 0 || pdl.gcta_status === 'Voided';
+        const hasT = Number(pdl.monthly_tastm) > 0 || pdl.tastm_status === 'Voided';
+        matchesCategory = hasG && hasT;
+    }
 
-        if (filterType === "GCTA") {
-            // Show if they have active GCTA credits OR if GCTA is currently Voided
-            matchesCategory = Number(pdl.monthly_gcta) > 0 || pdl.gcta_status === 'Voided';
-        } 
-        else if (filterType === "TASTM") {
-            // Show if they have active TASTM credits OR if TASTM is currently Voided
-            matchesCategory = Number(pdl.monthly_tastm) > 0 || pdl.tastm_status === 'Voided';
-        } 
-        else if (filterType === "Both") {
-            // Show only if BOTH types are involved (Active or Voided)
-            const hasG = Number(pdl.monthly_gcta) > 0 || pdl.gcta_status === 'Voided';
-            const hasT = Number(pdl.monthly_tastm) > 0 || pdl.tastm_status === 'Voided';
-            matchesCategory = hasG && hasT;
-        }
+    // 3. 🎯 NEW: Status Logic
+    let matchesStatus = true;
+    if (statusFilter === "Active") {
+        // If they are active in the selected category
+        if (filterType === "GCTA") matchesStatus = pdl.gcta_status === "Active";
+        else if (filterType === "TASTM") matchesStatus = pdl.tastm_status === "Active";
+        else matchesStatus = pdl.gcta_status === "Active" || pdl.tastm_status === "Active";
+    } 
+    else if (statusFilter === "Voided") {
+        // If they are voided in the selected category
+        if (filterType === "GCTA") matchesStatus = pdl.gcta_status === "Voided";
+        else if (filterType === "TASTM") matchesStatus = pdl.tastm_status === "Voided";
+        else matchesStatus = pdl.gcta_status === "Voided" || pdl.tastm_status === "Voided";
+    }
 
-        return matchesSearch && matchesCategory;
-    });
+    return matchesSearch && matchesCategory && matchesStatus;
+});
 
     const totalPages = Math.ceil(filteredList.length / itemsPerPage);
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -122,7 +132,7 @@ const Msec = () => {
                     <div className="header-left">
                         <button className="btn-back" onClick={() => navigate(-1)}>← Back</button>
                         <div className="title-group">
-                            <h1>⚖️ MSEC Evaluation Board</h1>
+                            <h1>MSEC Evaluation Board</h1>
                             <p>Monthly screening for <strong>{selectedMonth}</strong></p>
                         </div>
                     </div>
@@ -142,7 +152,17 @@ const Msec = () => {
                             <option value="TASTM">TASTM Only</option>
                             <option value="Both">Both</option>
                         </select>
+                        
                         <input className="msec-search" type="text" placeholder="Search PDL..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                        <select 
+                            className={`msec-select ${statusFilter === 'Voided' ? 'filter-void' : ''}`} 
+                            value={statusFilter} 
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                            <option value="All">All Status</option>
+                            <option value="Active">Active Only</option>
+                            <option value="Voided">Voided Only</option>
+                        </select>
                     </div>
                     <div className="msec-stats">Showing: <strong>{filteredList.length}</strong> PDLs</div>
                 </div>
