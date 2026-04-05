@@ -2,12 +2,20 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API_BASE_URL from "../apiConfig";
 import "./profile.css";
+import { usePermissions } from "../hooks/usePermission";
+import { 
+  ChevronLeft, Pencil, Lock, Archive, Fingerprint, 
+  User, Calendar, ShieldCheck, Scale, Gavel, 
+  RotateCcw, History, ClipboardList, BarChart3, 
+  Hourglass, AlertTriangle, CheckCircle2, TrendingDown, Activity, FileText
+} from 'lucide-react';
 
 const Profile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [pdl, setPdl] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { canDo } = usePermissions();
  
 
   const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23cbd5e1'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
@@ -71,96 +79,113 @@ const Profile = () => {
   if (loading) return <div className="loading-state">Syncing Analytics Data...</div>;
   if (!pdl) return <div className="error-state">Record Not Found.</div>;
 
-  return (
+ return (
     <div className="profile-scope">
       <div className="profile-container">
         
         {/* 1. TOP NAVIGATION & ACTIONS */}
         <div className="profile-header">
-        <button className="btn-back" onClick={() => navigate("/pdl")}>
-          ← Back to List
-        </button>
-        <div className="header-actions">
-          {/* 🔒 HIDE EDIT BUTTON IF RELEASED */}
-          {pdl.pdl_status !== "Released" && (
-            <button className="btn-action btn-edit" onClick={() => navigate(`/edit/${id}`)}>
-              ✏️ Edit Record
-            </button>
-          )}
-          {pdl.pdl_status === "Released" && (
-            <span className="archive-badge">🔒 Locked Archive</span>
-          )}
-        </div>
-      </div>
-
-       <div className="profile-grid">
-        
-        {/* 2. IDENTITY CARD */}
-        <div className="card identity-card">
-          <div className="profile-image-section">
-            <img 
-              src={pdl.pdl_picture || DEFAULT_AVATAR} 
-              alt="PDL Profile" 
-              className="profile-main-img"
-              onError={(e) => { e.target.src = DEFAULT_AVATAR; }} 
-            />
-            {/* 🏷️ HIDE RFID FOR RELEASED PDLs */}
-            {pdl.pdl_status !== "Released" ? (
-              <div className="rfid-container">
-                <span className="rfid-label">SECURE RFID TAG</span>
-                <span className="rfid-value">{pdl.rfid_number || "---"}</span>
-              </div>
-            ) : (
-              <div className="rfid-container">
-                 <span className="rfid-label">RELEASED</span>
-              </div>
+          <button className="btn-back" onClick={() => navigate("/pdl")}>
+            <ChevronLeft size={18} /> Back to List
+          </button>
+          <div className="header-actions">
+            {/* 🔒 HIDE EDIT BUTTON IF RELEASED */}
+            {pdl.pdl_status !== "Released" && canDo("PDL & RFID Management", "canedit") && (
+              <button className="btn-action btn-edit" onClick={() => navigate(`/edit/${id}`)}>
+                <Pencil size={16} /> Edit Record
+              </button>
             )}
-          </div>
-
-          <div className="identity-details">
-            <h1>{pdl.last_name}, {pdl.first_name}</h1>
-            <p className="pdl-id-tag">Meycauayan Jail ID: #{pdl.pdl_id}</p>
-            
-            <div className="info-list">
-              <div className="info-row"><span>Gender</span><strong>{pdl.gender}</strong></div>
-              <div className="info-row"><span>Birthday</span><strong>{new Date(pdl.birthday).toLocaleDateString()}</strong></div>
-              <div className="info-row"><span>Case Number</span><strong>{pdl.case_number || "Archived"}</strong></div>
-              <div className="info-row"><span>Status</span><strong className={`status-text-${pdl.pdl_status.toLowerCase()}`}>{pdl.pdl_status}</strong></div>
-              <div className="info-row"><span>Crime/Offense</span><strong>{pdl.crime_name}</strong></div>
-            </div>
             {pdl.pdl_status === "Released" && (
-                <div className="recommit-wrapper">
-                    {pdl.current_live_status === "Released" ? (
-                        <button 
-                            className="btn-recommit" 
-                            onClick={() => navigate(`/add?recommitId=${pdl.pdl_id}`)}
-                        >
-                            ♻️ Recommit PDL
-                        </button>
-                    ) : (
-                        <div className="recommit-disabled-msg">
-                            🔒 <strong>Recommitment Disabled</strong>
-                            <span> Subject is currently {pdl.current_live_status}</span>
-                        </div>
-                    )}
-                </div>
+              <span className="archive-badge">
+                <Lock size={14} /> Locked Archive
+              </span>
             )}
           </div>
-               {pdl.subsidiary && (() => {
-              // 🎯 Extract the numbers first so the JSX stays clean
+        </div>
+
+        <div className="profile-grid">
+          
+          {/* 2. IDENTITY CARD */}
+          <div className="card identity-card">
+            <div className="profile-image-section">
+              <img 
+                src={pdl.pdl_picture || DEFAULT_AVATAR} 
+                alt="PDL Profile" 
+                className="profile-main-img"
+                onError={(e) => { e.target.src = DEFAULT_AVATAR; }} 
+              />
+              {/* 🏷️ HIDE RFID FOR RELEASED PDLs */}
+              {pdl.pdl_status !== "Released" ? (
+                <div className="rfid-container">
+                  <span className="rfid-label"><Fingerprint size={10} /> SECURE RFID TAG</span>
+                  <span className="rfid-value">{pdl.rfid_number || "---"}</span>
+                </div>
+              ) : (
+                <div className="rfid-container released-tag">
+                   <span className="rfid-label"><Archive size={10} /> RELEASED</span>
+                </div>
+              )}
+            </div>
+
+            <div className="identity-details">
+              <h1>{pdl.last_name}, {pdl.first_name}</h1>
+              <p className="pdl-id-tag">Meycauayan Jail ID: #{pdl.pdl_id}</p>
+              
+              <div className="info-list">
+                <div className="info-row">
+                  <span><User size={14} /> Gender</span>
+                  <strong>{pdl.gender}</strong>
+                </div>
+                <div className="info-row">
+                  <span><Calendar size={14} /> Birthday</span>
+                  <strong>{new Date(pdl.birthday).toLocaleDateString()}</strong>
+                </div>
+                <div className="info-row">
+                  <span><ShieldCheck size={14} /> Case Number</span>
+                  <strong>{pdl.case_number || "Archived"}</strong>
+                </div>
+                <div className="info-row">
+                  <span><Activity size={14} /> Status</span>
+                  <strong className={`status-text-${pdl.pdl_status.toLowerCase()}`}>{pdl.pdl_status}</strong>
+                </div>
+                <div className="info-row">
+                  <span><Scale size={14} /> Offense</span>
+                  <strong>{pdl.crime_name}</strong>
+                </div>
+              </div>
+
+              {pdl.pdl_status === "Released" && (
+                <div className="recommit-wrapper">
+                  {pdl.current_live_status === "Released" ? (
+                    <button 
+                      className="btn-recommit" 
+                      onClick={() => navigate(`/add?recommitId=${pdl.pdl_id}`)}
+                    >
+                      <RotateCcw size={16} /> Recommit PDL
+                    </button>
+                  ) : (
+                    <div className="recommit-disabled-msg">
+                      <strong><Lock size={14} /> Recommitment Disabled</strong>
+                      <span> Subject is currently {pdl.current_live_status}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ⚖️ SUBSIDIARY PENALTY BOX */}
+            {pdl.subsidiary && (() => {
               const fine = Number(pdl.subsidiary.total_fine_amount) || 0;
               const paid = Number(pdl.subsidiary.amount_paid) || 0;
               const rate = Number(pdl.subsidiary.daily_rate) || 0;
               const cap = pdl.subsidiary.max_subsidiary_days || 0;
-
-              // Calculate the impact
               const balance = fine - paid;
               const addedDays = rate > 0 ? Math.min(Math.floor(balance / rate), cap) : 0;
 
               return (
                 <div className="subsidiary-penalty-box">
                   <div className="sub-penalty-header">
-                    <h4>⚖️ Subsidiary Penalty (Unpaid Fine)</h4>
+                    <h4><Gavel size={16} /> Subsidiary Penalty</h4>
                     <span className="penalty-tag">Art. 39 RPC</span>
                   </div>
 
@@ -169,270 +194,181 @@ const Profile = () => {
                       <span>Current Balance:</span>
                       <strong>₱{balance.toLocaleString()}</strong>
                     </div>
-
-                    <div className="penalty-arrow">➡️</div>
-
                     <div className="penalty-days">
                       <span>Added Jail Time:</span>
-                      <strong className="text-danger">
-                        + {addedDays} Days
-                      </strong>
+                      <strong className="text-danger">+{addedDays} Days</strong>
                     </div>
                   </div>
-
                   <p className="penalty-note">
-                    Penalty is based on a daily rate of ₱{rate} and capped at {cap} days.
+                    Rate: ₱{rate}/day | Cap: {cap} days.
                   </p>
                 </div>
               );
             })()}  
-        </div>
-
-          {/* 3. ANALYTICS CARD (Conditional Rendering based on Status) */}
-          <div className="card analytics-card">
-          <div className="analytics-header">
-            <h3>
-              {pdl.pdl_status === "Released" ? "🏁 Final Release Summary" : 
-               pdl.pdl_status === "Sentenced" ? "📊 Predictive Release Analytics" : "⚖️ Judicial Time Ledger"}
-            </h3>
-            <span className={`status-pill ${pdl.pdl_status?.toLowerCase()}`}>
-              {pdl.pdl_status}
-            </span>
           </div>
+
+          {/* 3. ANALYTICS CARD */}
+          <div className="card analytics-card">
+            <div className="analytics-header">
+              <h3>
+                <BarChart3 size={20} className="header-icon" />
+                {pdl.pdl_status === "Released" ? "Final Release Summary" : 
+                 pdl.pdl_status === "Sentenced" ? "Predictive Release Analytics" : "Judicial Time Ledger"}
+              </h3>
+              <span className={`status-pill ${pdl.pdl_status?.toLowerCase()}`}>
+                {pdl.pdl_status}
+              </span>
+            </div>
             
             <div className="analytics-body">
-              
-              {/* ⚖️ SECTION: COURT SENTENCE (Hide if Detained) */}
-             {(pdl.pdl_status === "Sentenced" || pdl.pdl_status === "Released") && (
-              <div className="sentence-breakdown">
-                <p className="sub-heading">{pdl.pdl_status === "Released" ? "Served Sentence Duration" : "Court-Mandated Sentence"}</p>
-                <div className="duration-grid">
-                  <div className="d-box"><strong>{pdl.sentence_years || 0}</strong><span>Years</span></div>
-                  <div className="d-box"><strong>{pdl.sentence_months || 0}</strong><span>Months</span></div>
-                  <div className="d-box"><strong>{pdl.sentence_days || 0}</strong><span>Days</span></div>
-                </div>
-              </div>
-            )}
-
-            
-
-              {/* 📈 SECTION: TIME ALLOWANCE LEDGER (Always Visible) */}
-           <div className="allowance-ledger">
-            <h4>⏳ Time Allowance Credits</h4>
-            <div className="ledger-grid">
-              
-              {pdl.pdl_status === "Released" ? (
-                /* 🏁 RELEASED VIEW: Show only the finalized archive total */
-                <div className="ledger-total archived-total">
-                  <div className="ledger-info">
-                    <strong>Final Credit Summary</strong>
-                    <span>Total time allowance applied at discharge</span>
-                  </div>
-                  <div className="ledger-value positive">
-                    -{pdl.total_credits_applied || 0} Days
+              {/* ⚖️ SECTION: COURT SENTENCE */}
+              {(pdl.pdl_status === "Sentenced" || pdl.pdl_status === "Released") && (
+                <div className="sentence-breakdown">
+                  <p className="sub-heading"><FileText size={14} /> {pdl.pdl_status === "Released" ? "Served Sentence Duration" : "Court-Mandated Sentence"}</p>
+                  <div className="duration-grid">
+                    <div className="d-box"><strong>{pdl.sentence_years || 0}</strong><span>Years</span></div>
+                    <div className="d-box"><strong>{pdl.sentence_months || 0}</strong><span>Months</span></div>
+                    <div className="d-box"><strong>{pdl.sentence_days || 0}</strong><span>Days</span></div>
                   </div>
                 </div>
-              ) : (
-                /* ⏳ ACTIVE VIEW: Show detailed GCTA/TASTM breakdown */
-                <>
-                  {/* GCTA Summary */}
-                 <div className="ledger-item">
-                    <div className="ledger-info">
-                      <strong>GCTA</strong>
-                      <span>Good Conduct Time Allowance</span>
-                    </div>
-                    <div className="ledger-value positive">
-                      {/* 🎯 Added check: Only sum if status is 'Active' */}
-                      -{pdl.gcta_history?.reduce((acc, log) => 
-                        log.status === 'Active' ? acc + (parseInt(log.days_earned) || 0) : acc, 0) || 0} Days
-                    </div>
-                  </div>
-
-                  {/* TASTM Summary */}
-                  <div className="ledger-item">
-                    <div className="ledger-info">
-                      <strong>TASTM</strong>
-                      <span>Study, Teaching & Mentoring</span>
-                    </div>
-                    <div className="ledger-value positive">
-                      {/* 🎯 Added check: Only sum if status is 'Active' */}
-                    -{pdl.tastm_history?.reduce((acc, log) => {
-    const isAcceptedStatus = log.status === 'Active' || log.status === 'Inactive';
-    
-    // We only sum if it's an accepted status 
-    // This naturally excludes 'Voided' (DQ) and 'Released' (Old stays)
-    return isAcceptedStatus 
-      ? acc + (parseInt(log.days_earned) || 0) 
-      : acc;
-}, 0) || 0} Days
-                    </div>
-                  </div>
-
-                  {/* Total Summary from live pdl_tbl */}
-                  <div className="ledger-total">
-                    <span>Total Days Deducted:</span>
-                    <strong>{pdl.total_timeallowance_earned || 0} Days</strong>
-                  </div>
-                </>
               )}
 
-            </div>
-          </div>
-
-          
-              <div className="prediction-results">
-                  {/* Standard Timeline Items (Admission/Committal) */}
-                 <div className="timeline-card-box">
-                  <div className="timeline-row">
-                    <p>Admission Date (BJMP)</p>
-                    <strong>{pdl.date_admitted_bjmp ? new Date(pdl.date_admitted_bjmp).toLocaleDateString('en-PH') : "---"}</strong>
-                  </div>
-                  
-                  <div className="timeline-row">
-                    <p>Committal Date (PNP)</p>
-                    <strong>{pdl.date_commited_pnp ? new Date(pdl.date_commited_pnp).toLocaleDateString('en-PH') : "---"}</strong>
-                  </div>
-                </div>
-
-                  {/* 🎯 MAIN LOGIC SPLIT */}
+              {/* 📈 SECTION: TIME ALLOWANCE LEDGER */}
+              <div className="allowance-ledger">
+                <h4><Hourglass size={14} /> Time Allowance Credits</h4>
+                <div className="ledger-grid">
                   {pdl.pdl_status === "Released" ? (
-                   <div className="release-highlight success-theme">
-                      <p>Actual Date of Release</p>
-                      <h2 className="release-text">
-                        {pdl.actual_release_date 
-                          ? new Date(pdl.actual_release_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) 
-                          : "Archive Recorded"}
-                      </h2>
-                      
-                      {/* 📊 COOL CAPSTONE ADDITION: Show how long they were actually inside */}
-                      {pdl.date_admitted_bjmp && pdl.actual_release_date && (
-                        <div className="stay-duration">
-                          <span>Total Stay Duration: </span>
-                          <strong>
-                            {Math.ceil((new Date(pdl.actual_release_date) - new Date(pdl.date_admitted_bjmp)) / (1000 * 60 * 60 * 24))} Days
-                          </strong>
-                        </div>
-                      )}
-                      
-                      <span className="algo-tag">Status: Legally Discharged</span>
+                    <div className="ledger-total archived-total">
+                      <div className="ledger-info">
+                        <strong>Final Credit Summary</strong>
+                        <span>Total time allowance applied at discharge</span>
+                      </div>
+                      <div className="ledger-value positive">-{pdl.total_credits_applied || 0} Days</div>
                     </div>
-                  ) : pdl.pdl_status === "Sentenced" && (pdl.sentence_years > 0 || pdl.sentence_months > 0 || pdl.sentence_days > 0) && pdl.date_commited_pnp ? (
-                    /* 2. SENTENCED VIEW: Show Analytics Prediction */
-                   <div className="release-highlight">
-  <p>Projected Release Date</p>
-  <h2 className="release-text">
-    {pdl.expected_releasedate ? 
-      new Date(pdl.expected_releasedate).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) 
-      : "Calculating..."}
-  </h2>
-
-  {/* 🏛️ NEW: Date of Final Judgment (Universal) */}
-  <div className="judgment-info">
-    <span className="judgment-label">Final Judgment: </span>
-    <span className="judgment-value">
-      {pdl.date_of_final_judgment ? 
-        new Date(pdl.date_of_final_judgment).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) 
-        : "N/A (Pending Trial)"}
-    </span>
-  </div>
-
-  {/* 🎯 Legal Status Indicator */}
-  <h3 className={`status-banner ${pdl.is_legally_disqualified ? 'text-danger' : 'text-success'}`}>
-    {pdl.is_legally_disqualified ? (
-      <>⚠️ Disqualified (RA 10592)</>
-    ) : (
-      <>✅ Qualified Offender</>
-    )}
-  </h3>
-
-  <span className="algo-tag">Method: Automated Sentence Analytics (TCIS)</span>
-</div>
                   ) : (
-                    /* 3. DETAINED / PENDING VIEW */
-                    <div className="detained-notice pending-docs">
-                      <div className="notice-icon">
-                        {pdl.pdl_status === "Sentenced" ? "📄" : "⏳"}
+                    <>
+                      <div className="ledger-item">
+                        <div className="ledger-info"><strong>GCTA</strong><span>Good Conduct</span></div>
+                        <div className="ledger-value positive">
+                          -{pdl.gcta_history?.reduce((acc, log) => log.status === 'Active' ? acc + (parseInt(log.days_earned) || 0) : acc, 0) || 0} Days
+                        </div>
                       </div>
-                      <div className="notice-text">
-                        <p>
-                          {pdl.pdl_status === "Sentenced" 
-                            ? "Sentenced: Awaiting Formal Documentation" 
-                            : "Pre-Trial Detention Status"}
-                        </p>
-                        <span>
-                          {pdl.pdl_status === "Sentenced" 
-                            ? "Awaiting court-mandated duration or committal dates." 
-                            : "PDL is currently under trial. GCTA and TASTM credits are accumulating."}
-                        </span>
+                      <div className="ledger-item">
+                        <div className="ledger-info"><strong>TASTM</strong><span>Study & Teaching</span></div>
+                        <div className="ledger-value positive">
+                          -{pdl.tastm_history?.reduce((acc, log) => (log.status === 'Active' || log.status === 'Inactive') ? acc + (parseInt(log.days_earned) || 0) : acc, 0) || 0} Days
+                        </div>
                       </div>
-                    </div>
+                      <div className="ledger-total">
+                        <span>Total Days Deducted:</span>
+                        <strong className="text-primary"><TrendingDown size={18} /> {pdl.total_timeallowance_earned || 0} Days</strong>
+                      </div>
+                    </>
                   )}
                 </div>
+              </div>
+
+              {/* 🎯 PREDICTION RESULTS */}
+              <div className="prediction-results">
+                <div className="timeline-card-box">
+                  <div className="timeline-row">
+                    <p><Calendar size={14} /> Admission Date (BJMP)</p>
+                    <strong>{pdl.date_admitted_bjmp ? new Date(pdl.date_admitted_bjmp).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "---"}</strong>
+                  </div>
+                  <div className="timeline-row">
+                    <p><History size={14} /> Committal Date (PNP)</p>
+                    <strong>{pdl.date_commited_pnp ? new Date(pdl.date_commited_pnp).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "---"}</strong>
+                  </div>
+                </div>
+
+                {pdl.pdl_status === "Released" ? (
+                  <div className="release-highlight success-theme">
+                    <p>Actual Date of Release</p>
+                    <h2 className="release-text">
+                      <CheckCircle2 size={32} /> {pdl.actual_release_date ? new Date(pdl.actual_release_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "Archive Recorded"}
+                    </h2>
+                    {pdl.date_admitted_bjmp && pdl.actual_release_date && (
+                      <div className="stay-duration">
+                        <span>Total Stay: </span>
+                        <strong>{Math.ceil((new Date(pdl.actual_release_date) - new Date(pdl.date_admitted_bjmp)) / (1000 * 60 * 60 * 24))} Days</strong>
+                      </div>
+                    )}
+                    <span className="algo-tag">Status: Legally Discharged</span>
+                  </div>
+                ) : pdl.pdl_status === "Sentenced" && (pdl.sentence_years > 0 || pdl.sentence_months > 0 || pdl.sentence_days > 0) && pdl.date_commited_pnp ? (
+                  <div className="release-highlight">
+                    <p>Projected Release Date</p>
+                    <h2 className="release-text">
+                      {pdl.expected_releasedate ? new Date(pdl.expected_releasedate).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "Calculating..."}
+                    </h2>
+                    <div className="judgment-info">
+                      <span className="judgment-label"><Scale size={14} /> Final Judgment: </span>
+                      <span className="judgment-value">{pdl.date_of_final_judgment ? new Date(pdl.date_of_final_judgment).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "Pending"}</span>
+                    </div>
+                    <h3 className={`status-banner ${pdl.is_legally_disqualified ? 'text-danger' : 'text-success'}`}>
+                      {pdl.is_legally_disqualified ? <><AlertTriangle size={18} /> Disqualified (RA 10592)</> : <><CheckCircle2 size={18} /> Qualified Offender</>}
+                    </h3>
+                    <span className="algo-tag">Method: Automated Sentence Analytics (TCIS)</span>
+                  </div>
+                ) : (
+                  <div className="detained-notice pending-docs">
+                    <div className="notice-icon"><Hourglass size={32} /></div>
+                    <div className="notice-text">
+                      <p>{pdl.pdl_status === "Sentenced" ? "Sentenced: Awaiting Docs" : "Pre-Trial Status"}</p>
+                      <span>{pdl.pdl_status === "Sentenced" ? "Awaiting mandated duration." : "Trial ongoing. Credits accumulating."}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* 4. OFFENSE BOX */}
-         
+          {/* 4. HISTORY LEDGER */}
           <div className="card history-card full-width">
-  <div className="history-header">
-    <h3>📜 Time Allowance History Ledger</h3>
-    <p>Detailed month-by-month credit accumulation</p>
-  </div>
+            <div className="history-header">
+              <h3><History size={20} /> Time Allowance History Ledger</h3>
+              <p>Detailed month-by-month credit accumulation</p>
+            </div>
 
-  <div className="history-tables-wrapper">
-    {/* GCTA HISTORY TABLE */}
-    <div className="history-section">
-      <h4>Good Conduct (GCTA)</h4>
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Month/Year</th>
-              <th>Days Earned</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pdl.gcta_history?.length > 0 ? pdl.gcta_history.map((log) => (
-              <tr key={log.gcta_log_id}>
-                <td>{new Date(log.month_year).toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })}</td>
-                <td className="text-positive">+{log.days_earned} Days</td>
-                <td><span className={`tag-${log.status?.toLowerCase().replace(' ', '-')}`}>{log.remarks}</span></td>
-              </tr>
-            )) : <tr><td colSpan="3" className="empty-msg">No GCTA logs found.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            <div className="history-tables-wrapper">
+              <div className="history-section">
+                <h4><ClipboardList size={16} /> Good Conduct (GCTA)</h4>
+                <div className="table-container">
+                  <table>
+                    <thead><tr><th>Month/Year</th><th>Days Earned</th><th>Status</th></tr></thead>
+                    <tbody>
+                      {pdl.gcta_history?.length > 0 ? pdl.gcta_history.map((log) => (
+                        <tr key={log.gcta_log_id}>
+                          <td>{new Date(log.month_year).toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })}</td>
+                          <td className="text-positive">+{log.days_earned} Days</td>
+                          <td><span className={`tag-${log.status?.toLowerCase().replace(' ', '-')}`}>{log.remarks}</span></td>
+                        </tr>
+                      )) : <tr><td colSpan="3" className="empty-msg">No GCTA logs found.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-    {/* TASTM HISTORY TABLE */}
-    <div className="history-section">
-      <h4>Study & Mentoring (TASTM)</h4>
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Month/Year</th>
-              <th>Hours Part.</th>
-              <th>Days Earned</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pdl.tastm_history?.length > 0 ? pdl.tastm_history.map((log) => (
-              <tr key={log.tastm_log_id}>
-                <td>{new Date(log.month_year).toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })}</td>
-                <td><strong>{log.total_hours_accumulated} hrs</strong></td>
-                <td className="text-positive">+{log.days_earned} Days</td>
-                <td className="text-positive">{log.remarks}</td>
-              </tr>
-            )) : <tr><td colSpan="3" className="empty-msg">No TASTM logs found.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
+              <div className="history-section">
+                <h4><ClipboardList size={16} /> Study & Mentoring (TASTM)</h4>
+                <div className="table-container">
+                  <table>
+                    <thead><tr><th>Month/Year</th><th>Hours</th><th>Days Earned</th><th>Status</th></tr></thead>
+                    <tbody>
+                      {pdl.tastm_history?.length > 0 ? pdl.tastm_history.map((log) => (
+                        <tr key={log.tastm_log_id}>
+                          <td>{new Date(log.month_year).toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })}</td>
+                          <td><strong>{log.total_hours_accumulated} hrs</strong></td>
+                          <td className="text-positive">+{log.days_earned} Days</td>
+                          <td className="text-positive">{log.remarks}</td>
+                        </tr>
+                      )) : <tr><td colSpan="4" className="empty-msg">No TASTM logs found.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
 
         </div>
       </div>

@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API_BASE_URL from "../apiConfig";
 import "./education.css";
+import { usePermissions } from "../hooks/usePermission";
 
 const SessionDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    
+    const { canDo } = usePermissions();
     // --- States ---
     const [attendees, setAttendees] = useState([]);
     const [sessionInfo, setSessionInfo] = useState(null);
@@ -43,6 +44,12 @@ const SessionDetails = () => {
 
     // 🎯 Update Individual Hours (The Overtime Fix)
     const handleUpdateHours = async (pdl_id, new_hours) => {
+    // 🛡️ SECURITY GUARD: Kill the process if no permission
+        if (!canDo("Attendance & Sessions", "canedit")) {
+            console.error("🚫 Permission Denied: You cannot edit attendance.");
+            return; 
+        }
+
         try {
             const token = localStorage.getItem("token");
             const res = await fetch(`${API_BASE_URL}/api/sessions/update-attendance-hours`, {
@@ -141,14 +148,20 @@ const SessionDetails = () => {
                                             <td><strong>{pdl.last_name}, {pdl.first_name}</strong></td>
                                             <td><code style={{ fontSize: '0.8rem' }}>#{pdl.pdl_id}</code></td>
                                             <td>
-                                                <input 
-                                                    type="number" 
-                                                    step="0.5"
-                                                    className="manual-search-input"
-                                                    style={{ width: '80px', margin: 0, textAlign: 'center', padding: '8px' }}
-                                                    defaultValue={pdl.hours_attended}
-                                                    onBlur={(e) => handleUpdateHours(pdl.pdl_id, e.target.value)}
-                                                />
+                                                {canDo("Attendance & Sessions", "canedit") ? (
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.5"
+                                                        className="manual-search-input"
+                                                        style={{ width: '80px', margin: 0, textAlign: 'center', padding: '8px' }}
+                                                        defaultValue={pdl.hours_attended}
+                                                        onBlur={(e) => handleUpdateHours(pdl.pdl_id, e.target.value)}
+                                                    />
+                                                ) : (
+                                                    <span style={{ fontWeight: 'bold', color: '#64748b' }}>
+                                                        {pdl.hours_attended} hrs
+                                                    </span>
+                                                )}
                                             </td>
                                             <td style={{ textAlign: 'center' }}>
                                                 <span className="live-indicator" style={{ fontSize: '0.65rem' }}>VERIFIED</span>

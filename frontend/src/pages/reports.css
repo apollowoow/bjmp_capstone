@@ -457,3 +457,109 @@
     word-wrap: break-word; /* 🎯 Forces long text to wrap instead of push */
     font-size: 0.7rem;
 }
+
+/* Layout Alignment & Icons */
+.rpt-header-icon {
+  margin-right: 15px;
+  color: #3b82f6;
+  vertical-align: middle;
+}
+
+.rpt-h1 {
+  display: flex;
+  align-items: center;
+}
+
+.rpt-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Button & Badge Alignment */
+.rpt-btn-csv, .rpt-btn-pdf, .rpt-btn-view, 
+.rpt-btn-print, .rpt-badge, .rpt-page-btn, 
+.rpt-h3, .rpt-count, .rpt-release-date {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Search Wrapper for Icon inside input */
+.rpt-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.rpt-search-icon-inner {
+  position: absolute;
+  left: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.rpt-search {
+  padding-left: 40px !important;
+}
+
+/* PDL Block styling */
+.rpt-id-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rpt-id-sub {
+  color: #64748b;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+}
+
+/* Release Timeline Specifics */
+.rpt-release-date {
+  color: #1e293b;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.rpt-text-success {
+  color: #059669;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rpt-crime-sub {
+  color: #94a3b8;
+  display: block;
+  font-size: 0.75rem;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Status wrapper tweaks */
+.rpt-status-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rpt-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+/* Hover effects for pagination icons */
+.rpt-page-btn:hover svg {
+  transform: scale(1.1);
+  transition: transform 0.2s;
+}
+
+/* Priority Row Highlight */
+.rpt-row-priority {
+  background-color: #f0fdf4 !important; /* Very light green hint for focus */
+}

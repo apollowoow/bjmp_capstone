@@ -382,3 +382,228 @@
 .pdl-list-scope .page-info strong {
   color: #1e293b;
 }
+
+/* =====================================================
+   PDL List Component Styles - Scoped to .pdl-list-scope
+   ===================================================== */
+
+.pdl-list-scope {
+  width: 100%;
+  padding: 20px;
+  background-color: #f8fafc;
+}
+
+.pdl-list-scope .list-container {
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+/* ===== Header Section ===== */
+.pdl-list-scope .list-header {
+  background: #1e293b; /* Dark Slate for Enterprise look */
+  color: white;
+  padding: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pdl-list-scope .header-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.pdl-list-scope .header-icon-main {
+  color: #60a5fa;
+}
+
+.pdl-list-scope .list-header h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.pdl-list-scope .list-header p {
+  margin: 5px 0 0 0;
+  opacity: 0.8;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdl-list-scope .btn-add {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+}
+
+.pdl-list-scope .btn-add:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+/* ===== Search Bar Section ===== */
+.pdl-list-scope .search-bar-container {
+  padding: 1.5rem 2rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  gap: 1rem;
+}
+
+.pdl-list-scope .search-input-wrapper,
+.pdl-list-scope .filter-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pdl-list-scope .search-input-wrapper { flex: 2; }
+.pdl-list-scope .filter-wrapper { flex: 1; }
+
+.pdl-list-scope .search-icon-inside,
+.pdl-list-scope .filter-icon-inside {
+  position: absolute;
+  left: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.pdl-list-scope .search-input,
+.pdl-list-scope .filter-select {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #f8fafc;
+}
+
+/* ===== Identity Cell ===== */
+.pdl-list-scope .identity-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 80px;
+}
+
+.pdl-list-scope .avatar-wrapper {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  padding: 2px;
+  border: 2px solid #3b82f6;
+  overflow: hidden;
+}
+
+.pdl-list-scope .table-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.pdl-list-scope .pdl-id-badge {
+  background: #f1f5f9;
+  color: #475569;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+/* ===== RFID & Badges ===== */
+.pdl-list-scope .rfid-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdl-list-scope .status-badge {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pdl-list-scope .status-badge.detained { background: #fef3c7; color: #92400e; }
+.pdl-list-scope .status-badge.sentenced { background: #fee2e2; color: #991b1b; }
+.pdl-list-scope .status-badge.released { background: #dcfce7; color: #166534; }
+
+/* ===== Action Button ===== */
+.pdl-list-scope .btn-view {
+  background: #f1f5f9;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pdl-list-scope .btn-view:hover {
+  background: #1e293b;
+  color: white;
+}
+
+/* ===== Pagination ===== */
+.pdl-list-scope .pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.pdl-list-scope .page-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.pdl-list-scope .page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Loading Spinner */
+.pdl-list-scope .pdl-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #cbd5e1;
+  border-top: 3px solid #2563eb;
+  border-radius: 50%;
+  animation: pdl-spin 1s linear infinite;
+  margin: 0 auto 10px;
+}
+
+@keyframes pdl-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }

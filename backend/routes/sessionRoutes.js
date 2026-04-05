@@ -1,90 +1,121 @@
 const express = require('express');
 const router = express.Router();
-const path = require('path');
-
-// ==========================
-// IMPORT CONTROLLERS
-// ==========================
 const sessionCtrl = require('../controller/sessionController');
 
 // ==========================
 // IMPORT MIDDLEWARE
 // ==========================
 const { authenticateToken } = require("../middleware/authMiddleware");
+const authorize = require("../middleware/authorize");
 
-// ==========================
-// DEFINE ROUTES
-// ==========================
+// ==========================================
+// 🕒 MODULE: "Attendance & Sessions"
+// ==========================================
 
-/**
- * @route   POST /api/sessions/start
- * @desc    Initialize a new W&D session in session_tbl
- * @access  Protected
- */
-router.post('/start', authenticateToken, sessionCtrl.startSession);
+router.post('/start', 
+    authenticateToken, 
+    authorize("Attendance & Sessions", "cancreate"), 
+    sessionCtrl.startSession
+);//audit done
 
-/**
- * @route   POST /api/sessions/log-attendance
- * @desc    Record an RFID tap into attendance_tbl
- * @access  Protected
- */
-router.post('/log-attendance', authenticateToken, sessionCtrl.logAttendance);
+router.post('/finalize/:session_id', 
+    authenticateToken, 
+    // 🎯 Change module to "Attendance & Sessions" and permission to "canedit"
+    authorize("Attendance & Sessions", "canedit"), 
+    sessionCtrl.finalizeSession
+);//audit done
 
-router.post('/silent-gcta-sync', authenticateToken, sessionCtrl.silentGctaSync);
-router.post('/silent-tastm-sync', authenticateToken, sessionCtrl.silentTastmSync);
+router.post('/log-attendance', 
+    authenticateToken, 
+    authorize("Attendance & Sessions", "cancreate"), 
+    sessionCtrl.logAttendance
+);
+
+router.put('/update-attendance-hours', 
+    authenticateToken, 
+    authorize("Attendance & Sessions", "canedit"), 
+    sessionCtrl.updateAttendanceHours
+);//auditdone
+
+router.delete('/remove-attendance/:session_id/:pdl_id', 
+    authenticateToken, 
+    authorize("Attendance & Sessions", "candelete"), 
+    sessionCtrl.removeAttendance
+);//done
+
+router.delete('/cancel/:session_id', 
+    authenticateToken, 
+    authorize("Attendance & Sessions", "candelete"), 
+    sessionCtrl.cancelSession
+);//auditdone
+
+router.get('/history', 
+    authenticateToken, 
+    authorize("Attendance & Sessions", "canview"), 
+    sessionCtrl.getSessionHistory
+);
+
+router.get('/details/:id', 
+    authenticateToken, 
+    authorize("Attendance & Sessions", "canview"), 
+    sessionCtrl.getSessionDetails
+);
+
+router.post('/reload/:session_id', 
+    authenticateToken, 
+    authorize("Attendance & Sessions", "canview"), 
+    sessionCtrl.reloadSession
+);//aduit done
 
 
-router.delete('/remove-attendance/:session_id/:pdl_id', authenticateToken, sessionCtrl.removeAttendance);
+// ==========================================
+// ⚖️ MODULE: "Time Allowance Computation (GCTA/TASTM)"
+// ==========================================
 
-/**
- * @route   POST /api/sessions/finalize/:session_id
- * @desc    Sync session hours to the PDL's permanent record
- * @access  Protected
- */
-router.post('/finalize/:session_id', authenticateToken, sessionCtrl.finalizeSession);
+router.post('/silent-gcta-sync', 
+    authenticateToken, 
+    authorize("Time Allowance Computation (GCTA/TASTM)", "canapprove"), 
+    sessionCtrl.silentGctaSync
+); //audit done
 
-router.get('/history', authenticateToken, sessionCtrl.getSessionHistory);
-router.get('/search-pdl', sessionCtrl.searchPdls);
+router.post('/silent-tastm-sync', 
+    authenticateToken, 
+    authorize("Time Allowance Computation (GCTA/TASTM)", "canapprove"), 
+    sessionCtrl.silentTastmSync
+);//audit done
 
-/**
- * @route   DELETE /api/sessions/cancel/:session_id
- * @desc    Discard session and all linked attendance logs (Cascade)
- * @access  Protected
- */
-router.delete('/cancel/:session_id', authenticateToken, sessionCtrl.cancelSession);
 
-router.post('/reload/:session_id', sessionCtrl.reloadSession);
+// ==========================================
+// 🚫 MODULE: "Conduct & Penalties" (MSEC Evaluation)
+// ==========================================
 
-/**
- * @route   GET /api/sessions/details/:id
- * @desc    Fetch session metadata and all attendees for management
- * @access  Protected
- */
-router.get('/details/:id', authenticateToken, sessionCtrl.getSessionDetails);
+router.get('/msec/evaluation', 
+    authenticateToken, 
+    authorize("Conduct & Penalties", "canview"), 
+    sessionCtrl.getMonthlyEvaluation
+);
 
-/**
- * @route   PUT /api/sessions/update-attendance-hours
- * @desc    Update a specific PDL's hours for a specific session (Overtime/Correction)
- * @access  Protected
- */
-router.put('/update-attendance-hours', authenticateToken, sessionCtrl.updateAttendanceHours);
+router.post('/msec/disqualify', 
+    authenticateToken, 
+    authorize("Conduct & Penalties", "canedit"), 
+    sessionCtrl.disqualifyPdlMonthly
+);//audit done
 
-// ==========================
-// ⚖️ MSEC EVALUATION ROUTES (NEW)
-// ==========================
+router.post('/msec/reenable', 
+    authenticateToken, 
+    authorize("Conduct & Penalties", "canedit"), 
+    sessionCtrl.reenablePdlMonthly
+);//adudit done
 
-/**
- * @route   GET /api/sessions/msec/evaluation
- * @desc    Aggregate all GCTA/TASTM for a specific month for screening
- */
-router.get('/msec/evaluation', authenticateToken, sessionCtrl.getMonthlyEvaluation);
 
-/**
- * @route   POST /api/sessions/msec/disqualify
- * @desc    VOID all credits for a PDL for the selected month (MSEC decision)
- */
-router.post('/msec/disqualify', authenticateToken, sessionCtrl.disqualifyPdlMonthly);
+// ==========================================
+// 🔍 MODULE: "PDL & RFID Management"
+// ==========================================
 
-router.post('/msec/reenable', authenticateToken, sessionCtrl.reenablePdlMonthly);
+router.get('/search-pdl', 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canview"), 
+    sessionCtrl.searchPdls
+);
 
 module.exports = router;

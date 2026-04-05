@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE_URL from "../apiConfig";
+import { 
+  FolderOpen, UserPlus, Search, Filter, 
+  Tag, ChevronLeft, ChevronRight, BarChart4,
+  User, Database, Fingerprint
+} from "lucide-react";
 import "./pdlList.css"; 
 
 const PdlList = () => {
@@ -87,41 +92,56 @@ const PdlList = () => {
     return age;
   };
 
-  return (
+return (
     <div className="pdl-list-scope">
       <div className="list-container">
+        {/* Header Section */}
         <div className="list-header">
-          <div>
-            <h2>📂 PDL Profiling & Analytics</h2>
-            <p>Managing {filteredList.length} Active Records</p>
+          <div className="header-title-wrapper">
+            <FolderOpen size={32} className="header-icon-main" />
+            <div>
+              <h2>PDL Profiling & Analytics</h2>
+              <p><Database size={12} /> Managing {filteredList.length} Active Records</p>
+            </div>
           </div>
           <button className="btn-add" onClick={() => navigate("/add")}>
-            + Register New PDL
+            <UserPlus size={18} /> Register New PDL
           </button>
         </div>
 
+        {/* Search & Filter Bar */}
         <div className="search-bar-container">
-          <input 
-            type="text" 
-            placeholder="🔍 Search by name, ID, or scan RFID tag..." 
-            className="search-input"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <select 
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="All">All Legal Statuses</option>
-            <option value="Detained">Detained (Pending)</option>
-            <option value="Sentenced">Sentenced (Convicted)</option>
-            <option value="Released">Released</option>
-          </select>
+          <div className="search-input-wrapper">
+            <Search size={18} className="search-icon-inside" />
+            <input 
+              type="text" 
+              placeholder="Search by name, ID, or scan RFID tag..." 
+              className="search-input"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div className="filter-wrapper">
+            <Filter size={18} className="filter-icon-inside" />
+            <select 
+              className="filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="All">All Legal Statuses</option>
+              <option value="Detained">Detained (Pending)</option>
+              <option value="Sentenced">Sentenced (Convicted)</option>
+              <option value="Released">Released</option>
+            </select>
+          </div>
         </div>
 
         {loading ? (
-          <div className="loading-state">Syncing with Secure Database...</div>
+          <div className="loading-state">
+            <div className="pdl-spinner"></div>
+            Syncing with Secure Database...
+          </div>
         ) : (
           <>
             <div className="table-wrapper">
@@ -143,25 +163,29 @@ const PdlList = () => {
                       return (
                         <tr key={pdl.pdl_id}>
                           <td className="identity-cell">
-                            
-                            <img 
-                              src={pdl.pdl_picture || DEFAULT_AVATAR} 
-                              alt="Profile"
-                              className="table-avatar"
-                              onError={(e) => { e.target.src = DEFAULT_AVATAR; }} 
-                            />
-                            <span className="pdl-id-badge">ID: {pdl.pdl_id}</span>
+                            <div className="avatar-wrapper">
+                              <img 
+                                src={pdl.pdl_picture || DEFAULT_AVATAR} 
+                                alt="Profile"
+                                className="table-avatar"
+                                onError={(e) => { e.target.src = DEFAULT_AVATAR; }} 
+                              />
+                            </div>
+                            <span className="pdl-id-badge">#{pdl.pdl_id}</span>
                           </td>
                           <td className="name-col">
                             <div className="name-wrapper">
                               <strong>{pdl.last_name}, {pdl.first_name}</strong>
                               <span className="sub-info">
-                                {age !== "N/A" ? `${age} yrs` : "Age Pending"} • {pdl.gender}
+                                <User size={10} /> {age !== "N/A" ? `${age} yrs` : "Age Pending"} • {pdl.gender}
                               </span>
                             </div>
                           </td>
                           <td>
-                            <code className="rfid-code">{pdl.rfid_number || "---"}</code>
+                            <div className="rfid-wrapper">
+                              <Fingerprint size={14} color="#64748b" />
+                              <code className="rfid-code">{pdl.rfid_number || "---"}</code>
+                            </div>
                           </td>
                           <td>
                             <span className={`status-badge ${pdl.pdl_status?.toLowerCase()}`}>
@@ -177,16 +201,14 @@ const PdlList = () => {
                             <button 
                               className="btn-view" 
                               onClick={() => {
-                                // If status is 'Released', we add a flag to the URL
                                 const isReleased = pdl.pdl_status === 'Released';
                                 const path = isReleased 
                                   ? `/profile/${pdl.release_id}?type=released` 
                                   : `/profile/${pdl.pdl_id}`;
-                                
                                 navigate(path);
                               }}
                             >
-                              Analyze
+                              <BarChart4 size={14} /> Analyze
                             </button>
                           </td>
                         </tr>
@@ -201,7 +223,7 @@ const PdlList = () => {
               </table>
             </div>
 
-            {/* ⏭️ PAGINATION CONTROLS */}
+            {/* Pagination Controls */}
             {totalPages > 1 && (
               <div className="pagination-controls">
                 <button 
@@ -209,7 +231,7 @@ const PdlList = () => {
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
                 >
-                  Previous
+                  <ChevronLeft size={16} /> Previous
                 </button>
                 <span className="page-info">
                   Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong>
@@ -219,7 +241,7 @@ const PdlList = () => {
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
                 >
-                  Next
+                  Next <ChevronRight size={16} />
                 </button>
               </div>
             )}

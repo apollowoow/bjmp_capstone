@@ -262,3 +262,130 @@
   grid-template-columns: repeat(3, 1fr) !important;
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* ... (Keep your previous styles, then ADD/UPDATE these) ... */
+
+/* Header Icons */
+.header-icon {
+  margin-right: 10px;
+  vertical-align: middle;
+  color: #64748b;
+}
+
+/* Layout Adjustment */
+.dashboard-main-content {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 2rem;
+}
+
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Stat Cards Icon Integration */
+.stat-card {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 20px;
+}
+
+.stat-icon {
+  background: #f1f5f9;
+  padding: 15px;
+  border-radius: 12px;
+  color: #475569;
+}
+
+.stat-card.blue .stat-icon { color: #3b82f6; background: #eff6ff; }
+.stat-card.red .stat-icon { color: #ef4444; background: #fef2f2; }
+.stat-card.purple .stat-icon { color: #7c3aed; background: #f5f3ff; }
+
+/* Audit Preview Styling */
+.audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.audit-item {
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.audit-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  margin-bottom: 5px;
+}
+
+.audit-op {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.audit-time {
+  color: #94a3b8;
+}
+
+.audit-action {
+  font-size: 0.85rem;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audit-action code {
+  background: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #0f172a;
+}
+
+/* Date Badge Refinement */
+.date-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Quick Access Icons Alignment */
+.action-btn {
+  justify-content: flex-start;
+  gap: 15px;
+}
+
+.action-btn:hover svg {
+  transform: scale(1.2) rotate(-5deg);
+  transition: transform 0.2s;
+}
+
+.rpt-btn-view {
+  margin-top: 5px; /* Adjust this value (e.g., 3px, 5px, 8px) to nudge it lower */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #eff6ff; /* Light blue background */
+  color: #3b82f6;      /* Blue text */
+  border: 1px solid #dbeafe;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rpt-btn-view:hover {
+  background: #3b82f6;
+  color: #ffffff;
+}

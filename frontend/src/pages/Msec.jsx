@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API_BASE_URL from "../apiConfig";
 import "./msec.css";
-
+import { usePermissions } from "../hooks/usePermission";
 const Msec = () => {
     const navigate = useNavigate();
+
+    const { isAdmin } = usePermissions();
 
     // --- State Management ---
     const [evaluationList, setEvaluationList] = useState([]);
@@ -47,42 +49,63 @@ const Msec = () => {
 
     // --- Action Handler (Void/Enable) ---
     const handleAction = async (pdlId, name, isVoiding) => {
+        if (!isAdmin) return;
         const actionType = isVoiding ? "disqualify" : "reenable";
         const endpoint = `${API_BASE_URL}/api/sessions/msec/${actionType}`;
 
+        // 🎯 ADD THIS: Identify what we are targeting based on your dropdown filter
+        const target = (filterType === "All" || filterType === "Both") ? "BOTH" : filterType;
+
         setAlert({
             show: true,
-            title: isVoiding ? "Confirm Disqualification" : "Restore Credits",
-            message: isVoiding
-                ? `Void all credits for ${name} for ${selectedMonth}?`
-                : `Restore and activate credits for ${name} for ${selectedMonth}?`,
+            title: isVoiding ? `Confirm ${target} Void` : `Restore ${target}`,
+            message: `Void ${target} credits for ${name} in ${selectedMonth}?`,
             type: isVoiding ? "danger" : "info",
             onConfirm: async () => {
                 try {
                     const token = localStorage.getItem("token");
-                    const response = await fetch(endpoint, {
+                    await fetch(endpoint, {
                         method: "POST",
                         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                        body: JSON.stringify({ pdl_id: pdlId, month_year: selectedMonth })
+                        // 🚀 SEND THE TARGET HERE
+                        body: JSON.stringify({ 
+                            pdl_id: pdlId, 
+                            month_year: selectedMonth,
+                            target: target 
+                        })
                     });
-                    if (response.ok) {
-                        setAlert({ show: false });
-                        fetchEvaluation(); // Refresh data
-                    }
-                } catch (err) {
-                    console.error(err);
-                }
+                    fetchEvaluation();
+                    setAlert({ show: false });
+                } catch (err) { console.error(err); }
             }
         });
     };
 
     // --- ⚡ Filter & Pagination Logic ---
+    // --- ⚡ Updated Filter & Pagination Logic ---
     const filteredList = evaluationList.filter(pdl => {
-        const matchesSearch = pdl.last_name.toLowerCase().includes(searchTerm.toLowerCase()) || pdl.pdl_id.toString().includes(searchTerm);
+        // 1. Search Logic
+        const matchesSearch = pdl.last_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            pdl.pdl_id.toString().includes(searchTerm);
+
+        // 2. Category Logic (The Granular Fix)
         let matchesCategory = true;
-        if (filterType === "GCTA") matchesCategory = Number(pdl.monthly_gcta) > 0;
-        if (filterType === "TASTM") matchesCategory = Number(pdl.monthly_tastm) > 0;
-        if (filterType === "Both") matchesCategory = Number(pdl.monthly_gcta) > 0 && Number(pdl.monthly_tastm) > 0;
+
+        if (filterType === "GCTA") {
+            // Show if they have active GCTA credits OR if GCTA is currently Voided
+            matchesCategory = Number(pdl.monthly_gcta) > 0 || pdl.gcta_status === 'Voided';
+        } 
+        else if (filterType === "TASTM") {
+            // Show if they have active TASTM credits OR if TASTM is currently Voided
+            matchesCategory = Number(pdl.monthly_tastm) > 0 || pdl.tastm_status === 'Voided';
+        } 
+        else if (filterType === "Both") {
+            // Show only if BOTH types are involved (Active or Voided)
+            const hasG = Number(pdl.monthly_gcta) > 0 || pdl.gcta_status === 'Voided';
+            const hasT = Number(pdl.monthly_tastm) > 0 || pdl.tastm_status === 'Voided';
+            matchesCategory = hasG && hasT;
+        }
+
         return matchesSearch && matchesCategory;
     });
 
@@ -125,55 +148,110 @@ const Msec = () => {
                 </div>
 
                 <div className="msec-table-card card">
-                    <table className="msec-table">
+                   <table className="msec-table">
                         <thead>
                             <tr>
-                                <th>PDL Identity</th>
-                                <th>GCTA</th>
-                                <th>TASTM</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                            <th>PDL Identity</th>
+                            {/* 🎯 Header Logic: Only show what is filtered */}
+                            {(filterType === "All" || filterType === "Both" || filterType === "GCTA") && <th>GCTA</th>}
+                            {(filterType === "All" || filterType === "Both" || filterType === "TASTM") && <th>TASTM</th>}
+                            <th>Total</th>
+                            <th>Status</th>
+                            {isAdmin && <th style={{ textAlign: 'center' }}>Master Lock</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="6" className="loading-row">Syncing...</td></tr>
+                            <tr>
+                                <td colSpan={filterType === "Both" || filterType === "All" ? 6 : 5} className="loading-row">
+                                Syncing...
+                                </td>
+                            </tr>
                             ) : currentItems.length > 0 ? (
-                                currentItems.map(pdl => (
-                                    <tr key={pdl.pdl_id} className={pdl.msec_status === 'Voided' ? 'row-voided' : ''}>
-                                        <td>
-                                            <div className="pdl-cell">
-                                                <img src={`${API_BASE_URL}/public/uploads/${pdl.pdl_picture}`} onError={(e) => e.target.src = "/default-avatar.png"} alt="" />
-                                                <div className="pdl-info">
-                                                    <strong>{pdl.last_name}, {pdl.first_name}</strong>
-                                                    <span>#{pdl.pdl_id}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td><span className="badge-gcta">+{pdl.monthly_gcta}</span></td>
-                                        <td><span className="badge-tastm">+{pdl.monthly_tastm}</span></td>
-                                        <td><strong className="total-days">+{Number(pdl.monthly_gcta) + Number(pdl.monthly_tastm)}</strong></td>
-                                        <td>
-                                           <span className={`msec-status-tag status-${pdl.msec_status.toLowerCase()}`}>
-                                                    {pdl.msec_status === 'Active' ? '🟢 Active' : '🔴 Voided'}
-                                                </span>
-                                        </td>
-                                        <td>
-                                            {pdl.msec_status === 'Active' ? (
-                                                <button className="btn-dq" onClick={() => handleAction(pdl.pdl_id, pdl.last_name, true)}>🚫 Void</button>
-                                            ) : (
-                                                <button className="btn-enable" onClick={() => handleAction(pdl.pdl_id, pdl.last_name, false)}>✅ Enable</button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
+                            currentItems.map((pdl) => (
+                                <tr key={pdl.pdl_id} className={pdl.gcta_status === 'Voided' && pdl.tastm_status === 'Voided' ? 'row-voided' : ''}>
+                                
+                                {/* 1. IDENTITY */}
+                                <td>
+                                    <div className="pdl-cell">
+                                    <img src={`${API_BASE_URL}/public/uploads/${pdl.pdl_picture}`} onError={(e) => e.target.src = "/default-avatar.png"} alt="" />
+                                    <div className="pdl-info">
+                                        <strong>{pdl.last_name}, {pdl.first_name}</strong>
+                                        <span>#{pdl.pdl_id}</span>
+                                    </div>
+                                    </div>
+                                </td>
+
+                                {/* 2. GCTA COLUMN (Conditional) */}
+                                {(filterType === "All" || filterType === "Both" || filterType === "GCTA") && (
+                                    <td className="credit-col">
+                                    <div className="credit-action-wrapper">
+                                        <span className={`badge-gcta ${pdl.gcta_status === 'Voided' ? 'void-text' : ''}`}>
+                                        +{pdl.monthly_gcta}
+                                        </span>
+                                        {isAdmin && (
+                                        pdl.gcta_status === 'Active' ? (
+                                            <button className="btn-mini-void" title="Void GCTA" onClick={() => handleAction(pdl.pdl_id, pdl.last_name, true, "GCTA")}>🚫</button>
+                                        ) : (
+                                            <button className="btn-mini-enable" title="Enable GCTA" onClick={() => handleAction(pdl.pdl_id, pdl.last_name, false, "GCTA")}>✅</button>
+                                        )
+                                        )}
+                                    </div>
+                                    </td>
+                                )}
+
+                                {/* 3. TASTM COLUMN (Conditional) */}
+                                {(filterType === "All" || filterType === "Both" || filterType === "TASTM") && (
+                                    <td className="credit-col">
+                                    <div className="credit-action-wrapper">
+                                        <span className={`badge-tastm ${pdl.tastm_status === 'Voided' ? 'void-text' : ''}`}>
+                                        +{pdl.monthly_tastm}
+                                        </span>
+                                        {isAdmin && (
+                                        pdl.tastm_status === 'Active' ? (
+                                            <button className="btn-mini-void" title="Void TASTM" onClick={() => handleAction(pdl.pdl_id, pdl.last_name, true, "TASTM")}>🚫</button>
+                                        ) : (
+                                            <button className="btn-mini-enable" title="Enable TASTM" onClick={() => handleAction(pdl.pdl_id, pdl.last_name, false, "TASTM")}>✅</button>
+                                        )
+                                        )}
+                                    </div>
+                                    </td>
+                                )}
+
+                                {/* 4. DYNAMIC TOTAL */}
+                                <td><strong className="total-days">+{Number(pdl.monthly_gcta) + Number(pdl.monthly_tastm)}</strong></td>
+
+                                {/* 5. MULTI-STATUS */}
+                                <td>
+                                    <div className="msec-status-container">
+                                    {(filterType === "All" || filterType === "Both" || filterType === "GCTA") && (
+                                        <span className={`status-pill pill-${pdl.gcta_status.toLowerCase()}`}>G: {pdl.gcta_status}</span>
+                                    )}
+                                    {(filterType === "All" || filterType === "Both" || filterType === "TASTM") && (
+                                        <span className={`status-pill pill-${pdl.tastm_status.toLowerCase()}`}>T: {pdl.tastm_status}</span>
+                                    )}
+                                    </div>
+                                </td>
+
+                                {/* 6. ADMIN INDICATOR */}
+                                {isAdmin ? (
+                                    <td style={{ textAlign: 'center', color: '#94a3b8' }}>🔓</td>
+                                ) : (
+                                    <td style={{ textAlign: 'center' }}>
+                                    <span className="lock-icon-text">🔒 Read-Only</span>
+                                    </td>
+                                )}
+                                </tr>
+                            ))
                             ) : (
-                                <tr><td colSpan="6" className="empty-row">No records match your filters.</td></tr>
+                            <tr>
+                                <td colSpan={filterType === "Both" || filterType === "All" ? 6 : 5} className="empty-row">
+                                No records match your filters.
+                                </td>
+                            </tr>
                             )}
                         </tbody>
-                    </table>
-
+                        </table>
                     {/* 📟 PAGINATION CONTROLS */}
                     {!loading && totalPages > 1 && (
                         <div className="msec-pagination">

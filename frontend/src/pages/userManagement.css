@@ -1,0 +1,156 @@
+/* UserManagement.css */
+.um-page-container { padding: 20px; background-color: #f8fafc; min-height: 100vh; }
+.um-header-section { margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
+.um-title { color: #1e293b; font-size: 1.8rem; margin: 0; }
+.um-subtitle { color: #64748b; font-size: 0.9rem; margin-top: 5px; }
+
+/* Table Styles */
+.um-table-wrapper { background: white; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); overflow: hidden; }
+.um-main-table { width: 100%; border-collapse: collapse; text-align: left; }
+.um-main-table th { background-color: #1e293b; color: white; padding: 12px 15px; font-size: 0.85rem; text-transform: uppercase; }
+.um-main-table td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 0.95rem; }
+.um-td-bold { font-weight: 600; color: #0f172a; }
+
+/* Status Badges */
+.um-role-badge { background: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+.um-status-pill { padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: bold; }
+.um-active { background: #dcfce7; color: #166534; }
+.um-inactive { background: #fee2e2; color: #991b1b; }
+
+/* Buttons */
+.um-btn-manage { background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+.um-btn-manage:hover { background: #2563eb; }
+
+/* Modal Styles */
+.um-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.um-modal-content { background: white; width: 450px; border-radius: 12px; overflow: hidden; animation: slideIn 0.3s ease-out; }
+.um-modal-header { background: #1e293b; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+.um-close-x { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+.um-modal-body { padding: 20px; }
+.um-modal-section { margin-bottom: 20px; }
+.um-label { display: block; font-weight: bold; margin-bottom: 8px; color: #475569; font-size: 0.85rem; }
+
+/* Modal Action Rows */
+.um-status-row { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 10px; border-radius: 6px; }
+.um-btn-suspend { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+.um-btn-activate { background: #22c55e; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+
+.um-input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; }
+.um-btn-save-pass { width: 100%; background: #0f172a; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.um-divider { border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0; }
+.um-help-text { font-size: 0.75rem; color: #94a3b8; display: block; margin-top: 5px; }
+
+/* User Management Controls */
+.um-controls-bar {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.um-search-input {
+  flex: 2;
+  padding: 10px 15px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.um-filter-select {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+/* Pagination Footer */
+.um-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 25px;
+  padding-bottom: 30px;
+}
+
+.um-page-btn {
+  padding: 8px 20px;
+  background: #1e293b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.um-page-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.um-page-info {
+  font-size: 0.9rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.um-txt-active { color: #166534; font-weight: bold; }
+.um-txt-inactive { color: #991b1b; font-weight: bold; }
+/* Eye Button & Strength Grid */
+.um-eye-btn { position: absolute; right: 10px; top: 12px; background: none; border: none; cursor: pointer; font-size: 1.1rem; }
+.um-strength-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 10px 0; background: #f1f5f9; padding: 10px; border-radius: 6px; }
+.um-valid { color: #166534; font-size: 0.75rem; font-weight: bold; }
+.um-invalid { color: #94a3b8; font-size: 0.75rem; }
+.um-disabled { background: #cbd5e1 !important; cursor: not-allowed; opacity: 0.7; }
+
+/* Confirm Modal (Yes/No) */
+.um-confirm-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.8); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+.um-confirm-card { background: white; padding: 25px; border-radius: 12px; text-align: center; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+.um-confirm-btns { display: flex; gap: 10px; margin-top: 20px; }
+.um-btn-yes { flex: 1; background: #1e293b; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.um-btn-no { flex: 1; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; cursor: pointer; }
+
+/* Status Modal (Success/Fail) */
+.um-status-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; z-index: 3000; }
+.um-status-card { background: white; padding: 30px; border-radius: 15px; text-align: center; width: 300px; border-top: 6px solid; }
+.um-border-ok { border-top-color: #22c55e; }
+.um-border-fail { border-top-color: #ef4444; }
+.um-status-close { margin-top: 20px; width: 100%; background: #334155; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; }
+
+/* Aligning Icons with Text inside Buttons */
+.um-btn-manage, .um-btn-suspend, .um-btn-activate, .um-btn-save-pass {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px; /* Space between icon and text */
+}
+
+/* Modal Title Icon alignment */
+.um-modal-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Strength Grid Icon alignment */
+.um-valid, .um-invalid {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Eye button refinement */
+.um-eye-btn {
+  color: #64748b; /* Slate gray for the icon */
+  transition: color 0.2s;
+}
+.um-eye-btn:hover {
+  color: #1e293b;
+}
+
+@keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }

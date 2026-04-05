@@ -8,15 +8,17 @@ const pool = require("../db/pool");
 // ==========================
 // IMPORT CONTROLLERS
 // ==========================
-const { addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord, grantGlobalGcta, 
-  recalculatePdlSentence, releasePdl, getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary} = require("../controller/pdlController");
+const { 
+    addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord, 
+     recalculatePdlSentence, releasePdl, getReleasedPdls, 
+    getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary 
+} = require("../controller/pdlController");
 
 // ==========================
 // IMPORT MIDDLEWARE
 // ==========================
-
-
 const { authenticateToken } = require("../middleware/authMiddleware");
+const authorize = require("../middleware/authorize"); // 🎯 The Gatekeeper
 
 // ==========================
 // MULTER CONFIGURATION
@@ -71,40 +73,85 @@ const validateRFID = async (req, res, next) => {
 // ==========================
 
 // Get all PDLs
-router.get("/getall", authenticateToken, getAllPDL);
-router.get('/get/:id', authenticateToken, getPdlById);
-router.post('/recalculate/:id', authenticateToken, recalculatePdlSentence);
-router.put(
-  '/recommit/:id', 
-  authenticateToken, 
-  upload.single('profile_photo'), 
-  recommitPDL
+router.get("/getall", 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canview"), 
+    getAllPDL
 );
 
-// Add New PDL 
-// (Auth -> Upload -> Validate RFID -> Save to DB)
-router.post("/", authenticateToken, upload.single("profile_photo"), validateRFID, addPDL);
-router.put("/update/:id", authenticateToken, updatePdlJudicialRecord);
+router.get('/get/:id', 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canview"), 
+    getPdlById
+);
 
-router.post("/grant-global-gcta", authenticateToken, grantGlobalGcta);
-router.post("/release/:id", authenticateToken, releasePdl);
-router.get("/releaseall", authenticateToken, getReleasedPdls);
-router.get('/getrelease/:id', authenticateToken, getReleasedPdlById);
-router.post('/upsert', authenticateToken, upsertSubsidiary);
+router.get("/releaseall", 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canview"), 
+    getReleasedPdls
+);
+
+router.get('/getrelease/:id', 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canview"), 
+    getReleasedPdlById
+);
+
+// 📝 CREATING (Adding new prisoners)
+router.post("/", 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "cancreate"), 
+    upload.single("profile_photo"), 
+    validateRFID, 
+    addPDL
+); 
+
+// ✏️ EDITING (Updating profiles/personal info)
 router.put(
-  '/update-personal/:id', 
-  authenticateToken, 
-  upload.single('profile_photo'), 
-  updatePersonalInfo
+    '/update-personal/:id', 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canedit"), 
+    upload.single('profile_photo'), 
+    updatePersonalInfo
+);//audit done
+
+router.put("/update/:id", 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canapprove"), 
+    updatePdlJudicialRecord
+);//audit done
+
+router.post('/upsert', 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canedit"), 
+    upsertSubsidiary
+);//audit done
+
+router.put(
+    '/recommit/:id', 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canedit"), 
+    upload.single('profile_photo'), 
+    recommitPDL
+);//adudit done
+
+
+// ==========================================
+// ⚖️ TIME ALLOWANCE & SENTENCE (Heavy Stuff)
+// ==========================================
+
+// Recalculating is part of management/edit
+router.post('/recalculate/:id', 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canedit"), 
+    recalculatePdlSentence
 );
 
 
-
-
-// Update PDL
-// Ensure you have your auth middleware imported
-
-
-
+router.post("/release/:id", 
+    authenticateToken, 
+    authorize("Time Allowance Computation (GCTA/TASTM)", "canapprove"), 
+    releasePdl
+);//audit done
 
 module.exports = router;

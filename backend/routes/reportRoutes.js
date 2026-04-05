@@ -1,25 +1,53 @@
 const express = require("express");
 const router = express.Router();
-const pool = require("../db/pool");
 
 // ==========================
 // IMPORT CONTROLLERS
 // ==========================
-const { getReportStats, getGeneralSummary, getPredictiveReport } = require("../controller/reportController");
+const { 
+    getReportStats, 
+    getGeneralSummary, 
+    getPredictiveReport, auditReportExport 
+} = require("../controller/reportController");
 
 // ==========================
 // IMPORT MIDDLEWARE
 // ==========================
 const { authenticateToken } = require("../middleware/authMiddleware");
+const authorize = require("../middleware/authorize");
 
-// ==========================
-// DEFINE ROUTES
-// ==========================
+// ==========================================
+// 📈 EXECUTIVE REPORTS & ANALYTICS
+// ==========================================
 
-// Get high-level stats for dashboard cards
-router.get("/stats", authenticateToken, getReportStats);
+/**
+ * @desc High-level stats and Predictive Analytics
+ * @module "Time Allowance Computation (GCTA/TASTM)"
+ * @permission "canapprove" (Restricts to Admin & Warden)
+ */
 
-// Get the table data for the monthly report preview
-router.get("/summary", authenticateToken, getGeneralSummary);
-router.get('/predictive', authenticateToken, getPredictiveReport);
+router.get("/stats", 
+    authenticateToken, 
+    authorize("Time Allowance Computation (GCTA/TASTM)", "canapprove"), 
+    getReportStats
+);
+
+router.get("/summary", 
+    authenticateToken, 
+    authorize("Time Allowance Computation (GCTA/TASTM)", "canapprove"), 
+    getGeneralSummary
+);
+
+router.get('/predictive', 
+    authenticateToken, 
+    authorize("Time Allowance Computation (GCTA/TASTM)", "canapprove"), 
+    getPredictiveReport
+);
+
+
+router.post('/audit-export', 
+    authenticateToken, 
+    authorize("Time Allowance Computation (GCTA/TASTM)", "canview"), 
+    auditReportExport
+);
 module.exports = router;

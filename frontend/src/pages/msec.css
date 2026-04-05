@@ -498,3 +498,101 @@
     cursor: not-allowed;
     background: #f8fafc;
 }
+
+/* --- MSEC Table Enhancements --- */
+
+.msec-table th {
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.025em;
+  padding: 12px 15px;
+}
+
+.credit-action-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+  max-width: 100px;
+}
+
+/* Button Styling */
+.btn-mini-void, .btn-mini-enable {
+  background: white;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.btn-mini-void:hover {
+  background: #fff1f2;
+  border-color: #fecaca;
+  transform: scale(1.1);
+}
+
+.btn-mini-enable:hover {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  transform: scale(1.1);
+}
+
+/* Status Pill Styling */
+.msec-status-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.status-pill {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 800;
+  display: inline-block;
+  width: fit-content;
+}
+
+.pill-active {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.pill-voided {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Voided Text Effect */
+.void-text {
+  text-decoration: line-through;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.row-voided {
+  background-color: #f8fafc;
+}
+
+.lock-icon-text {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+}

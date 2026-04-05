@@ -2,12 +2,22 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API_BASE_URL from "../apiConfig";
 import "./editPdl.css";
+import { usePermissions } from "../hooks/usePermission";
+import { 
+  ChevronLeft, Gavel, Search, Pencil, Camera, 
+  Lock, Unlock, ShieldCheck, Fingerprint, Calendar, 
+  Scale, AlertTriangle, Save, Archive, Info, 
+  CheckCircle2, XCircle, AlertCircle, RefreshCw,
+  Plus, History, ClipboardCheck
+} from 'lucide-react';
 
 const EditPdl = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, isAdmin, canDo } = usePermissions();
 
- 
+  console.log("Am I Admin?", isAdmin);
+
  const [formData, setFormData] = useState({
     // 1. Personal Info
     first_name: "", 
@@ -629,69 +639,53 @@ useEffect(() => {
 
   
 
-  return (
-    <div className="edit-pdl-scope">
-      <div className="edit-container">
-        {/* 1. TOP NAVIGATION HEADER */}
-        <header className="edit-header">
-          <button className="btn-back" onClick={() => navigate(-1)}>Back</button>
-          <div className="header-text">
-            <h2>⚖️ Judicial Transition & Migration Entry</h2>
-            <p>Input legacy data for {formData.last_name}, {formData.first_name}</p>
-          </div>
-        </header>
+return (
+  <div className="edit-pdl-scope">
+    <div className="edit-container">
+      
+      {/* 1. TOP NAVIGATION HEADER */}
+      <header className="edit-header">
+        <button className="btn-back" onClick={() => navigate(-1)}>
+          <ChevronLeft size={18} /> Back
+        </button>
+        <div className="header-text">
+          <h2>
+            {isAdmin ? <Gavel size={24} className="header-icon-inline" /> : <Search size={24} className="header-icon-inline" />} 
+            {isAdmin ? " Judicial Transition & Migration Entry" : " PDL Judicial Review"}
+          </h2>
+          <p>{isAdmin ? "Edit record for" : "Viewing record for"} <strong>{formData.last_name}, {formData.first_name}</strong></p>
+        </div>
+      </header>
 
-        <div className="edit-grid">
-          {/* 2. LEFT COLUMN: IDENTITY CARD */}
-          <div className="card identity-card">
+      <div className="edit-grid">
+        {/* 2. LEFT COLUMN: IDENTITY CARD */}
+        <div className="card identity-card">
           <div className="image-wrapper">
-            {previewUrl ? (
-              <>
-                <img
-                  src={previewUrl}
-                  alt="Profile"
-                  className="profile-img"
-                  onError={(e) => { e.target.src = DEFAULT_AVATAR; }}
-                />
-                <label htmlFor="pdl-picture-input" className="change-photo-btn" title="Change photo">
-                  ✏️
-                  <input
-                    id="pdl-picture-input"
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={handleImageUpload}
-                  />
-                </label>
-              </>
-            ) : (
-              <>
-                <img
-                  src={DEFAULT_AVATAR}
-                  alt="Profile"
-                  className="profile-img"
-                />
-                <label htmlFor="pdl-picture-input" className="change-photo-btn" title="Add photo">
-                  📷
-                  <input
-                    id="pdl-picture-input"
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={handleImageUpload}
-                  />
-                </label>
-              </>
-            )}
+            <img
+              src={previewUrl || DEFAULT_AVATAR}
+              alt="Profile"
+              className="profile-img"
+              onError={(e) => { e.target.src = DEFAULT_AVATAR; }}
+            />
+            <label htmlFor="pdl-picture-input" className="change-photo-btn" title={previewUrl ? "Change photo" : "Add photo"}>
+              {previewUrl ? <Pencil size={14} /> : <Camera size={14} />}
+              <input
+                id="pdl-picture-input"
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleImageUpload}
+              />
+            </label>
 
             <div className={`status-badge-side status-${formData.pdl_status?.toLowerCase()}`}>
-              {formData.pdl_status === "Sentenced" ? "⚖️ CONVICTED" :
-              formData.pdl_status === "Released" ? "✅ RELEASED" : "⏳ DETAINEE"}
+              {formData.pdl_status === "Sentenced" ? <><Scale size={12} /> CONVICTED</> :
+               formData.pdl_status === "Released" ? <><CheckCircle2 size={12} /> RELEASED</> : <><History size={12} /> DETAINEE</>}
             </div>
 
             <div className="rfid-tag-locked">
-              <small>🔒 SECURE RFID TAG</small>
-              <span>{formData.rfid_number || "---"}</span>
+              <small><Lock size={10} /> SECURE RFID TAG</small>
+              <span><Fingerprint size={14} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> {formData.rfid_number || "---"}</span>
             </div>
           </div>
 
@@ -700,16 +694,18 @@ useEffect(() => {
             <p className="jail-id">Meycauayan Jail ID: #{id}</p>
 
             <div className="specs">
-              <button
-                className={`edit-specs-btn ${isEditing ? "editing" : ""}`}
-                onClick={() => setIsEditing(prev => !prev)}
-              >
-                {isEditing ? "✅ Done" : "✏️ Edit"}
-              </button>
+              {isAdmin && (
+                <button
+                  className={`edit-specs-btn ${isEditing ? "editing" : ""}`}
+                  onClick={() => setIsEditing(prev => !prev)}
+                >
+                  {isEditing ? <><CheckCircle2 size={14} /> Done</> : <><Pencil size={14} /> Edit Identity</>}
+                </button>
+              )}
 
               <div className="spec">
                 <span>Gender</span>
-                  <strong>{formData.gender}</strong>           
+                <strong>{formData.gender}</strong>          
               </div>
 
               <div className="spec">
@@ -739,7 +735,7 @@ useEffect(() => {
               </div>
 
               <div className="spec">
-                <span>Crime Name</span>
+                <span>Offense</span>
                 {isEditing ? (
                   <input
                     type="text"
@@ -750,512 +746,280 @@ useEffect(() => {
                   <strong>{formData.crime_name || "---"}</strong>
                 )}
               </div>
-
-              <div className="spec">
-                <span>BJMP Admission Date</span>
-                {isEditing ? (
-                  <input
-                    type="date"
-                    value={formData.date_admitted_bjmp ? formData.date_admitted_bjmp.slice(0, 10) : ""}
-                    onChange={(e) => handleFieldChange("date_admitted_bjmp", e.target.value)}
-                  />
-                ) : (
-                  <strong>{formData.date_admitted_bjmp ? new Date(formData.date_admitted_bjmp).toLocaleDateString() : "N/A"}</strong>
-                )}
-              </div>
             </div>
           </div>
-          <button
-            className="submit-btn"
-            onClick={() => handleSubmit()}
-          >
-            💾 Save Changes
-          </button>
-          <button  className="submit-btn" onClick={() => openSubsidiary()}>
-          {formData.isEditingSubsidiary ? "✏️ Edit Active Fine" : "💾 Add New Fine"}
-        </button>
+
+          {isAdmin && (
+            <div className="identity-actions">
+              <button className="submit-btn" onClick={() => handleSubmit()}>
+                <Save size={16} /> Save Identity Changes
+              </button>
+              <button className="submit-btn subsidiary-btn" onClick={() => openSubsidiary()}>
+                {formData.isEditingSubsidiary ? <><Pencil size={16} /> Edit Active Fine</> : <><Plus size={16} /> Add New Fine</>}
+              </button>
+            </div>
+          )}
         </div>
 
-          {/* 3. RIGHT COLUMN: FORM */}
-          <div className="card form-card">
-            <form onSubmit={handleOpenModal}>
-              
-              {/* SECTION: SYSTEM MIGRATION LEDGER */}
+        {/* 3. RIGHT COLUMN: FORM */}
+        <div className="card form-card">
+          <form onSubmit={handleOpenModal}>
+            
+            {/* SECTION: SYSTEM MIGRATION LEDGER */}
             <div className="section-header migration-header">
-  <div className="title-group">
-    <h3>⚙️ System Migration Ledger</h3>
-    {/* 🎯 Master Status Badge */}
-    {formData.isMigrationLocked ? (
-      <span className="badge badge-locked">🔒 System Finalized</span>
-    ) : (
-      <span className="badge badge-open">🔓 Pending Entry</span>
-    )}
-  </div>
-
-  <button 
-    type="button" 
-    className={`btn-lock-toggle ${isUnlocked ? 'unlocked' : ''} ${formData.isMigrationLocked ? 'system-disabled' : ''}`} 
-    onClick={handleLockToggle}
-    // 🛡️ Master Rule: If the system locked it, the button is dead.
-    disabled={formData.isMigrationLocked}
-  >
-    {formData.isMigrationLocked ? "System Locked" : (isUnlocked ? "🔓 Close Manual Entry" : "🔒 Unlock Manual Entry")}
-  </button>
-</div>
-
-{/* 🚩 Integrity Banner */}
-{(formData.isMigrationLocked || formData.isTastmLocked || formData.isGctaLocked) && (
-  <div className="migration-lock-banner">
-    <div className="banner-content">
-      <span className="icon">⚖️</span>
-      <div className="text">
-        <strong>Migration Data Locked</strong>
-        <p>The following migration records have been consumed and are now read-only:</p>
-        <div className="lock-indicators">
-          {formData.isTastmLocked && (
-            <span className="lock-badge tastm">
-              🔒 TASTM Migration — Already used by automated sync
-            </span>
-          )}
-          {formData.isGctaLocked && (
-            <span className="lock-badge gcta">
-              🔒 GCTA Migration — Locked by system or legal disqualification
-            </span>
-          )}
-          {!formData.isTastmLocked && !formData.isGctaLocked && formData.isMigrationLocked && (
-            <span className="lock-badge general">
-              🔒 Migration record locked
-            </span>
-          )}
-        </div>
-        <p className="audit-note">
-          Manual edits to migration fields are disabled to maintain the judicial audit trail.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* 🎯 Input Wrapper: Visual dimming when locked */}
-<div className={`input-section migration-fields ${(formData.isMigrationLocked || !isUnlocked) ? 'is-locked' : 'is-editable'}`}>
-  
-  {/* --- GCTA FIELD --- */}
-  <div className={`field ${formData.isGctaLocked ? 'locked-field' : ''}`}>
-    <label>
-      Total GCTA Credits (Days) 
-      {formData.isGctaLocked && <span className="lock-icon">🔒</span>}
-    </label>
-    <input 
-      type="number" 
-      name="gcta_days" 
-      placeholder="0"
-      value={formData.gcta_days} 
-      onChange={handleChange} 
-      // 🛡️ Lock logic: must be toggled ON and system must NOT have locked it
-      disabled={!isUnlocked || formData.isGctaLocked} 
-    />
-  </div>
-
-  <div className="tastm-migration-group">
-    {/* --- TASTM DAYS --- */}
-    <div className={`field ${formData.isTastmLocked ? 'locked-field' : ''}`}>
-      <label>
-        TASTM Credits (Days) 
-        {formData.isTastmLocked && <span className="lock-icon">🔒</span>}
-      </label>
-      <input 
-        type="number" 
-        name="tastm_days" 
-        placeholder="0"
-        value={formData.tastm_days} 
-        onChange={handleChange} 
-        disabled={!isUnlocked || formData.isTastmLocked} 
-      />
-    </div>
-    
-    {/* --- TASTM HOURS --- */}
-    <div className={`field ${formData.isTastmLocked ? 'locked-field' : ''}`}>
-      <label>
-        TASTM Balance (Hours) 
-        {formData.isTastmLocked && <span className="lock-icon">🔒</span>}
-      </label>
-      <input 
-        type="number" 
-        name="tastm_hours" 
-        placeholder="0.00"
-        value={formData.tastm_hours} 
-        onChange={handleChange} 
-        disabled={!isUnlocked || formData.isTastmLocked} 
-      />
-    </div>
-  </div>
-</div>
-
-              <hr className="section-divider" />
-
-              {/* SECTION: JUDICIAL RECORDS */}
-             <div className="section-header">
-                <h3>📂 Judicial Records</h3>
-                
-                {/* 🎯 Updated Condition: 
-                    Show the button if we are EDITING an existing PDL (id exists)
-                    OR if there's already data saved.
-                */}
-                {(id || formData.date_commited_pnp || formData.sentence_years > 0) && (
-                  <button 
-                    type="button" 
-                    className={`btn-lock-toggle ${isJudicialUnlocked ? 'unlocked' : ''}`} 
-                    onClick={handleJudicialLockToggle}
-                  >
-                    {isJudicialUnlocked ? "🔓 Judicial Override Active" : "🔒 Unlock Judicial Entry"}
-                  </button>
+              <div className="title-group">
+                <h3><ShieldCheck size={20} /> System Migration Ledger</h3>
+                {formData.isMigrationLocked ? (
+                  <span className="badge badge-locked"><Lock size={10} /> Finalized</span>
+                ) : (
+                  <span className="badge badge-open"><Unlock size={10} /> Pending</span>
                 )}
               </div>
 
-              <div className={`judicial-input-group ${(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked ? 'disabled' : ''}`}>
-                <div className="field status-field">
-                  <label>Update Judicial Status</label>
-                  <select 
-                    name="pdl_status" 
-                    value={formData.pdl_status} 
-                    onChange={handleChange}
-                    disabled={(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked}
-                  >
-                    {getAllowedStatuses(formData.originalStatus).map((status) => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                </div>
+              {isAdmin && (
+                <button 
+                  type="button" 
+                  className={`btn-lock-toggle ${isUnlocked ? 'unlocked' : ''} ${formData.isMigrationLocked ? 'system-disabled' : ''}`} 
+                  onClick={handleLockToggle}
+                  disabled={formData.isMigrationLocked}
+                >
+                  {formData.isMigrationLocked ? <><Lock size={14} /> Locked</> : (isUnlocked ? <><Unlock size={14} /> Close Entry</> : <><Lock size={14} /> Unlock Entry</>)}
+                </button>
+              )}
+            </div>
 
-
-                {formData.pdl_status === "Detained" && (
-                 <div className="field">
-                  <label>PNP Committal Date</label>
-                  <input 
-                    type="date" 
-                    name="date_commited_pnp" 
-                    value={formData.date_commited_pnp || ""} 
-                    onChange={handleChange} 
-                    disabled={!isJudicialUnlocked}
-                  />
-                </div>
-                )}
-        
-                {formData.pdl_status === "Sentenced" && (
-                  
-                  <div className="field">
-                      <div className="field">
-                    <label>PNP Committal Date</label>
-                    <input 
-                      type="date" 
-                      name="date_commited_pnp" 
-                      value={formData.date_commited_pnp || ""} 
-                      onChange={handleChange} 
-                      disabled={!isJudicialUnlocked}
-                    />
-                  </div>
-
-                    <div className="field highlight-field">
-                    <label className="text-blue-700 font-bold">Date of Final Judgment (Conviction Date)</label>
-                    <input 
-                      type="date" 
-                      name="date_of_final_judgment" 
-                      value={formData.date_of_final_judgment || ""} 
-                      onChange={handleChange} 
-                      disabled={!isJudicialUnlocked}
-                      required={formData.pdl_status === "Sentenced"}
-                    />
-                  </div>
-                  
-                    <label>Court-Ordered Sentence Duration</label>
-                    <div className="triple-input">
-                      <div className="unit-input">
-                        <input type="number" name="sentence_years" value={formData.sentence_years} onChange={handleChange} 
-                        disabled={!isJudicialUnlocked} />
-                        <span>Years</span>
-                      </div>
-                      <div className="unit-input">
-                        <input type="number" name="sentence_months" value={formData.sentence_months} onChange={handleChange} 
-                        disabled={!isJudicialUnlocked} />
-                        <span>Months</span>
-                      </div>
-                      <div className="unit-input">
-                        <input type="number" name="sentence_days" value={formData.sentence_days} onChange={handleChange} 
-                        disabled={!isJudicialUnlocked}/>
-                        <span>Days</span>
-                      </div>
+            {/* 🚩 Integrity Banner */}
+            {(formData.isMigrationLocked || formData.isTastmLocked || formData.isGctaLocked) && (
+              <div className="migration-lock-banner">
+                <div className="banner-content">
+                  <AlertTriangle size={24} color="#dd6b20" />
+                  <div className="text">
+                    <strong>Migration Data Locked</strong>
+                    <p>Specific migration records have been consumed by the automated tracking system:</p>
+                    <div className="lock-indicators">
+                      {formData.isTastmLocked && <span className="lock-badge tastm"><Lock size={10} /> TASTM baseline consumed</span>}
+                      {formData.isGctaLocked && <span className="lock-badge gcta"><Lock size={10} /> GCTA baseline locked</span>}
                     </div>
-                    
-
-                   <div className="field disqualification-toggle">
-  <div className="toggle-container">
-    <label htmlFor="is_legally_disqualified">
-      Legally Disqualified (RA 10592 Exclusions)?
-    </label>
-    <input 
-      id="is_legally_disqualified"
-      type="checkbox" 
-      name="is_legally_disqualified"
-      className="large-checkbox" /* 🎯 Target this class */
-      checked={formData.is_legally_disqualified || false}
-      onChange={(e) => handleChange({
-        target: { name: 'is_legally_disqualified', value: e.target.checked }
-      })}
-      disabled={!isJudicialUnlocked}
-    />
-  </div>
-  {formData.is_legally_disqualified && (
-    <p className="warning-text">
-      ⚠️ Credits earned during detention will be VOIDED upon saving.
-    </p>
-  )}
-</div>
                   </div>
-                )}
+                </div>
+              </div>
+            )}
 
-               {formData.pdl_status === "Released" && (
-                <div className="field-group"> {/* Use a group container instead of nested 'field' classes */}
-                  
+            <div className={`input-section migration-fields ${(formData.isMigrationLocked || !isUnlocked) ? 'is-locked' : 'is-editable'}`}>
+              <div className={`field ${formData.isGctaLocked ? 'locked-field' : ''}`}>
+                <label>Total GCTA Credits (Days) {formData.isGctaLocked && <Lock size={12} className="lock-icon" />}</label>
+                <input type="number" name="gcta_days" value={formData.gcta_days} onChange={handleChange} disabled={!isUnlocked || formData.isGctaLocked} />
+              </div>
+
+              <div className="tastm-migration-group">
+                <div className={`field ${formData.isTastmLocked ? 'locked-field' : ''}`}>
+                  <label>TASTM Credits (Days) {formData.isTastmLocked && <Lock size={12} className="lock-icon" />}</label>
+                  <input type="number" name="tastm_days" value={formData.tastm_days} onChange={handleChange} disabled={!isUnlocked || formData.isTastmLocked} />
+                </div>
+                <div className={`field ${formData.isTastmLocked ? 'locked-field' : ''}`}>
+                  <label>TASTM Balance (Hours) {formData.isTastmLocked && <Lock size={12} className="lock-icon" />}</label>
+                  <input type="number" name="tastm_hours" value={formData.tastm_hours} onChange={handleChange} disabled={!isUnlocked || formData.isTastmLocked} />
+                </div>
+              </div>
+            </div>
+
+            <hr className="section-divider" />
+
+            {/* SECTION: JUDICIAL RECORDS */}
+            <div className="section-header">
+              <h3><Archive size={20} /> Judicial Records</h3>
+              {isAdmin && (id || formData.date_commited_pnp || formData.sentence_years > 0) && (
+                <button 
+                  type="button" 
+                  className={`btn-lock-toggle ${isJudicialUnlocked ? 'unlocked' : ''}`} 
+                  onClick={handleJudicialLockToggle}
+                >
+                  {isJudicialUnlocked ? <><Unlock size={14} /> Override Active</> : <><Lock size={14} /> Unlock Records</>}
+                </button>
+              )}
+            </div>
+
+            <div className={`judicial-input-group ${(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked ? 'disabled' : ''}`}>
+              <div className="field status-field">
+                <label>Current Judicial Status</label>
+                <select name="pdl_status" value={formData.pdl_status} onChange={handleChange} disabled={(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked}>
+                  {getAllowedStatuses(formData.originalStatus).map((status) => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+
+              {formData.pdl_status !== "Released" ? (
+                <>
                   <div className="field">
                     <label>PNP Committal Date</label>
-                    <input 
-                      type="date" 
-                      name="date_commited_pnp" 
-                      value={formData.date_commited_pnp || ""} 
-                      onChange={handleChange} 
-                      /* Logic: Disable if Status is Released OR 
-                        (if data exists and judicial section isn't explicitly unlocked)
-                      */
-                      disabled={
-                        formData.pdl_status === "Released" || 
-                        ((formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked)
-                      } 
-                    />
+                    <input type="date" name="date_commited_pnp" value={formData.date_commited_pnp || ""} onChange={handleChange} disabled={!isJudicialUnlocked} />
                   </div>
-
+                  {formData.pdl_status === "Sentenced" && (
+                    <>
+                      <div className="field highlight-field">
+                        <label className="judicial-label-alert">Date of Final Judgment (Conviction)</label>
+                        <input type="date" name="date_of_final_judgment" value={formData.date_of_final_judgment || ""} onChange={handleChange} disabled={!isJudicialUnlocked} required />
+                      </div>
+                      <label>Court-Ordered Sentence Duration</label>
+                      <div className="triple-input">
+                        <div className="unit-input"><input type="number" name="sentence_years" value={formData.sentence_years} onChange={handleChange} disabled={!isJudicialUnlocked} /><span>Yrs</span></div>
+                        <div className="unit-input"><input type="number" name="sentence_months" value={formData.sentence_months} onChange={handleChange} disabled={!isJudicialUnlocked} /><span>Mos</span></div>
+                        <div className="unit-input"><input type="number" name="sentence_days" value={formData.sentence_days} onChange={handleChange} disabled={!isJudicialUnlocked} /><span>Days</span></div>
+                      </div>
+                      <div className="field disqualification-toggle">
+                        <div className="toggle-container">
+                          <label htmlFor="is_legally_disqualified">Legally Disqualified (RA 10592)?</label>
+                          <input id="is_legally_disqualified" type="checkbox" name="is_legally_disqualified" className="large-checkbox" checked={formData.is_legally_disqualified || false} onChange={(e) => handleChange({ target: { name: 'is_legally_disqualified', value: e.target.checked } })} disabled={!isJudicialUnlocked} />
+                        </div>
+                        {formData.is_legally_disqualified && <p className="warning-text"><AlertCircle size={14} /> Credits earned during detention will be VOIDED.</p>}
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="field-group">
                   <div className="field">
-                    <label>Actual Release Date</label>
-                    <input 
-                      type="date" 
-                      name="actual_release_date" 
-                      value={formData.actual_release_date || ""} 
-                      onChange={handleChange} 
-                      /* FIX: This should be OPEN when status is "Released" so you can set the date!
-                      */
-                      disabled={(formData.actual_release_date && !isJudicialUnlocked)} 
-                    />
+                    <label>PNP Committal Date</label>
+                    <input type="date" name="date_commited_pnp" value={formData.date_commited_pnp || ""} disabled />
                   </div>
-
+                  <div className="field highlight-field">
+                    <label>Actual Release Date</label>
+                    <input type="date" name="actual_release_date" value={formData.actual_release_date || ""} onChange={handleChange} disabled={formData.actual_release_date && !isJudicialUnlocked} />
+                  </div>
                 </div>
               )}
-              </div>
+            </div>
 
+            {isAdmin ? (
               <button type="submit" className="btn-save-finalize">
-                Confirm Adjustments & Finalize Baseline
+                <ClipboardCheck size={20} /> Confirm Adjustments & Finalize Baseline
               </button>
-            </form>
-          </div>
+            ) : (
+              <div className="view-only-notice">
+                <Info size={20} />
+                <p><strong>Read-Only Access:</strong> Sentence and status modifications are restricted to System Administrators.</p>
+              </div>
+            )}
+          </form>
         </div>
-      </div>
-
-     {modal.show && (
-  <div className="pdl-modal-overlay">
-    <div className={`pdl-modal-card ${modal.type}`}>
-      <div className="modal-icon">
-        {modal.type === "success" ? "✅" : modal.type === "error" ? "❌" : "⚠️"}
-      </div>
-      <h3>{modal.title}</h3>
-      <p>{modal.message}</p>
-      
-      {/* 🎯 CALL THE HANDLER HERE */}
-      <button className="modal-close-btn" onClick={handleCloseModal}>
-        Acknowledge
-      </button>
-    </div>
-  </div>
-)}
-
-  {subsidiary && (
-  <div className="subsidiary-overlay">
-    <div className="subsidiary-card">
-      <div className="edit-modal-header">
-        <h3>💰 Subsidiary Imprisonment Fine</h3>
-      </div>
-
-      <div className="modal-body">
-        <div className="input-group">
-          <label>Total Fine (PHP)</label>
-          <input 
-            type="number" 
-            placeholder="e.g. 50000"
-            // ✅ Make sure this matches your state
-            value={subsidiaryForm.fine || ""} 
-            onChange={(e) => setSubsidiaryForm({...subsidiaryForm, fine: e.target.value})}
-          />
-        </div>
-
-        <div className="input-group">
-          <label>Minimum Wage / Daily Rate (PHP)</label>
-          <input 
-            type="number" 
-            placeholder="e.g. 1000"
-            // ✅ Make sure this matches your state
-            value={subsidiaryForm.rate || ""}
-            onChange={(e) => setSubsidiaryForm({...subsidiaryForm, rate: e.target.value})}
-          />
-        </div>
-
-        {/* 📊 THE AUTOMATED CHECK */}
-        {subsidiaryForm.fine > 0 && subsidiaryForm.rate > 0 && (
-          <div className="calculation-preview" style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginTop: '10px' }}>
-            <p>Calculated Days: <strong>{Math.floor(subsidiaryForm.fine / subsidiaryForm.rate)} days</strong></p>
-            <p>Legal Cap (1/3 of Sentence): <strong>{calculateLegalLimit()} days</strong></p>
-            <hr />
-            <p className="final-days" style={{ color: '#d9534f', fontSize: '1.1rem' }}>
-              Final Days Added: <strong>
-                {Math.min(Math.floor(subsidiaryForm.fine / subsidiaryForm.rate), calculateLegalLimit())} Days
-              </strong>
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div className="modal-footer">
-        {/* ✅ Don't forget to link the close/cancel function */}
-        <button onClick={() => setSubsidiary(false)}>Cancel</button>
-     <button 
-        className="confirm-btn" 
-        onClick={handleSaveSubsidiary} // 🎯 Attach the logic here
-      >
-        💾 Save Fine
-      </button>
       </div>
     </div>
-  </div>
-)}
 
-{showSubConfirm && (
-        <div className="modal-overlay">
-          <div className="modal-content warning-border">
-            <div className="edit-modal-header"><h3>⚖️ Confirm Subsidiary Entry</h3></div>
-            <div className="modal-body">
-              <p>Are you sure you want to {formData.isEditingSubsidiary ? "update" : "add"} this fine?</p>
-              <p>This will add <strong>{Math.min(Math.floor(subsidiaryForm.fine / subsidiaryForm.rate), calculateLegalLimit())} days</strong> to the PDL's incarceration time.</p>
+    {/* --- MODALS --- */}
+
+    {/* 🎯 STATUS MODAL (Success/Error) */}
+    {modal.show && (
+      <div className="pdl-modal-overlay">
+        <div className={`pdl-modal-card ${modal.type}`}>
+          <div className="modal-icon">
+            {modal.type === "success" ? <CheckCircle2 size={48} color="#10b981" /> : modal.type === "error" ? <XCircle size={48} color="#ef4444" /> : <AlertTriangle size={48} color="#f59e0b" />}
+          </div>
+          <h3>{modal.title}</h3>
+          <p>{modal.message}</p>
+          <button className="modal-close-btn" onClick={handleCloseModal}>Acknowledge</button>
+        </div>
+      </div>
+    )}
+
+    {/* 💰 SUBSIDIARY MODAL */}
+    {subsidiary && (
+      <div className="subsidiary-overlay">
+        <div className="subsidiary-card">
+          <div className="edit-modal-header">
+            <h3><Scale size={20} /> Subsidiary Imprisonment Fine</h3>
+          </div>
+          <div className="modal-body">
+            <div className="input-group">
+              <label>Total Fine (PHP)</label>
+              <input type="number" placeholder="50000" value={subsidiaryForm.fine || ""} onChange={(e) => setSubsidiaryForm({...subsidiaryForm, fine: e.target.value})} />
             </div>
-            <div className="modal-actions">
-              <button className="btn-modal-cancel" onClick={() => setShowSubConfirm(false)}>No, Go Back</button>
-              <button className="btn-modal-confirm" onClick={confirmSaveSubsidiary}>Yes, Finalize Fine</button>
+            <div className="input-group">
+              <label>Daily Rate (PHP)</label>
+              <input type="number" placeholder="1000" value={subsidiaryForm.rate || ""} onChange={(e) => setSubsidiaryForm({...subsidiaryForm, rate: e.target.value})} />
             </div>
+            {subsidiaryForm.fine > 0 && subsidiaryForm.rate > 0 && (
+              <div className="calculation-preview">
+                <p>Calculated Days: <strong>{Math.floor(subsidiaryForm.fine / subsidiaryForm.rate)} days</strong></p>
+                <p>Legal Cap (1/3 of Sentence): <strong>{calculateLegalLimit()} days</strong></p>
+                <hr />
+                <p className="final-days">Added Jail Time: <strong>{Math.min(Math.floor(subsidiaryForm.fine / subsidiaryForm.rate), calculateLegalLimit())} Days</strong></p>
+              </div>
+            )}
+          </div>
+          <div className="modal-footer">
+            <button className="cancel-btn" onClick={() => setSubsidiary(false)}>Cancel</button>
+            <button className="confirm-btn" onClick={handleSaveSubsidiary}><Save size={16} /> Save Fine</button>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
-      {/* 🛡️ MODAL A: MIGRATION LOCK WARNING */}
-      {showLockWarning && (
-        <div className="modal-overlay">
-          <div className="modal-content warning-border">
-            <div className="edit-modal-header"><h3>⚠️ Migration Data Warning</h3></div>
-            <div className="modal-body">
-              <p>Unlocking will allow manual modification of established GCTA/TASTM baselines.</p>
-            </div>
-            <div className="modal-actions">
-              <button className="btn-modal-cancel" onClick={() => setShowLockWarning(false)}>Cancel</button>
-              <button className="btn-modal-confirm" onClick={() => { setIsUnlocked(true); setShowLockWarning(false); }}>Unlock</button>
-            </div>
+    {/* 🔒 UNLOCK WARNINGS & CONFIRMATIONS */}
+    {showLockWarning && (
+      <div className="modal-overlay">
+        <div className="modal-content warning-border">
+          <div className="edit-modal-header"><h3><AlertTriangle size={20} /> Migration Warning</h3></div>
+          <div className="modal-body"><p>Unlocking will allow manual modification of established GCTA/TASTM baselines.</p></div>
+          <div className="modal-actions">
+            <button className="btn-modal-cancel" onClick={() => setShowLockWarning(false)}>Cancel</button>
+            <button className="btn-modal-confirm" onClick={() => { setIsUnlocked(true); setShowLockWarning(false); }}>Authorize Unlock</button>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
-      {/* 🛡️ MODAL B: JUDICIAL LOCK WARNING */}
-      {showJudicialLockWarning && (
-        <div className="modal-overlay">
-          <div className="modal-content warning-border">
-            <div className="edit-modal-header"><h3>🚨 Judicial Record Alert</h3></div>
-            <div className="modal-body">
-              <p>You are attempting to unlock **Court-Mandated Information**.</p>
-              <p>Modifying the Committal Date or Sentence Duration will force a recalculation of the release analytics.</p>
-            </div>
-            <div className="modal-actions">
-              <button className="btn-modal-cancel" onClick={() => setShowJudicialLockWarning(false)}>Cancel</button>
-              <button className="btn-modal-danger" onClick={() => { setIsJudicialUnlocked(true); setShowJudicialLockWarning(false); }}>Authorize Edit</button>
-            </div>
+    {showJudicialLockWarning && (
+      <div className="modal-overlay">
+        <div className="modal-content danger-border">
+          <div className="edit-modal-header"><h3><ShieldCheck size={20} /> Judicial Override</h3></div>
+          <div className="modal-body">
+            <p>Modifying the Committal Date or Sentence Duration will force a recalculation of release analytics.</p>
+          </div>
+          <div className="modal-actions">
+            <button className="btn-modal-cancel" onClick={() => setShowJudicialLockWarning(false)}>Cancel</button>
+            <button className="btn-modal-danger" onClick={() => { setIsJudicialUnlocked(true); setShowJudicialLockWarning(false); }}>Authorize Edit</button>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
-      {/* 🛡️ MODAL C: SAVE CONFIRMATION */}
-      {showModal && (
-    <div className="modal-overlay">
+    {showModal && (
+      <div className="modal-overlay">
         <div className={`modal-content ${isUnlocked || isJudicialUnlocked ? 'tamper-danger' : ''}`}>
-            <div className="edit-modal-header">
-                <h3>{formData.pdl_status === "Released" ? "Confirm PDL Release" : "Confirm Record Update"}</h3>
-            </div>
-            
-            <div className="modal-body">
-                <p>Finalize changes for <strong>{formData.last_name}, {formData.first_name}</strong>?</p>
-                
-                {formData.pdl_status === "Released" ? (
-                    <div className="release-warning">
-                        <p>⚠️ <strong>Action Required:</strong> This will archive the current judicial record and clear active credits. This action is permanent.</p>
-                    </div>
-                ) : (
-                    !isUnlocked && (
-                        <p className="helper-text">
-                            ⚠️ <strong>Manual Override is locked.</strong> Credit fields (GCTA/TASTM) will not be saved. Unlock Manual Entry first to persist credit changes.
-                        </p>
-                    )
-                )}
-            </div>
-
-            <div className="modal-actions">
-                <button className="btn-modal-cancel" onClick={() => setShowModal(false)}>Cancel</button>
-                
-                {/* 🚦 DECISION POINT: Path selection based on Status */}
-                {formData.pdl_status === "Released" ? (
-                    <button className="btn-modal-confirm release-style" onClick={confirmRelease}>
-                        Finalize & Archive Release
-                    </button>
-                ) : (
-                    <button className="btn-modal-confirm" onClick={confirmUpdate}>
-                        Confirm Update
-                    </button>
-                )}
-            </div>
+          <div className="edit-modal-header"><h3>{formData.pdl_status === "Released" ? <><Archive size={18} /> Confirm Release</> : <><Save size={18} /> Confirm Update</>}</h3></div>
+          <div className="modal-body">
+            <p>Finalize changes for <strong>{formData.last_name}, {formData.first_name}</strong>?</p>
+            {formData.pdl_status === "Released" && <div className="release-warning"><p><AlertCircle size={14} /> <strong>Warning:</strong> This will archive the record and clear active credits.</p></div>}
+          </div>
+          <div className="modal-actions">
+            <button className="btn-modal-cancel" onClick={() => setShowModal(false)}>Cancel</button>
+            {formData.pdl_status === "Released" ? (
+              <button className="btn-modal-confirm release-style" onClick={confirmRelease}><Archive size={16} /> Finalize Archive</button>
+            ) : (
+              <button className="btn-modal-confirm" onClick={confirmUpdate}><Save size={16} /> Save Record</button>
+            )}
+          </div>
         </div>
-    </div>
-)}
+      </div>
+    )}
 
-
-      {showValidationError && (
-  <div className="modal-overlay">
-    <div className="modal-content danger-border">
-      <div className="edit-modal-header">
-        {/* We can make the title dynamic too if we want */}
-        <h3 className="text-danger">
-            {formData.pdl_status === "Released" ? "🚨 Release Validation Error" : "🚫 Invalid Chronology"}
-        </h3>
+    {showValidationError && (
+      <div className="modal-overlay">
+        <div className="modal-content danger-border">
+          <div className="edit-modal-header"><h3 className="text-danger"><XCircle size={20} /> Validation Error</h3></div>
+          <div className="modal-body">
+            <p className="validation-text">{validationMessage}</p>
+            <p className="helper-text"><Info size={12} /> Verify all dates and ensure Manual Entry locks are closed before saving.</p>
+          </div>
+          <div className="modal-actions">
+            <button className="btn-modal-error" onClick={() => setShowValidationError(false)}>Review Input</button>
+          </div>
+        </div>
       </div>
-      <div className="modal-body">
-        <p className="validation-text">{validationMessage}</p>
-        <p className="helper-text">
-          {validationMessage.includes("Unlocked") 
-            ? "Please click the Lock button in the header of the section to finalize your edits before saving."
-            : (formData.pdl_status === "Released" 
-                ? "Judicial protocol requires an actual release date that is not in the future." 
-                : "The system requires that the PNP Committal occurs before or on the same day as BJMP Admission.")
-          }
-        </p>
-      </div>
-      <div className="modal-actions">
-       <button className="btn-modal-error" onClick={() => setShowValidationError(false)}>
-          {getValidationErrorButtonText()}
-        </button>
-      </div>
-    </div>
+    )}
   </div>
-)}
-    </div>
-  );
+);
 };
 
 export default EditPdl;

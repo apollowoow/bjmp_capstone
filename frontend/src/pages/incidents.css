@@ -246,3 +246,100 @@ textarea { height: 100px; resize: none; }
 .inc-modal-footer { display: flex; gap: 1rem; margin-top: 2rem; }
 .inc-btn-no { flex: 1; padding: 12px; background: #e2e8f0; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
 .inc-btn-yes { flex: 1.5; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+/* Layout Alignment & Icons */
+.inc-header-icon {
+  margin-right: 15px;
+  color: #ef4444;
+}
+
+.inc-h1 {
+  display: flex;
+  align-items: center;
+}
+
+.inc-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Search Box Tweaks */
+.inc-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.inc-search-icon-inner {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.inc-search-box input {
+  padding-left: 40px !important;
+}
+
+.inc-btn-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Status Badges */
+.inc-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Form Icons */
+.inc-relative-input {
+  position: relative;
+}
+
+.inc-field-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.inc-form-group input[type="date"] {
+  padding-left: 40px !important;
+}
+
+/* Submit & Modal Buttons */
+.inc-btn-submit, .inc-btn-yes, .inc-btn-no {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Spin Animation for Syncing */
+.inc-spin {
+  animation: inc-rotate 1s linear infinite;
+}
+
+@keyframes inc-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Modal Styling Refinement */
+.inc-modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.inc-confirm-box p {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}

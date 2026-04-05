@@ -2,6 +2,12 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import API_BASE_URL from "../apiConfig";
 import "./add.css";
+import { 
+  ClipboardList, Camera, Lock, Wifi, Scale, 
+  RefreshCw, FilePlus, FileText, AlertTriangle, 
+  AlertCircle, CheckCircle2, XCircle, UserPlus,
+  Fingerprint
+} from 'lucide-react'
 
 const Add = () => {
   const navigate = useNavigate();
@@ -276,11 +282,11 @@ const handleRfidKeyDown = (e) => {
     } catch (error) { setMessage("❌ Connection failed."); }
   };
 
-  return (
+ return (
     <div className="pdl-add">
       <header className="pdl-add__header">
         <div className="pdl-add__header-title">
-          <h2>📋 PDL Admission Portal</h2>
+          <h2><ClipboardList size={28} className="pdl-add__header-icon" /> PDL Admission Portal</h2>
           <span className="pdl-add__badge">AI-Enhanced System</span>
         </div>
         <p>Register new PDL and initialize automated time allowance tracking.</p>
@@ -298,7 +304,9 @@ const handleRfidKeyDown = (e) => {
                 <label className="pdl-add__label">PDL Profile Picture</label>
                 <div className="pdl-add__file-wrapper">
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} id="pdl-photo-input" />
-                  <label htmlFor="pdl-photo-input" className="pdl-add__file-button">📸 {selectedFile ? "Change Photo" : "Upload Photo"}</label>
+                  <label htmlFor="pdl-photo-input" className="pdl-add__file-button">
+                    <Camera size={18} /> {selectedFile ? "Change Photo" : "Upload Photo"}
+                  </label>
                 </div>    
               </div>
             </div>
@@ -307,12 +315,16 @@ const handleRfidKeyDown = (e) => {
           <h3 className="pdl-add__section-title">1. Personal Identification</h3>
           <div className="pdl-add__group"><label className="pdl-add__label">First Name</label><input className="pdl-add__input" name="firstName" 
           readOnly={!!recommitId} value={formData.firstName} onChange={handleChange} style={recommitId ? { backgroundColor: "#f1f5f9", cursor: "not-allowed", color: "#64748b" } : {}} required /></div>
+          
           <div className="pdl-add__group"><label className="pdl-add__label">Last Name</label><input className="pdl-add__input" name="lastName" 
           readOnly={!!recommitId} value={formData.lastName} onChange={handleChange} style={recommitId ? { backgroundColor: "#f1f5f9", cursor: "not-allowed", color: "#64748b" } : {}} required /></div>
+          
           <div className="pdl-add__group"><label className="pdl-add__label">Middle Name</label><input className="pdl-add__input" name="middleName" 
           readOnly={!!recommitId} value={formData.middleName} style={recommitId ? { backgroundColor: "#f1f5f9", cursor: "not-allowed", color: "#64748b" } : {}} onChange={handleChange} /></div>
+          
           <div className="pdl-add__group"><label className="pdl-add__label">Date of Birth</label><input type="date" className="pdl-add__input" 
           readOnly={!!recommitId} style={recommitId ? { backgroundColor: "#f1f5f9", cursor: "not-allowed", color: "#64748b" } : {}} name="birthday" value={formData.birthday} onChange={handleChange} required /></div>
+          
           <div className="pdl-add__group">
             <label className="pdl-add__label">Gender</label>
             <select 
@@ -321,7 +333,7 @@ const handleRfidKeyDown = (e) => {
                 value={formData.gender} 
                 onChange={handleChange} 
                 required
-                disabled={!!recommitId} // 🔒 Standard HTML lock
+                disabled={!!recommitId}
                 style={recommitId ? { backgroundColor: "#f1f5f9" } : {}}
               >
                 <option value="Male">Male</option>
@@ -330,30 +342,32 @@ const handleRfidKeyDown = (e) => {
           </div>
           
           <div className="pdl-add__group">
-          <label className="pdl-add__label">
-            RFID Tag Identification {formData.rfidNumber.length === 10 ? "🔒" : "📡"}
-          </label>
-          <div className="pdl-add__rfid-box">
-            <input 
-              className={`pdl-add__input ${
-                formData.rfidNumber.length === 10 ? 'pdl-add__input--success' : ''
-              }`}
-              name="rfidNumber" 
-           
-              value={formData.rfidNumber} 
-              onChange={handleChange}
-              onKeyDown={handleRfidKeyDown}
-              onFocus={handleRfidFocus}
-              placeholder="Hardware Scan Only..." 
-              readOnly={formData.rfidNumber.length === 10} // 🔒 Prevents changes after success
-              autoComplete="off" 
-              required 
-            />
-            <button type="button" className="pdl-add__rfid-reset" onClick={() => setFormData(p => ({...p, rfidNumber: ""}))}>
-              Reset
-            </button>
+            <label className="pdl-add__label pdl-add__rfid-label">
+              RFID Tag Identification {formData.rfidNumber.length === 10 ? <Lock size={14} color="#10b981" /> : <Wifi size={14} className="pdl-add__blink" />}
+            </label>
+            <div className="pdl-add__rfid-box">
+                <div className="pdl-add__input-with-icon">
+                    <Fingerprint size={18} className="pdl-add__rfid-icon-inner" />
+                    <input 
+                    className={`pdl-add__input pdl-add__input--rfid ${
+                        formData.rfidNumber.length === 10 ? 'pdl-add__input--success' : ''
+                    }`}
+                    name="rfidNumber" 
+                    value={formData.rfidNumber} 
+                    onChange={handleChange}
+                    onKeyDown={handleRfidKeyDown}
+                    onFocus={handleRfidFocus}
+                    placeholder="Hardware Scan Only..." 
+                    readOnly={formData.rfidNumber.length === 10}
+                    autoComplete="off" 
+                    required 
+                    />
+                </div>
+              <button type="button" className="pdl-add__rfid-reset" onClick={() => setFormData(p => ({...p, rfidNumber: ""}))}>
+                <RefreshCw size={14} />
+              </button>
+            </div>
           </div>
-        </div>
 
           <h3 className="pdl-add__section-title">2. Legal & Sentence Information</h3>
           <div className="pdl-add__group"><label className="pdl-add__label">Case Number</label><input className="pdl-add__input" name="caseNumber" value={formData.caseNumber} onChange={handleChange} required /></div>
@@ -376,7 +390,7 @@ const handleRfidKeyDown = (e) => {
               </div>
 
               <div className="pdl-add__sentence-panel full-width">
-                <h4>⚖️ Court Mandated Sentence Duration</h4>
+                <h4><Scale size={18} style={{verticalAlign: 'middle', marginRight: '8px'}} /> Court Mandated Sentence Duration</h4>
                 <div className="pdl-add__sentence-grid">
                   <div className="pdl-add__group">
                     <label className="pdl-add__label">Years</label>
@@ -396,23 +410,29 @@ const handleRfidKeyDown = (e) => {
           )}
 
           <button type="submit" className="pdl-add__submit-btn">
-  {recommitId ? "♻️ Finalize Recommitment" : "📝 Register New PDL Record"}
-</button>
-          {message && <div className={`pdl-add__status ${message.includes('❌') ? 'error' : ''}`}>{message}</div>}
+            {recommitId ? <><RefreshCw size={18} /> Finalize Recommitment</> : <><FilePlus size={18} /> Register New PDL Record</>}
+          </button>
+          
+          {message && (
+            <div className={`pdl-add__status ${message.includes('❌') ? 'error' : ''}`}>
+                {message.includes('❌') ? <XCircle size={16} /> : <CheckCircle2 size={16} />} {message}
+            </div>
+          )}
         </form>
       </div>
 
-      
-
-     {showConfirmModal && (
+      {/* --- CONFIRMATION MODAL --- */}
+      {showConfirmModal && (
         <div className="pdl-add__modal-overlay">
           <div className="pdl-add__modal">
-            <div className="pdl-add__modal-icon">📄</div>
+            <div className="pdl-add__modal-icon">
+                <FileText size={48} color="#2563eb" />
+            </div>
             <h3>Confirm Admission</h3>
             
             {formData.warnings && formData.warnings.length > 0 && (
               <div className="pdl-add__warning-box">
-                <p><strong>⚠️ Review Missing Information:</strong></p>
+                <p><strong><AlertTriangle size={14} style={{verticalAlign: 'middle'}} /> Review Missing Information:</strong></p>
                 <ul>
                   {formData.warnings.map((w, i) => (
                     <li key={i} style={{ color: w.includes("Duration") ? "#9a3412" : "inherit" }}>
@@ -433,11 +453,12 @@ const handleRfidKeyDown = (e) => {
         </div>
       )}
       
+      {/* --- ALERT MODAL (ERROR/SCAN) --- */}
       {alertModal.show && (
         <div className="pdl-alert__overlay" style={{display: 'flex', position: 'fixed', zIndex: 9999}}>
           <div className={`pdl-alert__modal pdl-alert__modal--${alertModal.type}`}>
             <div className="pdl-alert__icon">
-              {alertModal.type === 'error' ? '🚫' : '⚠️'}
+              {alertModal.type === 'error' ? <XCircle size={64} color="#ef4444" /> : <AlertCircle size={64} color="#f59e0b" />}
             </div>
             <h3 className="pdl-alert__title">{alertModal.title}</h3>
             <p className="pdl-alert__message">{alertModal.message}</p>
@@ -445,7 +466,6 @@ const handleRfidKeyDown = (e) => {
               className="pdl-alert__close-btn" 
               onClick={() => {
                 setAlertModal({ ...alertModal, show: false });
-                // 🛡️ RESET FIELD ON ACKNOWLEDGE
                 setFormData(prev => ({ ...prev, rfidNumber: "" }));
                 lastKeyTime.current = Date.now();
               }}
@@ -455,10 +475,8 @@ const handleRfidKeyDown = (e) => {
           </div>
         </div>
       )}
-      
-
     </div>
-  );
+);
 };
 
 export default Add;

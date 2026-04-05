@@ -1,5 +1,5 @@
 const pool = require("../db/pool");
-
+const { logAction } = require('../utils/logger'); 
 // 1. 📊 HIGH-LEVEL STATS (For the Dashboard/Report Widgets)
 const getReportStats = async (req, res) => {
   try {
@@ -100,4 +100,41 @@ const getPredictiveReport = async (req, res) => {
   }
 };
 
-module.exports = { getReportStats, getGeneralSummary, getPredictiveReport };
+const auditReportExport = async (req, res) => {
+    const { format, reportType, monthPeriod, recordCount } = req.body;
+    const client = await pool.connect();
+
+    // 🛡️ Metadata
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user.id; 
+
+    try {
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'GENERATE_REPORT',
+            tableName: 'pdl_tbl', // The primary source of report data
+            recordId: null,
+            pdlId: null,
+            details: {
+                message: `User exported a ${format} report.`,
+                report_type: reportType,
+                format: format,
+                period: monthPeriod,
+                total_records: recordCount
+            },
+            ipAddress: clientIp
+        });
+
+        res.status(200).json({ success: true, message: "Export logged." });
+    } catch (err) {
+        console.error("❌ Report Audit Error:", err.message);
+        res.status(500).json({ error: "Failed to log export." });
+    } finally {
+        client.release();
+    }
+};
+
+// Don't forget to export it!
+
+
+module.exports = { getReportStats, getGeneralSummary, getPredictiveReport, auditReportExport };

@@ -298,11 +298,7 @@
 }
 
 /* Optional: Styling the arrow symbol specifically */
-.edit-pdl-scope .btn-back::before {
-  content: "←";
-  font-size: 1.1rem;
-  transition: transform 0.2s ease;
-}
+
 
 .edit-pdl-scope .btn-back:hover::before {
   transform: translateX(-2px);
@@ -910,4 +906,130 @@
 .confirm-btn {
   background: #16a34a; 
   color: white;
+}
+/* 🛡️ Warden's Read-Only Notice */
+.view-only-notice {
+  background-color: #fffbeb; /* Light warm amber */
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b; /* Stronger accent on the left */
+  padding: 16px 20px;
+  margin-top: 25px;
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: slideInUp 0.4s ease-out; /* Smooth entry for that Saturday polish */
+}
+
+.view-only-notice p {
+  margin: 0;
+  color: #92400e; /* Deep brown-amber text for high readability */
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.view-only-notice strong {
+  color: #78350f;
+  font-weight: 700;
+}
+
+/* Optional: Subtle animation to make it feel responsive */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* PDL Identity specific buttons */
+.edit-pdl-scope .identity-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.edit-pdl-scope .subsidiary-btn {
+  background: #f8fafc;
+  color: #1e40af;
+  border: 1.5px solid #dbeafe;
+}
+
+.edit-pdl-scope .subsidiary-btn:hover {
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+/* Modal and Header Icon Alignment */
+.edit-pdl-scope .header-icon-inline {
+  vertical-align: middle;
+  margin-right: 8px;
+  color: #3b82f6;
+}
+
+.edit-pdl-scope .btn-back,
+.edit-pdl-scope .btn-lock-toggle,
+.edit-pdl-scope .btn-save-finalize,
+.edit-pdl-scope .btn-modal-confirm,
+.edit-pdl-scope .btn-modal-danger,
+.edit-pdl-scope .modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.edit-pdl-scope .lock-icon {
+  color: #94a3b8;
+}
+
+/* Judicial Alert Label */
+.edit-pdl-scope .judicial-label-alert {
+  color: #1d4ed8 !important;
+  font-weight: 900 !important;
+}
+
+.edit-pdl-scope .warning-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #b91c1c;
+  font-size: 0.75rem;
+  margin-top: 8px;
+}
+
+/* Release Style specific */
+.edit-pdl-scope .btn-modal-confirm.release-style {
+  background: #10b981 !important;
+}
+
+.edit-pdl-scope .view-only-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.edit-pdl-scope .header-text {
+  display: flex;
+  flex-direction: column; /* 🎯 Stacks the H2 and P vertically */
+  gap: 4px;              /* 🎯 Adds the specific spacing you want */
+}
+
+/* Also, let's make sure the margin doesn't fight the gap */
+.edit-pdl-scope .header-text h2 {
+  margin: 0; 
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px; /* Gap between icon and text inside h2 */
+}
+
+.edit-pdl-scope .header-text p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
 }

@@ -1,6 +1,11 @@
 import React, { useState } from "react";
 import API_BASE_URL from "../apiConfig";
 import "./incidents.css";
+import { 
+  ShieldAlert, Search, User, Lock, CheckCircle2, 
+  Gavel, Calendar, History, Save, XCircle, 
+  AlertTriangle, Info, Clock, UserCheck, RefreshCw
+} from "lucide-react";
 
 const Incidents = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,19 +111,25 @@ const Incidents = () => {
     }
   };
 
-  return (
-    <div className="inc-main-scope">
-      <div className="inc-content-wrapper">
-        <header className="inc-page-header">
-          <h1 className="inc-h1">🚨 Disciplinary Board Encoding</h1>
-          <p className="inc-p">Bulacan MCJ Judicial Ledger - Disciplinary Action Module</p>
-        </header>
+ return (
+  <div className="inc-main-scope">
+    <div className="inc-content-wrapper">
+      {/* 1. PAGE HEADER */}
+      <header className="inc-page-header">
+        <h1 className="inc-h1">
+          <ShieldAlert size={32} className="inc-header-icon" /> 
+          Disciplinary Board Encoding
+        </h1>
+        <p className="inc-p">Bulacan MCJ Judicial Ledger - Disciplinary Action Module</p>
+      </header>
 
-        <div className="inc-card-grid">
-          {/* SEARCH CARD */}
-          <div className="inc-card shadow-sm">
-            <h3 className="inc-card-title">1. Identify PDL</h3>
-            <div className="inc-search-box">
+      <div className="inc-card-grid">
+        {/* 2. SEARCH CARD (LEFT) */}
+        <div className="inc-card shadow-sm">
+          <h3 className="inc-card-title"><Search size={14} /> 1. Identify PDL</h3>
+          <div className="inc-search-box">
+            <div className="inc-input-wrapper">
+              <Search size={18} className="inc-search-icon-inner" />
               <input 
                 type="text" 
                 placeholder="ID, Last Name, or RFID..." 
@@ -126,94 +137,120 @@ const Incidents = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
-              <button onClick={handleSearch} className="inc-btn-search">Search</button>
             </div>
-
-            {pdl && (
-              <div className="inc-pdl-info-card">
-                <div className="inc-avatar-container">
-                    <img src={pdl.pdl_picture || "https://via.placeholder.com/150"} alt="pdl" />
-                </div>
-                <div className="inc-details">
-                    <strong>{pdl.last_name}, {pdl.first_name}</strong>
-                    <p className="inc-sub-text">Meycauayan ID: #{pdl.pdl_id}</p>
-                    <span className={(pdl.is_locked_for_gcta === true || pdl.is_locked_for_gcta === 'true' || pdl.is_locked_for_gcta === 't') ? "inc-status locked" : "inc-status good"}>
-                        {(pdl.is_locked_for_gcta === true || pdl.is_locked_for_gcta === 'true' || pdl.is_locked_for_gcta === 't') ? "🚫 GCTA LOCKED" : "✅ GOOD STANDING"}
-                    </span>
-                </div>
-              </div>
-            )}
-            {status.msg && <p className={status.isError ? "inc-msg error" : "inc-msg success"}>{status.msg}</p>}
+            <button onClick={handleSearch} className="inc-btn-search">Search</button>
           </div>
 
-          {/* FORM CARD */}
-          <div className="inc-card shadow-sm">
-            <h3 className="inc-card-title">2. Board Decision Details</h3>
-            <form onSubmit={(e) => { e.preventDefault(); setShowModal(true); }} className="inc-form">
+          {pdl && (
+            <div className="inc-pdl-info-card">
+              <div className="inc-avatar-container">
+                <img 
+                  src={pdl.pdl_picture || "https://via.placeholder.com/150"} 
+                  alt="pdl" 
+                  onError={(e) => e.target.src = "/default-avatar.png"}
+                />
+              </div>
+              <div className="inc-details">
+                <strong>{pdl.last_name}, {pdl.first_name}</strong>
+                <p className="inc-sub-text">Meycauayan ID: #{pdl.pdl_id}</p>
+                
+                <span className={(pdl.is_locked_for_gcta === true || pdl.is_locked_for_gcta === 'true' || pdl.is_locked_for_gcta === 't') ? "inc-status locked" : "inc-status good"}>
+                  {(pdl.is_locked_for_gcta === true || pdl.is_locked_for_gcta === 'true' || pdl.is_locked_for_gcta === 't') ? (
+                    <><Lock size={12} /> GCTA LOCKED</>
+                  ) : (
+                    <><CheckCircle2 size={12} /> GOOD STANDING</>
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+          
+          {status.msg && (
+            <p className={status.isError ? "inc-msg error" : "inc-msg success"}>
+              {status.isError ? <XCircle size={14} /> : <CheckCircle2 size={14} />} {status.msg}
+            </p>
+          )}
+        </div>
+
+        {/* 3. FORM CARD (RIGHT) */}
+        <div className="inc-card shadow-sm">
+          <h3 className="inc-card-title"><Gavel size={14} /> 2. Board Decision Details</h3>
+          <form onSubmit={(e) => { e.preventDefault(); setShowModal(true); }} className="inc-form">
+            <div className="inc-form-group">
+              <label>Offense Category</label>
+              <select value={form.category} onChange={(e) => setForm({...form, category: e.target.value})}>
+                <option value="Less Serious">Less Serious Offense</option>
+                <option value="Serious">Serious Offense</option>
+                <option value="Grave">Grave Offense</option>
+              </select>
+            </div>
+
+            <div className="inc-form-row">
               <div className="inc-form-group">
-                <label>Offense Category</label>
-                <select value={form.category} onChange={(e) => setForm({...form, category: e.target.value})}>
-                  <option value="Less Serious">Less Serious Offense</option>
-                  <option value="Serious">Serious Offense</option>
-                  <option value="Grave">Grave Offense</option>
-                </select>
-              </div>
-
-              <div className="inc-form-row">
-                <div className="inc-form-group">
-                  <label>Start Date</label>
-                  <input type="date" value={form.incident_date} onChange={(e) => setForm({...form, incident_date: e.target.value})} />
-                </div>
-                <div className="inc-form-group">
-                  <label>Penalty End Date</label>
-                  <div className="inc-calculated-date">
-                    <strong>{calculateEndDate(form.incident_date, form.category)}</strong>
-                  </div>
+                <label>Penalty Start Date</label>
+                <div className="inc-relative-input">
+                  <Calendar size={18} className="inc-field-icon" />
+                  <input 
+                    type="date" 
+                    value={form.incident_date} 
+                    onChange={(e) => setForm({...form, incident_date: e.target.value})} 
+                  />
                 </div>
               </div>
-
               <div className="inc-form-group">
-                <label>Remarks</label>
-                <textarea 
-                  placeholder="Enter resolution details..." 
-                  value={form.remarks} 
-                  onChange={(e) => setForm({...form, remarks: e.target.value})} 
-                  required
-                ></textarea>
+                <label>Penalty End Date (Automated)</label>
+                <div className="inc-calculated-date">
+                  <strong><Clock size={16} /> {calculateEndDate(form.incident_date, form.category)}</strong>
+                  <span className="rpt-text-small">Based on RA 10592 IRR</span>
+                </div>
               </div>
+            </div>
 
-              <button type="submit" className="inc-btn-submit" disabled={!pdl || loading}>
-                {loading ? "Syncing..." : "Confirm & Lock GCTA"}
-              </button>
-            </form>
+            <div className="inc-form-group">
+              <label>Board Resolution Remarks</label>
+              <textarea 
+                placeholder="Enter specific resolution details or board order number..." 
+                value={form.remarks} 
+                onChange={(e) => setForm({...form, remarks: e.target.value})} 
+                required
+              ></textarea>
+            </div>
+
+            <button type="submit" className="inc-btn-submit" disabled={!pdl || loading}>
+              {loading ? <RefreshCw className="inc-spin" size={18} /> : <><Lock size={18} /> Confirm & Lock GCTA</>}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    {/* 🛑 YES/NO CONFIRMATION MODAL */}
+    {showModal && (
+      <div className="inc-modal-overlay">
+        <div className="inc-modal-content">
+          <div className="inc-modal-header">
+            <ShieldAlert size={48} color="#ef4444" style={{ marginBottom: '15px' }} />
+            <h2>Confirm GCTA Lock?</h2>
+          </div>
+          <div className="inc-modal-body">
+            <p>This action will <strong>Disqualify</strong> the PDL from earning GCTA credits until the penalty end date is reached.</p>
+            <div className="inc-confirm-box">
+              <p><User size={14} /> <strong>PDL:</strong> {pdl.last_name}, {pdl.first_name}</p>
+              <p><AlertTriangle size={14} /> <strong>Category:</strong> {form.category}</p>
+              <p><History size={14} /> <strong>Expires:</strong> {calculateEndDate(form.incident_date, form.category)}</p>
+            </div>
+          </div>
+          <div className="inc-modal-footer">
+            <button className="inc-btn-no" onClick={() => setShowModal(false)}>Cancel</button>
+            <button className="inc-btn-yes" onClick={handleFinalSave}>
+              <Save size={18} /> Authorize & Lock
+            </button>
           </div>
         </div>
       </div>
-
-      {/* 🛑 YES/NO CONFIRMATION MODAL */}
-      {showModal && (
-        <div className="inc-modal-overlay">
-          <div className="inc-modal-content">
-            <div className="inc-modal-header">
-               <h2>Confirm Action?</h2>
-            </div>
-            <div className="inc-modal-body">
-               <p>This will <strong>Disqualify</strong> the pdl from GCTA credits until the penalty end date.</p>
-               <div className="inc-confirm-box">
-                  <p><strong>PDL:</strong> {pdl.last_name}, {pdl.first_name}</p>
-                  <p><strong>Category:</strong> {form.category}</p>
-                  <p><strong>End Date:</strong> {calculateEndDate(form.incident_date, form.category)}</p>
-               </div>
-            </div>
-            <div className="inc-modal-footer">
-               <button className="inc-btn-no" onClick={() => setShowModal(false)}>No, Go Back</button>
-               <button className="inc-btn-yes" onClick={handleFinalSave}>Yes, Lock GCTA</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    )}
+  </div>
+);
 };
 
 export default Incidents;

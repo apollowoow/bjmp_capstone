@@ -4,6 +4,12 @@ import API_BASE_URL from "../apiConfig";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable"; 
 import "./reports.css";
+import { 
+  BarChart3, FileSpreadsheet, FileText, Calendar, 
+  Search, Filter, Eye, ChevronLeft, ChevronRight,
+  ShieldAlert, CheckCircle2, TrendingDown, ClipboardList,
+  AlertCircle, Info
+} from 'lucide-react';
 
 const Reports = () => {
   const navigate = useNavigate();
@@ -19,7 +25,7 @@ const Reports = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 15;
-
+  
   const fetchReportData = async () => {
     try {
       setLoading(true);
@@ -85,6 +91,27 @@ const Reports = () => {
     setCurrentPage(1);
   }, [searchTerm, reportType, statusFilter, summary]);
 
+
+  const logExport = async (format) => {
+    try {
+        const token = localStorage.getItem("token");
+        await fetch(`${API_BASE_URL}/api/reports/audit-export`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                format: format,
+                reportType: reportType,
+                monthPeriod: selectedMonth,
+                recordCount: filteredData.length
+            })
+        });
+    } catch (err) {
+        console.error("Audit Ping Failed:", err);
+    }
+};
   // 📄 DYNAMIC PDF EXPORT
 const exportToPDF = () => {
   try {
@@ -146,6 +173,7 @@ const exportToPDF = () => {
     });
 
     doc.save(`BJMP_${isRelease ? 'Discharge' : 'Audit'}_${selectedMonth}.pdf`);
+    logExport("PDF"); // <--- Add this!
   } catch (error) { 
     console.error("PDF Generation Error:", error);
     alert("Error generating PDF. Check console."); 
@@ -217,6 +245,7 @@ const exportToCSV = () => {
   link.href = url;
   link.download = `BJMP_${isRelease ? 'Release' : 'Audit'}_${selectedMonth}.csv`;
   link.click();
+  logExport("CSV");
   
   console.log("✅ Official CSV Exported with BJMP Letterhead");
 };
@@ -226,158 +255,182 @@ const exportToCSV = () => {
 
   if (loading) return <div className="rpt-loading">🔄 Fetching Records...</div>;
 
-  return (
-    <div className="rpt-main-scope">
-      <div className="rpt-content-wrapper">
-        <div className="rpt-simple-header rpt-hide-print">
-          <div className="rpt-header-left">
-            <h1 className="rpt-h1">📊 Reports & Analytics</h1>
-            <p className="rpt-p-sub">Meycauayan City Jail Official Reporting System.</p>
-          </div>
-          <div className="rpt-export-actions">
-              <button className="rpt-btn-csv" onClick={exportToCSV}>📊 Excel</button>
-              <button className="rpt-btn-pdf" onClick={exportToPDF}>📄 PDF</button>
-          </div>
+ return (
+  <div className="rpt-main-scope">
+    <div className="rpt-content-wrapper">
+      
+      {/* 1. HEADER SECTION */}
+      <div className="rpt-simple-header rpt-hide-print">
+        <div className="rpt-header-left">
+          <h1 className="rpt-h1">
+            <BarChart3 size={32} className="rpt-header-icon" /> 
+            Reports & Analytics
+          </h1>
+          <p className="rpt-p-sub">Meycauayan City Jail Official Reporting System.</p>
         </div>
-        
-        <div className="rpt-control-panel rpt-hide-print">
-          <div className="rpt-input-group">
-            <label>Report Type</label>
-            <select className="rpt-select" value={reportType} onChange={(e) => setReportType(e.target.value)}>
-              <option value="conduct">GCTA Conduct Review</option>
-              <option value="tastm">TASTM Labor Ledger</option>
-              <option value="release">🌟 Near Release Forecast</option>
-            </select>
-          </div>
+        <div className="rpt-export-actions">
+            <button className="rpt-btn-csv" onClick={exportToCSV}>
+              <FileSpreadsheet size={18} /> Excel
+            </button>
+            <button className="rpt-btn-pdf" onClick={exportToPDF}>
+              <FileText size={18} /> PDF
+            </button>
+        </div>
+      </div>
+      
+      {/* 2. CONTROL PANEL (FILTERS) */}
+      <div className="rpt-control-panel rpt-hide-print">
+        <div className="rpt-input-group">
+          <label><ClipboardList size={12} /> Report Type</label>
+          <select className="rpt-select" value={reportType} onChange={(e) => setReportType(e.target.value)}>
+            <option value="conduct">GCTA Conduct Review</option>
+            <option value="tastm">TASTM Labor Ledger</option>
+            <option value="release">Priority Release Forecast</option>
+          </select>
+        </div>
 
-          <div className="rpt-input-group">
-            <label>Month Period</label>
-            <input type="month" className="rpt-select" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
-          </div>
+        <div className="rpt-input-group">
+          <label><Calendar size={12} /> Month Period</label>
+          <input type="month" className="rpt-select" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
+        </div>
 
-          <div className="rpt-input-group">
-            <label>Search Registry</label>
+        <div className="rpt-input-group">
+          <label><Search size={12} /> Search Registry</label>
+          <div className="rpt-search-wrapper">
+            <Search size={16} className="rpt-search-icon-inner" />
             <input type="text" className="rpt-search" placeholder="Name or ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-
-          <div className="rpt-input-group">
-            <label>Audit Filter</label>
-            {/* 🎯 Disable the Audit Filter if Release Forecast is selected */}
-            <select 
-              className="rpt-select" 
-              value={statusFilter} 
-              disabled={reportType === 'release'}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Records</option>
-              <option value="good">Eligible Records</option>
-              <option value="locked">Voided / Locked</option>
-            </select>
-          </div>
         </div>
 
-        <div className="rpt-table-container">
-          <div className="rpt-table-header">
-            <h3 className="rpt-h3">
-              {reportType === 'release' ? '🌟 Priority Discharge Forecast' : (reportType === 'conduct' ? 'GCTA Monthly Audit' : 'TASTM Monthly Audit')}
-            </h3>
-            <span className="rpt-count">{filteredData.length} entries found</span>
-          </div>
+        <div className="rpt-input-group">
+          <label><Filter size={12} /> Audit Filter</label>
+          <select 
+            className="rpt-select" 
+            value={statusFilter} 
+            disabled={reportType === 'release'}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Records</option>
+            <option value="good">Eligible Records</option>
+            <option value="locked">Voided / Locked</option>
+          </select>
+        </div>
+      </div>
 
-          <table className="rpt-table">
-           <thead>
-              <tr>
-                <th>PDL Identity</th>
-                {/* 🎯 Header switches based on mode */}
-                <th>{reportType === 'release' ? 'Release Timeline' : 'Status'}</th>
-                <th>{reportType === 'release' ? 'Total Allowance' : 'Monthly Result'}</th>
-                <th className="rpt-hide-print">Profile</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentRows.map((pdl) => {
-  const isDqd = pdl.is_locked_for_gcta || Number(pdl.voided_gcta) > 0 || Number(pdl.voided_tastm) > 0;
-  const isRelease = reportType === "release";
-
-  return (
-    <tr key={pdl.pdl_id} className={isRelease ? "rpt-row-priority" : ""}>
-      {/* 1. PDL Identity */}
-      <td>
-        <strong>{pdl.last_name}, {pdl.first_name}</strong>
-        <br /><small className="text-slate-500">ID: #{pdl.pdl_id}</small>
-      </td>
-
-      {/* 2. Status or Release Timeline */}
-      <td>
-        {isRelease ? (
-          <div className="rpt-timeline">
-            <small style={{ color: "#64748b", textDecoration: "line-through" }}>
-              Orig: {pdl.original_release_date ? new Date(pdl.original_release_date).toLocaleDateString() : 'N/A'}
-            </small>
-            <br />
-            <span className="rpt-release-date">
-              📅 <strong>{new Date(pdl.expected_releasedate).toLocaleDateString()}</strong>
-            </span>
-          </div>
-        ) : (
-          <>
-            <span className={isDqd ? "rpt-badge rpt-badge-red" : "rpt-badge rpt-badge-green"}>
-              {isDqd ? "🚫 DQ" : "✔️ OK"}
-            </span>
-            {isDqd && (
-              <div className="rpt-audit-note">
-                <small><strong>Why:</strong> {pdl.is_locked_for_gcta ? "Disciplinary" : pdl.audit_remarks}</small>
-              </div>
+      {/* 3. REPORT DATA TABLE */}
+      <div className="rpt-table-container">
+        <div className="rpt-table-header">
+          <h3 className="rpt-h3">
+            {reportType === 'release' ? (
+              <><TrendingDown size={20} color="#059669" /> Priority Discharge Forecast</>
+            ) : (
+              <><ClipboardList size={20} color="#3b82f6" /> {reportType === 'conduct' ? 'GCTA Monthly Audit' : 'TASTM Monthly Audit'}</>
             )}
-          </>
-        )}
-      </td>
+          </h3>
+          <span className="rpt-count"><Info size={12} /> {filteredData.length} entries found</span>
+        </div>
 
-      {/* 3. Monthly Result or Total Time Allowance */}
-      <td>
-        {isRelease ? (
-          <div className="rpt-allowance-info">
-            <strong style={{ color: "#059669" }}>{pdl.total_timeallowance_earned || 0} Total Days Saved</strong>
-            <br /><small className="text-slate-400">{pdl.crime_name}</small>
-          </div>
-        ) : (
-          <strong>+{reportType === 'conduct' ? pdl.active_gcta : pdl.active_tastm} Days</strong>
-        )}
-      </td>
+        <table className="rpt-table">
+         <thead>
+            <tr>
+              <th>PDL Identity</th>
+              <th>{reportType === 'release' ? 'Release Timeline' : 'Audit Status'}</th>
+              <th>{reportType === 'release' ? 'Total Allowance' : 'Monthly Result'}</th>
+              <th className="rpt-hide-print">Control</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentRows.map((pdl) => {
+              const isDqd = pdl.is_locked_for_gcta || Number(pdl.voided_gcta) > 0 || Number(pdl.voided_tastm) > 0;
+              const isRelease = reportType === "release";
 
-      {/* 4. Action */}
-      <td className="rpt-hide-print">
-        <button className="rpt-btn-view" onClick={() => navigate(`/profile/${pdl.pdl_id}`)}>View</button>
-      </td>
-    </tr>
-  );
-})}
-            </tbody>
-          </table>
+              return (
+                <tr key={pdl.pdl_id} className={isRelease ? "rpt-row-priority" : ""}>
+                  {/* 1. PDL Identity */}
+                  <td>
+                    <div className="rpt-id-block">
+                      <strong>{pdl.last_name}, {pdl.first_name}</strong>
+                      <small className="rpt-id-sub">Jail ID: #{pdl.pdl_id}</small>
+                    </div>
+                  </td>
 
-          <div className="rpt-pagination rpt-hide-print">
-            <button 
-              disabled={currentPage === 1} 
-              onClick={() => setCurrentPage(p => p - 1)} 
-              className="rpt-page-btn"
-            >
-              Prev
-            </button>
-            <span className="rpt-page-info">
-              Page {currentPage} of {totalPages || 1}
-            </span>
-            <button 
-              disabled={currentPage >= totalPages} 
-              onClick={() => setCurrentPage(p => p + 1)} 
-              className="rpt-page-btn"
-            >
-              Next
-            </button>
-          </div>
+                  {/* 2. Status or Release Timeline */}
+                  <td className="rpt-col-status">
+                    {isRelease ? (
+                      <div className="rpt-timeline">
+                        <small className="rpt-orig-date">
+                          Orig: {pdl.original_release_date ? new Date(pdl.original_release_date).toLocaleDateString() : 'N/A'}
+                        </small>
+                        <span className="rpt-release-date">
+                          <Calendar size={14} /> <strong>{new Date(pdl.expected_releasedate).toLocaleDateString()}</strong>
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="rpt-status-wrapper">
+                        <span className={isDqd ? "rpt-badge rpt-badge-red" : "rpt-badge rpt-badge-green"}>
+                          {isDqd ? <><ShieldAlert size={12} /> DQ</> : <><CheckCircle2 size={12} /> OK</>}
+                        </span>
+                        {isDqd && (
+                          <div className="rpt-audit-note">
+                            <small><strong>Reason:</strong> {pdl.is_locked_for_gcta ? "Disciplinary Board" : pdl.audit_remarks}</small>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </td>
+
+                  {/* 3. Monthly Result or Total Time Allowance */}
+                  <td>
+                    {isRelease ? (
+                      <div className="rpt-allowance-info">
+                        <strong className="rpt-text-success">
+                           <TrendingDown size={14} /> {pdl.total_timeallowance_earned || 0} Days Saved
+                        </strong>
+                        <small className="rpt-crime-sub">{pdl.crime_name}</small>
+                      </div>
+                    ) : (
+                      <strong className="rpt-monthly-val">
+                        +{reportType === 'conduct' ? pdl.active_gcta : pdl.active_tastm} Days
+                      </strong>
+                    )}
+                  </td>
+
+                  {/* 4. Action */}
+                  <td className="rpt-hide-print">
+                    <button className="rpt-btn-view" onClick={() => navigate(`/profile/${pdl.pdl_id}`)}>
+                      <Eye size={14} /> Profile
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* 4. PAGINATION CONTROLS */}
+        <div className="rpt-pagination rpt-hide-print">
+          <button 
+            disabled={currentPage === 1} 
+            onClick={() => setCurrentPage(p => p - 1)} 
+            className="rpt-page-btn"
+          >
+            <ChevronLeft size={16} /> Prev
+          </button>
+          <span className="rpt-page-info">
+            Page <strong>{currentPage}</strong> of {totalPages || 1}
+          </span>
+          <button 
+            disabled={currentPage >= totalPages} 
+            onClick={() => setCurrentPage(p => p + 1)} 
+            className="rpt-page-btn"
+          >
+            Next <ChevronRight size={16} />
+          </button>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default Reports;

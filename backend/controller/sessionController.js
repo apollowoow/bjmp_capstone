@@ -1,5 +1,5 @@
 const pool = require('../db/pool');
-
+const { logAction } = require('../utils/logger'); 
 
 
 const getSessionHistory = async (req, res) => {
@@ -30,20 +30,52 @@ const getSessionHistory = async (req, res) => {
 // 🟢 START SESSION
 const startSession = async (req, res) => {
     const { program_name, session_name, hours_to_earn, session_date, officer_in_charge } = req.body;
+    const client = await pool.connect();
+
+    // 🛡️ Metadata for Audit Trail
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1; 
 
     try {
-        const result = await pool.query(
+        await client.query('BEGIN');
+
+        // --- 🛡️ STEP 1: INITIALIZE SESSION ---
+        const result = await client.query(
             `INSERT INTO session_tbl (program_name, session_name, hours_to_earn, session_date, officer_in_charge) 
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
             [program_name, session_name, parseFloat(hours_to_earn), session_date, officer_in_charge]
         );
-        res.status(201).json(result.rows[0]);
+        
+        const newSession = result.rows[0];
+
+        // --- 🛡️ STEP 2: LOG THE ACTION ---
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'START_PROGRAM_SESSION',
+            tableName: 'session_tbl',
+            recordId: newSession.session_id, // 🎯 The PK of the new session
+            pdlId: null,                    // 🎯 Left null because sessions are group-level, not per-PDL yet
+            details: {
+                message: `Initialized new session for ${program_name}: ${session_name}`,
+                hours_granted: hours_to_earn,
+                officer_assigned: officer_in_charge,
+                // 📸 Record the initial settings
+                session_data: newSession 
+            },
+            ipAddress: clientIp
+        });
+
+        await client.query('COMMIT');
+        res.status(201).json(newSession);
+
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error("Session Init Error:", err.message);
         res.status(500).json({ error: "Database error during session initialization." });
+    } finally {
+        client.release();
     }
 };
-
 
 const logAttendance = async (req, res) => {
     const { session_id, rfid_number, hours_to_earn, pdl_id } = req.body;
@@ -106,23 +138,60 @@ const logAttendance = async (req, res) => {
 
 
 const removeAttendance = async (req, res) => {
-    // We get these from the URL params: /api/attendance/12/26
     const { session_id, pdl_id } = req.params;
+    const client = await pool.connect();
+
+    // 🛡️ Metadata for Audit Trail
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
 
     try {
-        const result = await pool.query(
+        await client.query('BEGIN');
+
+        // --- 🛡️ STEP 1: SNAPSHOT "BEFORE" ---
+        // Fetch the record so we know what we are deleting
+        const fetchRecord = await client.query(
+            "SELECT * FROM attendance_tbl WHERE session_id = $1 AND pdl_id = $2",
+            [session_id, pdl_id]
+        );
+        const oldData = fetchRecord.rows[0];
+
+        if (!oldData) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Attendance record not found." });
+        }
+
+        // --- 🛡️ STEP 2: DELETE THE RECORD ---
+        const result = await client.query(
             "DELETE FROM attendance_tbl WHERE session_id = $1 AND pdl_id = $2",
             [session_id, pdl_id]
         );
 
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: "Attendance record not found." });
-        }
+        // --- 🛡️ STEP 3: LOG THE REMOVAL ---
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'REMOVE_ATTENDEE',
+            tableName: 'attendance_tbl',
+            recordId: session_id, // Using session_id as the anchor
+            pdlId: pdl_id,        // 🎯 Tag the specific PDL being removed
+            details: {
+                message: `PDL was removed from session attendance.`,
+                reason: "Incorrect RFID tap / Manual correction",
+                // 📸 Snapshot of the deleted record
+                deleted_record: oldData 
+            },
+            ipAddress: clientIp
+        });
 
+        await client.query('COMMIT');
         res.status(200).json({ message: "PDL removed from session successfully." });
+
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error("Remove Attendance Error:", err.message);
         res.status(500).json({ error: "Server error while removing attendee." });
+    } finally {
+        client.release();
     }
 };
 
@@ -132,68 +201,201 @@ const removeAttendance = async (req, res) => {
 // 🔴 FINALIZE SESSION (Sync to PDL Ledger)
 const finalizeSession = async (req, res) => {
     const { session_id } = req.params;
+    const client = await pool.connect();
+
+    // 🛡️ Metadata for Audit Trail
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
 
     try {
-        // 1. Verify the session actually has logs before "ending" it
-        const checkLogs = await pool.query(
-            "SELECT COUNT(*) FROM attendance_tbl WHERE session_id = $1",
+        await client.query('BEGIN');
+
+        // --- 🛡️ STEP 1: FETCH SESSION DATA (For the Log) ---
+        const sessionResult = await client.query(
+            "SELECT * FROM session_tbl WHERE session_id = $1",
+            [session_id]
+        );
+        const sessionData = sessionResult.rows[0];
+
+        if (!sessionData) {
+            throw new Error("Session not found.");
+        }
+
+        // --- 🛡️ STEP 2: VERIFY LOGS EXIST ---
+        const checkLogs = await client.query(
+            "SELECT COUNT(*) FROM attendance_tbl WHERE session_id = $1 AND status = 'Active'",
             [session_id]
         );
 
-        if (parseInt(checkLogs.rows[0].count) === 0) {
+        const attendeeCount = parseInt(checkLogs.rows[0].count);
+
+        if (attendeeCount === 0) {
+            await client.query('ROLLBACK');
             return res.status(400).json({ error: "Cannot finalize an empty session. Discard it instead." });
         }
 
+        // --- 🛡️ STEP 3: LOG THE FINALIZATION ACTION ---
+        // Even if we don't change the session table, we log that the Warden "Locked" it.
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'FINALIZE_PROGRAM_SESSION',
+            tableName: 'session_tbl',
+            recordId: session_id,
+            pdlId: null, 
+            details: {
+                message: `Warden finalized session: ${sessionData.session_name}`,
+                attendee_count: attendeeCount,
+                program_name: sessionData.program_name,
+                original_data: sessionData // 📸 Snapshot of the session being closed
+            },
+            ipAddress: clientIp
+        });
 
+        await client.query('COMMIT');
+        
         res.status(200).json({ 
+            success: true,
             message: "Session attendance locked. Credits will be calculated at month-end." 
         });
+
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error("❌ Finalize Error:", err.message);
         res.status(500).json({ error: "Failed to finalize session logs." });
+    } finally {
+        client.release();
     }
 };
 
 // 🗑️ CANCEL SESSION (Discard)
 const cancelSession = async (req, res) => {
     const { session_id } = req.params;
-    try {
-        // 1. Delete children (Attendance Logs)
-        await pool.query("DELETE FROM attendance_tbl WHERE session_id = $1", [session_id]);
-        
-        // 2. Delete parent (Session)
-        const result = await pool.query("DELETE FROM session_tbl WHERE session_id = $1", [session_id]);
+    const client = await pool.connect();
 
-        if (result.rowCount === 0) {
+    // 🛡️ Metadata for Audit Trail
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
+
+    try {
+        await client.query('BEGIN');
+
+        // --- 🛡️ STEP 1: SNAPSHOT "BEFORE" ---
+        // Since we are about to DELETE, we need to save the data for the log now.
+        const sessionResult = await client.query(
+            "SELECT * FROM session_tbl WHERE session_id = $1",
+            [session_id]
+        );
+        const sessionData = sessionResult.rows[0];
+
+        if (!sessionData) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ error: "Session not found." });
         }
 
-        res.status(200).json({ message: "Session and logs discarded." });
+        // Count how many attendance logs are about to be wiped
+        const checkLogs = await client.query(
+            "SELECT COUNT(*) FROM attendance_tbl WHERE session_id = $1",
+            [session_id]
+        );
+        const logsWiped = parseInt(checkLogs.rows[0].count);
+
+        // --- 🛡️ STEP 2: THE WIPEOUT ---
+        // Delete logs first (Foreign Key safety)
+        await client.query("DELETE FROM attendance_tbl WHERE session_id = $1", [session_id]);
+        
+        // Delete the parent session
+        await client.query("DELETE FROM session_tbl WHERE session_id = $1", [session_id]);
+
+        // --- 🛡️ STEP 3: THE AUDIT "RECEIPT" ---
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'CANCEL_PROGRAM_SESSION',
+            tableName: 'session_tbl',
+            recordId: session_id,
+            pdlId: null, 
+            details: {
+                message: `Session "${sessionData.session_name}" was discarded.`,
+                reason: "Manual cancellation (Misclick/Error)",
+                attendance_records_deleted: logsWiped,
+                // 📸 This is the only remaining record of the session!
+                deleted_snapshot: sessionData 
+            },
+            ipAddress: clientIp
+        });
+
+        await client.query('COMMIT');
+        res.status(200).json({ message: "Session and logs discarded. Action logged." });
+
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error("❌ Cancel Error:", err.message);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: "Failed to discard session." });
+    } finally {
+        client.release();
     }
 };
 
 const reloadSession = async (req, res) => {
     const { session_id } = req.params;
+    const client = await pool.connect();
+
+    // 🛡️ Metadata for Audit Trail
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
+
     console.log("🔄 Reload triggered for session:", session_id);
 
     try {
-        // 1. Delete children (Attendance Logs)
-        await pool.query("DELETE FROM attendance_tbl WHERE session_id = $1", [session_id]);
-        
-        // 2. Delete parent (Session)
-        const result = await pool.query("DELETE FROM session_tbl WHERE session_id = $1", [session_id]);
+        await client.query('BEGIN');
 
-        if (result.rowCount === 0) {
+        // --- 🛡️ STEP 1: SNAPSHOT "BEFORE" ---
+        const sessionResult = await client.query(
+            "SELECT * FROM session_tbl WHERE session_id = $1",
+            [session_id]
+        );
+        const sessionData = sessionResult.rows[0];
+
+        if (!sessionData) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ error: "Session not found." });
         }
 
-        res.status(200).json({ message: "Session and logs discarded." });
+        // Count logs before wiping them
+        const checkLogs = await client.query(
+            "SELECT COUNT(*) FROM attendance_tbl WHERE session_id = $1",
+            [session_id]
+        );
+        const logsWiped = parseInt(checkLogs.rows[0].count);
+
+        // --- 🛡️ STEP 2: THE WIPEOUT ---
+        await client.query("DELETE FROM attendance_tbl WHERE session_id = $1", [session_id]);
+        const deleteResult = await client.query("DELETE FROM session_tbl WHERE session_id = $1", [session_id]);
+
+        // --- 🛡️ STEP 3: THE AUDIT LOG ---
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'RELOAD_DISCARD_SESSION', // 🎯 Specific label for reloads
+            tableName: 'session_tbl',
+            recordId: session_id,
+            pdlId: null,
+            details: {
+                message: `Session "${sessionData.session_name}" was discarded via page reload/reset.`,
+                attendance_records_removed: logsWiped,
+                // 📸 Snapshot of what was lost
+                deleted_snapshot: sessionData 
+            },
+            ipAddress: clientIp
+        });
+
+        await client.query('COMMIT');
+        res.status(200).json({ message: "Session and logs discarded. Action logged." });
+
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error("❌ Reload Error:", err.message);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: "Failed to reset session data." });
+    } finally {
+        client.release();
     }
 };
 
@@ -283,6 +485,8 @@ const calculateReleaseDate = (committalDate, years, months, days, totalCredits) 
 
 const silentGctaSync = async (req, res) => {
     const client = await pool.connect();
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
     try {
         await client.query('BEGIN');
         const now = new Date(); // 🕒 Current Sync Time
@@ -394,6 +598,28 @@ const silentGctaSync = async (req, res) => {
             }
         }
 
+       if (unlockResult.rowCount > 0 || grantResult.rowCount > 0) {
+            // 🎯 Pluck the IDs from the grantResult rows
+            const affectedIds = grantResult.rows.map(row => row.pdl_id);
+
+            await logAction(client, {
+                userId: currentUserId,
+                action: 'SYSTEM_GCTA_SYNC',
+                tableName: 'gcta_days_log',
+                recordId: null, 
+                pdlId: null,    
+                details: {
+                    message: "Automated GCTA synchronization performed.",
+                    sync_date: now.toISOString().split('T')[0], // 🎯 The "Date" added
+                    unlocked_count: unlockResult.rowCount,
+                    credits_granted_to: grantResult.rowCount,
+                    affected_pdl_ids: affectedIds, // 🎯 The "Who" got it
+                    trigger: "System Auto-Sync (useEffect)"
+                },
+                ipAddress: clientIp
+            });
+        }
+
         await client.query('COMMIT');
         console.log(`\n--- ✅ GCTA Sync Finished Successfully ---`);
         res.status(200).json({ success: true, granted: grantResult.rowCount });
@@ -409,6 +635,9 @@ const silentGctaSync = async (req, res) => {
 
 const silentTastmSync = async (req, res) => {
     const client = await pool.connect();
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
+    const affectedPdlIds = []; // 🎯 Track who gets updated
     try {
         await client.query('BEGIN');
 
@@ -442,11 +671,17 @@ const silentTastmSync = async (req, res) => {
                 AND (
                     (remarks ILIKE 'Migration%') 
                     OR 
-                    (remarks = 'Automated TASTM' AND status = 'Active' AND month_year < DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'Asia/Manila'))
+                    (
+                        /* 🚀 FIX: Catch Restored records so May can see April's fix */
+                        remarks ILIKE 'Automated TASTM%' 
+                        AND status = 'Active' 
+                        /* 🎯 FIX: Use $2 instead of CURRENT_DATE */
+                        AND month_year < DATE_TRUNC('month', $2::DATE AT TIME ZONE 'Asia/Manila')
+                    )
                 )
                 ORDER BY month_year DESC, tastm_log_id DESC LIMIT 1
-            `, [pdlId]);
-
+            `, [pdlId, now]);
+            
             let carryOver = 0;
             let migrationToLockId = null;
 
@@ -482,7 +717,7 @@ const silentTastmSync = async (req, res) => {
                 FROM attendance_tbl 
                 WHERE pdl_id = $1 AND status = 'Active' 
                 AND DATE_TRUNC('month', timestamp_in AT TIME ZONE 'Asia/Manila') 
-                    = DATE_TRUNC('month', $4::DATE AT TIME ZONE 'Asia/Manila') -- 🎯 Use $4 instead of CURRENT_DATE
+                    = DATE_TRUNC('month', $4::DATE AT TIME ZONE 'Asia/Manila') 
                 AND (
                     $2::BOOLEAN = false 
                     OR $3::TIMESTAMP IS NULL 
@@ -496,24 +731,22 @@ const silentTastmSync = async (req, res) => {
             // 🔍 3. CHECK FOR EXISTING LOG (Stop the Duplicate Rows!)
             // 🎯 THE FIX: We search for Active OR Voided logs for this month.
             const existingThisMonth = await client.query(`
-    SELECT tastm_log_id, total_hours_accumulated, days_earned 
-    FROM tastm_days_log 
-    WHERE pdl_id = $1 
-    AND (status = 'Active' OR status = 'Voided')
-    AND (remarks = 'Automated TASTM' OR remarks ILIKE 'Automated TASTM - VOIDED%')
-    AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
-        = DATE_TRUNC('month', $2::DATE AT TIME ZONE 'Asia/Manila') -- 🎯 Use $2 instead of CURRENT_DATE
-`, [pdlId, now]);
+                SELECT tastm_log_id, total_hours_accumulated, days_earned, status, remarks
+                FROM tastm_days_log 
+                WHERE pdl_id = $1 
+                /* 🚀 1. Catch ANY version of the automated log (Standard, Voided, or Restored) */
+                AND remarks ILIKE 'Automated TASTM%'
+                /* 🎯 2. Match the month exactly */
+                AND DATE_TRUNC('month', month_year AT TIME ZONE 'Asia/Manila') 
+                    = DATE_TRUNC('month', $2::DATE AT TIME ZONE 'Asia/Manila')
+                /* 🔃 3. If multiple exist (due to past bugs), get the latest one to fix it */
+                ORDER BY tastm_log_id DESC
+                LIMIT 1
+            `, [pdlId, now]);
 
-            const alreadyCompleted = existingThisMonth.rows.length > 0 && parseInt(existingThisMonth.rows[0].days_earned) === 15;
-
-            let totalToEvaluate;
-            if (alreadyCompleted) {
-                totalToEvaluate = parseFloat(existingThisMonth.rows[0].total_hours_accumulated) || 0;
-            } else {
-                totalToEvaluate = carryOver + thisMonthAttendance;
-                console.log(`  └─ 🧮 Final Total: ${totalToEvaluate} hrs`);
-            }
+        
+            let totalToEvaluate = carryOver + thisMonthAttendance;
+            console.log(`  └─ 🧮 Final Total: ${totalToEvaluate} hrs`);
 
             // 🧮 4. DAYS & LEGAL (Keeping your 1-month window work)
             let daysToGrant = totalToEvaluate >= 60 ? 15 : 0;
@@ -523,31 +756,65 @@ const silentTastmSync = async (req, res) => {
         
 
             // 🎯 5. UPSERT LOG
-            const monthYear = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-
+            const monthYear = new Date(now.getFullYear(), now.getMonth(), 1);
+            
             if (existingThisMonth.rows.length > 0) {
-                const targetId = existingThisMonth.rows[0].tastm_log_id;
-                await client.query(`
-                    UPDATE tastm_days_log SET 
-                        total_hours_accumulated = $1, days_earned = $2, status = $3, remarks = $4, date_granted = NOW()
-                    WHERE tastm_log_id = $5`,
-                    [totalToEvaluate, daysToGrant, logStatus, logRemark, targetId]
-                );
-                console.log(`  └─ 📝 Updated Existing Log ID: ${targetId}`);
-            } else if (totalToEvaluate > 0) {
+                    const existingRow = existingThisMonth.rows[0];
+                    const targetId = existingRow.tastm_log_id;
+                    
+                    const hoursChanged = parseFloat(existingRow.total_hours_accumulated) !== totalToEvaluate;
+                    const daysChanged = parseInt(existingRow.days_earned) !== daysToGrant;
+
+                    if (hoursChanged || daysChanged) {
+                        await client.query(`
+                            UPDATE tastm_days_log SET 
+                                total_hours_accumulated = $1, 
+                                days_earned = $2, 
+                                status = $3, 
+                                remarks = CASE WHEN remarks ILIKE '%Restored%' THEN remarks ELSE $4 END, 
+                                date_granted = NOW()
+                            WHERE tastm_log_id = $5`,
+                            [totalToEvaluate, daysToGrant, logStatus, logRemark, targetId]
+                        );
+                        
+                        // ✅ Only track them if data actually moved!
+                        affectedPdlIds.push(pdlId); 
+                        console.log(` └─ ✅ Data Changed for PDL ${pdlId}: ${existingRow.total_hours_accumulated} -> ${totalToEvaluate}`);
+                    } else {
+                        // ℹ️ If numbers are the same, we do NOTHING. No update, no log.
+                        console.log(` └─ ⏭️ No change for PDL ${pdlId}. Skipping...`);
+                    }
+                } else if (totalToEvaluate > 0) {
                 const newRow = await client.query(`
                     INSERT INTO tastm_days_log (pdl_id, month_year, total_hours_accumulated, days_earned, status, remarks, date_granted)
                     VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING tastm_log_id`,
                     [pdlId, monthYear, totalToEvaluate, daysToGrant, logStatus, logRemark]
                 );
-                console.log(`  └─ ✨ Created NEW Log ID: ${newRow.rows[0].tastm_log_id}`);
+                affectedPdlIds.push(pdlId);
+                console.log(`  └─ ✨ pumasokdito NEW Log ID: ${newRow.rows[0].tastm_log_id}`);
             }
 
             if (migrationToLockId) {
                 await client.query(`UPDATE tastm_days_log SET remarks = remarks || ' - Locked', status = 'Inactive' WHERE tastm_log_id = $1`, [migrationToLockId]);
             }
         }
-
+        if (affectedPdlIds.length > 0) {
+            await logAction(client, {
+                userId: currentUserId,
+                action: 'SYSTEM_TASTM_SYNC',
+                tableName: 'tastm_days_log',
+                recordId: null, 
+                pdlId: null,    
+                details: {
+                    message: "Automated TASTM synchronization performed.",
+                    sync_date: now.toISOString().split('T')[0],
+                    pdls_affected_count: affectedPdlIds.length,
+                    affected_pdl_ids: affectedPdlIds, // 🎯 The "Who"
+                    trigger: "System Auto-Sync (useEffect)"
+                },
+                ipAddress: clientIp
+            });
+        }
         await client.query('COMMIT');
         res.status(200).json({ success: true, message: "Sync Complete." });
     } catch (err) {
@@ -562,24 +829,66 @@ const silentTastmSync = async (req, res) => {
 // ✍️ UPDATE INDIVIDUAL ATTENDANCE HOURS (The Overtime Fix)
 const updateAttendanceHours = async (req, res) => {
     const { session_id, pdl_id, new_hours } = req.body;
+    const client = await pool.connect();
+
+    // 🛡️ Metadata for Audit Trail
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
 
     try {
-        const result = await pool.query(
+        await client.query('BEGIN');
+
+        // --- 🛡️ STEP 1: SNAPSHOT "BEFORE" ---
+        const fetchOld = await client.query(
+            "SELECT * FROM attendance_tbl WHERE session_id = $1 AND pdl_id = $2",
+            [session_id, pdl_id]
+        );
+        const oldData = fetchOld.rows[0];
+
+        if (!oldData) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Attendance record not found." });
+        }
+
+        // --- 🛡️ STEP 2: RUN THE UPDATE ---
+        // 🎯 We removed updated_at and used timestamp_in = NOW() as requested
+        const result = await client.query(
             `UPDATE attendance_tbl 
-             SET hours_attended = $1 
+             SET hours_attended = $1, 
+                 timestamp_in = NOW() 
              WHERE session_id = $2 AND pdl_id = $3
              RETURNING *`,
             [parseFloat(new_hours), session_id, pdl_id]
         );
 
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: "Attendance record not found." });
-        }
+        const newData = result.rows[0];
 
-        res.status(200).json({ message: "Hours updated successfully!", record: result.rows[0] });
+        // --- 🛡️ STEP 3: LOG THE INTEGRITY CHANGE ---
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'UPDATE_ATTENDANCE_HOURS',
+            tableName: 'attendance_tbl',
+            recordId: session_id, 
+            pdlId: pdl_id,
+            details: {
+                message: `Attendance hours manually adjusted for PDL.`,
+                old_hours: oldData.hours_attended,
+                new_hours: newData.hours_attended,
+                before: oldData,
+                after: newData
+            },
+            ipAddress: clientIp
+        });
+
+        await client.query('COMMIT');
+        res.status(200).json({ message: "Hours updated successfully!", record: newData });
+
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error("❌ Update Hours Error:", err.message);
         res.status(500).json({ error: "Database error while updating hours." });
+    } finally {
+        client.release();
     }
 };
 
@@ -593,44 +902,42 @@ const getMonthlyEvaluation = async (req, res) => {
 
     try {
         const query = `
+            WITH MonthlyGCTA AS (
+                SELECT 
+                    pdl_id, 
+                    SUM(CASE WHEN status = 'Active' THEN days_earned ELSE 0 END) as total_gcta,
+                    COUNT(*) FILTER (WHERE remarks ILIKE 'MSEC DQ%') as dq_count
+                FROM gcta_days_log
+                WHERE TO_CHAR(month_year, 'YYYY-MM') = $1
+                AND remarks NOT ILIKE '%Migration%' 
+                AND (status = 'Active' OR remarks ILIKE 'MSEC DQ%')
+                GROUP BY pdl_id
+            ),
+            MonthlyTASTM AS (
+                SELECT 
+                    pdl_id, 
+                    SUM(CASE WHEN status = 'Active' THEN days_earned ELSE 0 END) as total_tastm,
+                    COUNT(*) FILTER (WHERE remarks ILIKE 'MSEC DQ%') as dq_count
+                FROM tastm_days_log
+                WHERE TO_CHAR(month_year, 'YYYY-MM') = $1
+                AND remarks NOT ILIKE '%Migration%'
+                AND (status = 'Active' OR remarks ILIKE 'MSEC DQ%')
+                GROUP BY pdl_id
+            )
             SELECT 
                 p.pdl_id, 
                 p.first_name, 
                 p.last_name, 
                 p.pdl_picture,
-                -- 🎯 Logic: Sum credits if they are Active OR were Voided specifically by MSEC
-                COALESCE(SUM(CASE 
-                    WHEN (g.status = 'Active' OR g.remarks ILIKE 'MSEC DQ%') THEN g.days_earned 
-                    ELSE 0 
-                END), 0) as monthly_gcta,
-                
-                COALESCE(SUM(CASE 
-                    WHEN (t.status = 'Active' OR t.remarks ILIKE 'MSEC DQ%') THEN t.days_earned 
-                    ELSE 0 
-                END), 0) as monthly_tastm,
-
-                -- 🚩 Status Logic
-                CASE 
-                    WHEN EXISTS (
-                        SELECT 1 FROM gcta_days_log g2 
-                        WHERE g2.pdl_id = p.pdl_id AND TO_CHAR(g2.month_year, 'YYYY-MM') = $1 AND g2.remarks ILIKE 'MSEC DQ%'
-                    ) OR EXISTS (
-                        SELECT 1 FROM tastm_days_log t2 
-                        WHERE t2.pdl_id = p.pdl_id AND TO_CHAR(t2.month_year, 'YYYY-MM') = $1 AND t2.remarks ILIKE 'MSEC DQ%'
-                    ) THEN 'Voided'
-                    ELSE 'Active'
-                END as msec_status
+                COALESCE(mg.total_gcta, 0) as monthly_gcta,
+                COALESCE(mt.total_tastm, 0) as monthly_tastm,
+                -- 🎯 NEW: Separate status flags
+                CASE WHEN COALESCE(mg.dq_count, 0) > 0 THEN 'Voided' ELSE 'Active' END as gcta_status,
+                CASE WHEN COALESCE(mt.dq_count, 0) > 0 THEN 'Voided' ELSE 'Active' END as tastm_status
             FROM pdl_tbl p
-            -- 🛡️ FIX: JOIN records that are Automated OR already Voided by MSEC
-            LEFT JOIN gcta_days_log g ON p.pdl_id = g.pdl_id 
-                AND TO_CHAR(g.month_year, 'YYYY-MM') = $1 
-                AND (g.remarks ILIKE '%Automated%' OR g.remarks ILIKE 'MSEC DQ%')
-            LEFT JOIN tastm_days_log t ON p.pdl_id = t.pdl_id 
-                AND TO_CHAR(t.month_year, 'YYYY-MM') = $1 
-                AND (t.remarks ILIKE '%Automated%' OR t.remarks ILIKE 'MSEC DQ%')
-            GROUP BY p.pdl_id, p.first_name, p.last_name, p.pdl_picture
-            -- 🎯 Show if it has records (Active or MSEC-Voided)
-            HAVING COUNT(g.gcta_log_id) > 0 OR COUNT(t.tastm_log_id) > 0
+            LEFT JOIN MonthlyGCTA mg ON p.pdl_id = mg.pdl_id
+            LEFT JOIN MonthlyTASTM mt ON p.pdl_id = mt.pdl_id
+            WHERE mg.pdl_id IS NOT NULL OR mt.pdl_id IS NOT NULL
             ORDER BY p.last_name ASC;
         `;
 
@@ -644,7 +951,9 @@ const getMonthlyEvaluation = async (req, res) => {
                 Name: `${row.last_name}, ${row.first_name}`,
                 GCTA: row.monthly_gcta,
                 TASTM: row.monthly_tastm,
-                Status: row.msec_status
+                // 🎯 Update these keys to match your new SQL columns!
+                G_Status: row.gcta_status, 
+                T_Status: row.tastm_status 
             })));
         } else {
             console.log("⚠️ No matching PDL records found for this month.");
@@ -660,58 +969,143 @@ const getMonthlyEvaluation = async (req, res) => {
 
 // 🚫 THE DISQUALIFY HAMMER (With MSEC Tag)
 const disqualifyPdlMonthly = async (req, res) => {
-    const { pdl_id, month_year } = req.body;
+    const { pdl_id, month_year, target } = req.body; 
     const client = await pool.connect();
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
     try {
         await client.query('BEGIN');
-        const msecTag = `MSEC DQ: Manual Disqualification (${month_year})`;
 
-        // Only void 'Active' automated logs
-        await client.query(`
-            UPDATE gcta_days_log SET status = 'Voided', remarks = $1 
-            WHERE pdl_id = $2 AND TO_CHAR(month_year, 'YYYY-MM') = $3 AND status = 'Active'
-        `, [msecTag, pdl_id, month_year]);
+        // 🛡️ 1. GCTA SHIELD: Only void if target is GCTA or BOTH
+        if (target === "GCTA" || target === "BOTH") {
+            await client.query(`
+                UPDATE gcta_days_log 
+                SET status = 'Voided', 
+                    remarks = 'MSEC DQ: GCTA Voided for ' || $2
+                WHERE pdl_id = $1 
+                  AND TO_CHAR(month_year, 'YYYY-MM') = $2
+                  AND remarks NOT ILIKE '%Migration%'; -- 🛡️ PROTECT MIGRATION
+            `, [pdl_id, month_year]);
+        }
 
-        await client.query(`
-            UPDATE tastm_days_log SET status = 'Voided', remarks = $1 
-            WHERE pdl_id = $2 AND TO_CHAR(month_year, 'YYYY-MM') = $3 AND status = 'Active'
-        `, [msecTag, pdl_id, month_year]);
+        // 🛡️ 2. TASTM SHIELD: Only void if target is TASTM or BOTH
+        if (target === "TASTM" || target === "BOTH") {
+            // Void Summary
+            await client.query(`
+                UPDATE tastm_days_log 
+                SET status = 'Voided', 
+                    remarks = 'MSEC DQ: TASTM Voided for ' || $2
+                WHERE pdl_id = $1 
+                  AND TO_CHAR(month_year, 'YYYY-MM') = $2
+                  AND remarks NOT ILIKE '%Migration%'; -- 🛡️ PROTECT MIGRATION
+            `, [pdl_id, month_year]);
 
+            // Void Source Attendance (No 'remarks' column fix)
+            // 🎯 NEW LOGIC: We look for ANY attendance rows where the session matches April,
+            // OR where the internal timestamp (column 5 in your snippet) matches April.
+            await client.query(`
+                UPDATE attendance_tbl
+                SET status = 'Voided'
+                WHERE pdl_id = $1 
+                  AND (
+                    session_id IN (SELECT session_id FROM session_tbl WHERE TO_CHAR(session_date, 'YYYY-MM') = $2)
+                    -- 🚑 BACKUP: In case the session table is wrong, check the attendance date string directly
+                    -- Replace 'date_logged' with your column 5 name (e.g., date_logged or created_at)
+                    OR TO_CHAR(CAST(timestamp_in AS TIMESTAMP), 'YYYY-MM') = $2
+                  );
+            `, [pdl_id, month_year]);
+        }
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'MSEC_VOID_CREDITS',
+            tableName: 'multiple_credit_logs', // Indicates impact across tables
+            recordId: pdl_id, 
+            pdlId: pdl_id,
+            details: {
+                message: `MSEC officially VOIDED ${target} credits for the period of ${month_year}.`,
+                target_voided: target,
+                month_affected: month_year,
+                status_change: "Active -> Voided"
+            },
+            ipAddress: clientIp
+        });
         await client.query('COMMIT');
-        res.status(200).json({ success: true });
+        res.status(200).json({ message: `Success: ${target} voided.` });
     } catch (err) {
         await client.query('ROLLBACK');
-        res.status(500).json({ error: err.message });
-    } finally { client.release(); }
+        console.error("MSEC DQ Error:", err.message);
+        res.status(500).json({ error: "Disqualification failed." });
+    } finally {
+        client.release();
+    }
 };
 
 // ✅ THE RESTORE BUTTON (Targets ONLY MSEC Tags)
 const reenablePdlMonthly = async (req, res) => {
-    const { pdl_id, month_year } = req.body;
+    // 📥 Destructure 'target' from the request body
+    const { pdl_id, month_year, target } = req.body;
     const client = await pool.connect();
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
+
     try {
         await client.query('BEGIN');
-        
-        // 🛡️ CRITICAL: The WHERE clause now checks for the 'MSEC DQ%' remark
-        // This ensures we NEVER reactivate records voided by the Disciplinary/Detention logic!
-        await client.query(`
-            UPDATE gcta_days_log SET status = 'Active', remarks = 'Automated GCTA (Restored by MSEC)'
-            WHERE pdl_id = $1 AND TO_CHAR(month_year, 'YYYY-MM') = $2 
-            AND status = 'Voided' AND remarks ILIKE 'MSEC DQ%'
-        `, [pdl_id, month_year]);
 
-        await client.query(`
-            UPDATE tastm_days_log SET status = 'Active', remarks = 'Automated TASTM (Restored by MSEC)'
-            WHERE pdl_id = $1 AND TO_CHAR(month_year, 'YYYY-MM') = $2 
-            AND status = 'Voided' AND remarks ILIKE 'MSEC DQ%'
-        `, [pdl_id, month_year]);
+        // 🎯 1. Restore GCTA if target is 'GCTA' or 'BOTH'
+        if (target === 'GCTA' || target === 'BOTH') {
+            await client.query(`
+                UPDATE gcta_days_log 
+                SET status = 'Active', 
+                    remarks = 'Automated GCTA (Restored by MSEC)'
+                WHERE pdl_id = $1 
+                AND TO_CHAR(month_year, 'YYYY-MM') = $2 
+                AND status = 'Voided' 
+                AND remarks ILIKE 'MSEC DQ%'
+            `, [pdl_id, month_year]);
+        }
+
+        // 🎯 2. Restore TASTM if target is 'TASTM' or 'BOTH'
+        if (target === 'TASTM' || target === 'BOTH') {
+            await client.query(`
+                UPDATE tastm_days_log 
+                SET status = 'Active', 
+                    remarks = 'Automated TASTM (Restored by MSEC)'
+                WHERE pdl_id = $1 
+                AND TO_CHAR(month_year, 'YYYY-MM') = $2 
+                AND status = 'Voided' 
+                AND remarks ILIKE 'MSEC DQ%'
+            `, [pdl_id, month_year]);
+        }
+
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'MSEC_RESTORE_CREDITS',
+            tableName: 'multiple_credit_logs',
+            recordId: pdl_id, 
+            pdlId: pdl_id,
+            details: {
+                message: `MSEC officially RESTORED ${target} credits for the period of ${month_year}.`,
+                target_restored: target,
+                month_affected: month_year,
+                status_change: "Voided -> Active",
+                reason: "MSEC Appeal/Review Approval"
+            },
+            ipAddress: clientIp
+        });
 
         await client.query('COMMIT');
-        res.status(200).json({ success: true });
+        res.status(200).json({ 
+            success: true, 
+            message: `Successfully restored ${target} for ${month_year}` 
+        });
+
     } catch (err) {
         await client.query('ROLLBACK');
+        console.error("Restore Error:", err.message);
         res.status(500).json({ error: err.message });
-    } finally { client.release(); }
+    } finally { 
+        client.release(); 
+    }
 };
 
 

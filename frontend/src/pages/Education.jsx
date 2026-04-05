@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef, navigate  } from 'react';
 import API_BASE_URL from "../apiConfig";
 import "./education.css";
 import { useNavigate, useBlocker } from 'react-router-dom';
+import { usePermissions } from "../hooks/usePermission";
 
 const Education = () => {
     const navigate = useNavigate();
+    const { canDo } = usePermissions();
     // --- State Management ---
     const [showSessionModal, setShowSessionModal] = useState(false);
     const rfidInputRef = useRef(null);
@@ -477,10 +479,19 @@ return (
                         <p>Manage Program Attendance (TASTM) and Automated Monthly Credits (GCTA).</p>
                     </div>
                     <div className="header-actions">
-                      <button className="btn-primary" onClick={() => navigate("/msec")}>
-    ⚖️ MSEC Final Screening
-</button>
-                        <button className="btn-primary" onClick={() => setShowSessionModal(true)}>🚀 Start Attendance Session</button>
+                      {/* ⚖️ MSEC: Restricted to Admin/Warden ('canapprove') */}
+                        {canDo("Time Allowance Computation (GCTA/TASTM)", "canapprove") && (
+                            <button className="btn-primary" onClick={() => navigate("/msec")}>
+                                ⚖️ MSEC Final Screening
+                            </button>
+                        )}
+
+                        {/* 🚀 START SESSION: Restricted to those who can create attendance logs */}
+                        {canDo("Attendance & Sessions", "cancreate") && (
+                            <button className="btn-primary" onClick={() => setShowSessionModal(true)}>
+                                🚀 Start Attendance Session
+                            </button>
+                        )}
                     </div>
                 </header>
 

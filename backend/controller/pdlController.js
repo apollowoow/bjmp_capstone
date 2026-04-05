@@ -169,43 +169,7 @@ const getReleasedPdlById = async (req, res) => {
 };
 
 
-const grantGlobalGcta = async (req, res) => {
-    const { days_to_grant, month_year, remarks } = req.body;
 
-    try {
-        // 1. Check if ANY eligible PDL has already received GCTA for this month
-        // This is a "Global" check. If you want to skip individuals, we can adjust the INSERT.
-        const alreadyGranted = await pool.query(
-            "SELECT 1 FROM gcta_days_log WHERE month_year = TO_DATE($1, 'MM-YYYY') LIMIT 1",
-            [month_year]
-        );
-
-        if (alreadyGranted.rows.length > 0) {
-            return res.status(400).json({ 
-                message: `Data Integrity Error: GCTA for ${remarks} ${month_year.split('-')[1]} has already been processed.` 
-            });
-        }
-
-        // 2. Perform the bulk insert for those not locked
-        const result = await pool.query(`
-            INSERT INTO gcta_days_log (pdl_id, month_year, days_earned, date_granted, status, remarks)
-            SELECT pdl_id, TO_DATE($1, 'MM-YYYY'), $2, CURRENT_DATE, 'active', $3
-            FROM pdl_tbl
-            WHERE is_locked_for_gcta = false
-            RETURNING *`,
-            [month_year, days_to_grant, remarks]
-        );
-
-        res.status(200).json({
-            message: "Success: Monthly GCTA granted to all eligible PDLs.",
-            count: result.rowCount
-        });
-
-    } catch (err) {
-        console.error("Database Error:", err.message);
-        res.status(500).json({ message: "Internal server error during GCTA validation." });
-    }
-};
 
 
 // controllers/pdlController.js
@@ -477,15 +441,20 @@ const addPDL = async (req, res) => {
         const newPdlId = result.rows[0].pdl_id;
 
         // 🛡️ 6. AUDIT LOGGING (For Meycauayan City Jail Security)
-        await logAction(
-            client,
-            currentUserId,
-            'CREATE_PDL',
-            'pdl_tbl',
-            newPdlId,
-            `Registered new PDL: ${firstName} ${lastName} (RFID: ${rfidNumber})`,
-            clientIp
-        );
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'CREATE_PDL',
+            tableName: 'pdl_tbl',
+            recordId: newPdlId,   // The ID of the row in pdl_tbl
+            pdlId: newPdlId,      // Directly links this log to the PDL
+            details: { 
+                fullname: `${firstName} ${lastName}`, 
+                rfid: rfidNumber,
+                status: caseStatus,
+                message: "Initial registration and profiling completed."
+            },
+            ipAddress: clientIp
+        });
 
         await client.query('COMMIT');
         res.status(201).json({ 
@@ -572,13 +541,16 @@ const updatePdlJudicialRecord = async (req, res) => {
     } = req.body;
 
     const client = await pool.connect();
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
+
     
     try {
         await client.query("BEGIN");
 
         // --- 🛡️ STEP 1: FETCH FALLBACKS ---
         const currentRecord = await client.query(
-            "SELECT sentence_years, sentence_months, sentence_days, date_commited_pnp, pdl_status FROM pdl_tbl WHERE pdl_id = $1", 
+            "SELECT * FROM pdl_tbl WHERE pdl_id = $1", // 🎯 Changed from specific columns to *
             [id]
         );
         const db = currentRecord.rows[0];
@@ -878,6 +850,22 @@ const updatePdlJudicialRecord = async (req, res) => {
         ];
 
         const result = await client.query(masterUpdateQuery, pdlValues);
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'UPDATE_JUDICIAL_RECORD',
+            tableName: 'pdl_tbl',
+            recordId: id,
+            pdlId: id,
+            details: {
+                message: "Judicial record and credits updated.",
+                // 📸 Snapshotting the change:
+                before: db, 
+                after: result.rows[0], 
+                // 📝 Keeping the raw input for reference:
+                input_received: req.body 
+            },
+            ipAddress: clientIp
+        });
   
         await client.query("COMMIT");
         res.status(200).json({ success: true, message: "Judicial Ledger Updated.", data: result.rows[0] });
@@ -891,102 +879,110 @@ const updatePdlJudicialRecord = async (req, res) => {
     }
 };
 
- const updatePersonalInfo = async (req, res) => {
-  const { id } = req.params;
-  const { 
-    first_name, 
-    last_name, 
-    middle_name, 
-    gender, 
-    birthday, 
-    case_number, 
-    crime_name, 
-    date_admitted_bjmp 
-  } = req.body;
+const updatePersonalInfo = async (req, res) => {
+    const { id } = req.params;
+    const { first_name, last_name, middle_name, gender, birthday, case_number, crime_name, date_admitted_bjmp } = req.body;
 
-  try {
-    // 1. Determine if a new photo path exists
-    // Since your storage destination is 'public/uploads/', 
-    // the accessible URL path is usually /uploads/filename
-    const newPhotoPath = req.file ? `${req.file.filename}` : null;
+    const client = await pool.connect(); // 🛡️ Using client for Transaction
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
 
-    const query = `
-      UPDATE pdl_tbl 
-      SET 
-        first_name = $1,
-        last_name = $2,
-        middle_name = $3,
-        gender = $4,
-        birthday = $5,
-        case_number = $6,
-        crime_name = $7,
-        date_admitted_bjmp = $8,
-        pdl_picture = COALESCE($9, pdl_picture),
-        updated_at = NOW()
-      WHERE pdl_id = $10
-      RETURNING *;
-    `;
+    try {
+        await client.query('BEGIN');
 
-    const values = [
-      first_name,
-      last_name,
-      middle_name,
-      gender,
-      birthday,
-      case_number,
-      crime_name,
-      date_admitted_bjmp,
-      newPhotoPath, // If null, COALESCE keeps the old picture
-      id
-    ];
+        // --- 🛡️ STEP 1: SNAPSHOT "BEFORE" ---
+        const fetchOld = await client.query("SELECT * FROM pdl_tbl WHERE pdl_id = $1", [id]);
+        const oldData = fetchOld.rows[0];
 
-    const result = await pool.query(query, values);
+        if (!oldData) {
+            if (req.file) fs.unlinkSync(req.file.path);
+            return res.status(404).json({ error: "PDL Record not found." });
+        }
 
-   
-    if (result.rowCount === 0) {
-      // 🛡️ Cleanup: If DB fails but file was uploaded, delte it
-      if (req.file) fs.unlinkSync(req.file.path);
-      return res.status(404).json({ error: "PDL Record not found." });
+        // --- 🛡️ STEP 2: RUN UPDATE ---
+        const newPhotoPath = req.file ? `${req.file.filename}` : null;
+
+        const updateQuery = `
+            UPDATE pdl_tbl SET 
+                first_name = $1, last_name = $2, middle_name = $3,
+                gender = $4, birthday = $5, case_number = $6,
+                crime_name = $7, date_admitted_bjmp = $8,
+                pdl_picture = COALESCE($9, pdl_picture),
+                updated_at = NOW()
+            WHERE pdl_id = $10
+            RETURNING *;
+        `;
+
+        const result = await client.query(updateQuery, [
+            first_name, last_name, middle_name, gender, birthday, 
+            case_number, crime_name, date_admitted_bjmp, newPhotoPath, id
+        ]);
+
+        const newData = result.rows[0];
+
+        // --- 🛡️ STEP 3: LOG THE CHANGE ---
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'UPDATE_PERSONAL_INFO',
+            tableName: 'pdl_tbl',
+            recordId: id,
+            pdlId: id,
+            details: {
+                message: `Updated personal information for ${newData.first_name} ${newData.last_name}`,
+                photo_updated: !!req.file, // 🎯 Quick flag to see if photo was changed
+                before: oldData,
+                after: newData
+            },
+            ipAddress: clientIp
+        });
+
+        await client.query('COMMIT');
+        
+        res.status(200).json({ 
+            message: "Personal Information successfully synchronized.", 
+            pdl: newData 
+        });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("❌ Update Personal Info Error:", err.message);
+        if (req.file) fs.unlinkSync(req.file.path); // 🛡️ Cleanup file
+        res.status(500).json({ error: "Internal Database Error" });
+    } finally {
+        client.release();
     }
-
-    res.status(200).json({ 
-      message: "Personal Information successfully synchronized.", 
-      pdl: result.rows[0] 
-    });
-
-  } catch (err) {
-    console.error("❌ Update Personal Info Error:", err.message);
-    // 🛡️ Cleanup uploaded file on server error
-    if (req.file) fs.unlinkSync(req.file.path);
-    res.status(500).json({ error: "Internal Database Error" });
-  }
 };
 
 const recommitPDL = async (req, res) => {
-  const { id } = req.params;
-    
-    // Destructure based on the mapping we used in the Frontend FormData
+    const { id } = req.params;
     const {
-        case_status,      // This will update the pdl_status column
-        caseNumber,
-        caseName,
-        admissionDate,
-        rfidNumber,
-        date_commited_pnp,
-        sentence_years,
-        sentence_months,
-        sentence_days
+        case_status, caseNumber, caseName, admissionDate, rfidNumber,
+        date_commited_pnp, sentence_years, sentence_months, sentence_days
     } = req.body;
 
-    try {
-        const newPhotoPath = req.file ? `/uploads/${req.file.filename}` : null;
+    const client = await pool.connect();
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
 
-        // 🎯 THE RESET QUERY
-        // We use case_status to set the new pdl_status
+    try {
+        await client.query('BEGIN');
+
+        // --- 🛡️ STEP 1: SNAPSHOT "BEFORE" ---
+        // We capture their status (likely 'Released') before the recommitment
+        const fetchOld = await client.query("SELECT * FROM pdl_tbl WHERE pdl_id = $1", [id]);
+        const oldData = fetchOld.rows[0];
+
+        if (!oldData) {
+            return res.status(404).json({ error: "Record not found." });
+        }
+
+        // --- 🛡️ STEP 2: THE RESET QUERY ---
+        const newPhotoPath = req.file ? `${req.file.filename}` : null;
+
         const query = `
             UPDATE pdl_tbl 
             SET 
-                pdl_status = $1,               -- This handles both Case/PDL status
+                pdl_status = $1, 
                 case_number = $2,
                 crime_name = $3,
                 date_admitted_bjmp = $4,
@@ -1005,7 +1001,7 @@ const recommitPDL = async (req, res) => {
         `;
 
         const values = [
-            case_status || 'Detained',         // Default to Detained if empty
+            case_status || 'Detained',
             caseNumber,
             caseName,
             admissionDate,
@@ -1018,21 +1014,40 @@ const recommitPDL = async (req, res) => {
             id
         ];
 
-        const result = await pool.query(query, values);
+        const result = await client.query(query, values);
+        const newData = result.rows[0];
 
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: "Record not found." });
-        }
+        // --- 🛡️ STEP 3: LOG THE RECOMMITMENT ---
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'RECOMMIT_PDL',
+            tableName: 'pdl_tbl',
+            recordId: id,
+            pdlId: id,
+            details: {
+                message: `PDL Re-entered facility. Previous release history archived.`,
+                previous_status: oldData.pdl_status,
+                recommit_case: caseNumber,
+                // 📸 Snapshots for full audit trail
+                before: oldData,
+                after: newData
+            },
+            ipAddress: clientIp
+        });
+
+        await client.query('COMMIT');
 
         res.status(200).json({ 
             message: "Recommitment Successful. New legal timeline initialized.", 
-            pdl: result.rows[0] 
+            pdl: newData 
         });
-        
 
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error("❌ Backend Recommit Error:", err.message);
         res.status(500).json({ error: "Database failed to initialize recommitment." });
+    } finally {
+        client.release();
     }
 };
 
@@ -1041,10 +1056,14 @@ const releasePdl = async (req, res) => {
     const { actual_release_date } = req.body;
     const client = await pool.connect();
 
+    // 🛡️ Metadata for Audit Trail
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
+
     try {
         await client.query('BEGIN');
 
-        // 1. Fetch current data
+        // 1. Fetch current data (The "Before" Snapshot)
         const pdlResult = await client.query("SELECT * FROM pdl_tbl WHERE pdl_id = $1", [id]);
         if (pdlResult.rows.length === 0) throw new Error("PDL not found.");
         const p = pdlResult.rows[0];
@@ -1053,41 +1072,33 @@ const releasePdl = async (req, res) => {
         const startDate = p.date_commited_pnp || p.date_admitted_bjmp;
         const endDate = actual_release_date;
 
-        // 2. INSERT into released_tbl (Mapped to your schema)
+        // 2. INSERT into released_tbl
         await client.query(`
             INSERT INTO released_tbl (
                 pdl_id, first_name, last_name, middle_name, birthday, gender,
                 crime_name, sentence_years, sentence_months, sentence_days,
                 total_credits_applied, date_commited_pnp, date_admitted_bjmp, 
                 actual_release_date, is_legally_disqualified, date_of_final_judgment, 
-                remarks -- 🎯 Mapped from disqualification_reason
+                remarks
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
             [
                 p.pdl_id, p.first_name, p.last_name, p.middle_name, p.birthday, p.gender,
                 p.crime_name, p.sentence_years, p.sentence_months, p.sentence_days,
                 p.total_timeallowance_earned, p.date_commited_pnp, p.date_admitted_bjmp, 
                 actual_release_date, p.is_legally_disqualified, p.date_of_final_judgment,
-                p.disqualification_reason // Store the reason in the remarks column
+                p.disqualification_reason 
             ]
         );
 
         // --- 🛡️ STEP 3: THE ARCHIVE SWEEP ---
-        // Only flip 'Active' logs. 'Voided' logs must stay 'Voided' in history!
-        const logStatusUpdate = "UPDATE %I SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active' AND month_year <= $2";
-        
         await client.query(`UPDATE gcta_days_log SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active'`, [id]);
         await client.query(
-            `UPDATE tastm_days_log 
-            SET status = 'Released' 
-            WHERE pdl_id = $1 
-            AND status IN ('Active', 'Voided', 'Inactive')`, 
+            `UPDATE tastm_days_log SET status = 'Released' WHERE pdl_id = $1 AND status IN ('Active', 'Voided', 'Inactive')`, 
             [id]
-            );
-        
-        // Attendance - Simple status flip
+        );
         await client.query(`UPDATE attendance_tbl SET status = 'Released' WHERE pdl_id = $1 AND status = 'Active'`, [id]);
 
-        // --- 🎯 STEP 4: WIPE/RESET pdl_tbl (Clean slate for next use) ---
+        // --- 🎯 STEP 4: WIPE/RESET pdl_tbl ---
         await client.query(`
             UPDATE pdl_tbl SET 
                 pdl_status = 'Released',
@@ -1104,6 +1115,24 @@ const releasePdl = async (req, res) => {
                 updated_at = NOW()
             WHERE pdl_id = $1`, [id]);
 
+        // --- 🛡️ STEP 5: THE FINAL AUDIT LOG ---
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'RELEASE_PDL',
+            tableName: 'released_tbl', // 🎯 Logged under released_tbl as it's the new record
+            recordId: id,
+            pdlId: id,
+            details: {
+                message: `PDL officially released. History archived and profile reset.`,
+                fullname: `${p.first_name} ${p.last_name}`,
+                total_credits_applied: p.total_timeallowance_earned,
+                actual_release_date: actual_release_date,
+                // 📸 Snapshot of their state AT THE MOMENT of release
+                final_snapshot: p 
+            },
+            ipAddress: clientIp
+        });
+
         await client.query('COMMIT');
         res.status(200).json({ success: true, message: "PDL released and history archived." });
 
@@ -1119,33 +1148,63 @@ const releasePdl = async (req, res) => {
 const upsertSubsidiary = async (req, res) => {
     const { pdl_id, subsidiary_id, total_fine_amount, daily_rate, max_subsidiary_days } = req.body;
     const client = await pool.connect();
-    
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
     console.log("\n--- 💾 SUBSIDIARY SAVE START ---");
     console.log("📥 Payload Received:", req.body);
 
     try {
         await client.query('BEGIN');
+        let oldData = null;
+        let actionLabel = 'CREATE_SUBSIDIARY';
 
+        // --- 🛡️ STEP 1: FETCH OLD DATA (If Updating) ---
+        if (subsidiary_id) {
+            actionLabel = 'UPDATE_SUBSIDIARY';
+            const fetchOld = await client.query(
+                "SELECT * FROM pdl_subsidiary_tbl WHERE subsidiary_id = $1", 
+                [subsidiary_id]
+            );
+            oldData = fetchOld.rows[0];
+        }
+        let result;
         if (subsidiary_id) {
             console.log(` 🔄 Action: UPDATING Subsidiary ID: ${subsidiary_id}`);
-            await client.query(`
+            result = await client.query(`
                 UPDATE pdl_subsidiary_tbl SET 
                     total_fine_amount = $1, 
                     daily_rate = $2, 
                     max_subsidiary_days = $3, 
                     updated_at = NOW()
-                WHERE subsidiary_id = $4`,
+                WHERE subsidiary_id = $4
+                RETURNING *`,
                 [total_fine_amount, daily_rate, max_subsidiary_days, subsidiary_id]
             );
         } else {
             console.log(` ✨ Action: INSERTING New Fine for PDL ${pdl_id}`);
-            await client.query(`
+            result = await client.query(`
                 INSERT INTO pdl_subsidiary_tbl (pdl_id, total_fine_amount, daily_rate, max_subsidiary_days)
-                VALUES ($1, $2, $3, $4)`,
+                VALUES ($1, $2, $3, $4)
+                RETURNING *`,
                 [pdl_id, total_fine_amount, daily_rate, max_subsidiary_days]
             );
         }
+        const savedRecord = result.rows[0];
 
+        await logAction(client, {
+            userId: currentUserId,
+            action: actionLabel,
+            tableName: 'pdl_subsidiary_tbl',
+            recordId: savedRecord.subsidiary_id,
+            pdlId: pdl_id,
+            details: {
+                message: subsidiary_id ? "Updated subsidiary fine details." : "Created new subsidiary record.",
+                before: oldData,
+                after: savedRecord,
+                input_received: req.body
+            },
+            ipAddress: clientIp
+        });
         await client.query('COMMIT');
         console.log("--- ✅ SUCCESS: RECORD SAVED ---\n");
         res.status(200).json({ success: true, message: "Subsidiary record saved successfully." });
@@ -1161,5 +1220,5 @@ const upsertSubsidiary = async (req, res) => {
     }
 };
 
-module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord, grantGlobalGcta, recalculatePdlSentence, releasePdl, 
+module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord, recalculatePdlSentence, releasePdl, 
     getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary};
