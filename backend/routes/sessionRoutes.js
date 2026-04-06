@@ -55,6 +55,11 @@ router.get('/history',
     sessionCtrl.getSessionHistory
 );
 
+router.get('/tampered', 
+    authenticateToken, 
+    authorize("Attendance & Sessions", "canview"), 
+    sessionCtrl.getTamperedRecords
+);
 router.get('/details/:id', 
     authenticateToken, 
     authorize("Attendance & Sessions", "canview"), 
@@ -72,6 +77,12 @@ router.post('/repair-integrity',
     authenticateToken, 
     authorize("Attendance & Sessions", "canedit"), 
     sessionCtrl.repairAttendanceIntegrity
+);
+
+router.post('/repair-credits', 
+    authenticateToken, 
+    authorize("Time Allowance Computation (GCTA/TASTM)", "canedit"), // 🎯 Permission matched to the Audit module
+    sessionCtrl.repairCreditIntegrity
 );
 
 // ==========================================
@@ -113,6 +124,9 @@ router.post('/msec/reenable',
     sessionCtrl.reenablePdlMonthly
 );//adudit done
 
+
+router.get('/restored-records',  authenticateToken, 
+    authorize("User Management", "canview"),  sessionCtrl.getRestoredRecords);
 
 // ==========================================
 // 🔍 MODULE: "PDL & RFID Management"

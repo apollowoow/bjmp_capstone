@@ -26,18 +26,18 @@ const getSessionHistory = async (req, res) => {
     }
 };
 
+
+
 const repairAttendanceIntegrity = async (req, res) => {
     const { session_id, pdl_id, corrected_hours, paper_log_ref } = req.body;
     const client = await pool.connect();
     
-    // 🛡️ Metadata for the Audit Trail
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const currentUserId = req.user ? req.user.id : 1; 
 
     try {
         await client.query('BEGIN');
 
-        // 1. Generate the "Recovery Seal"
         const now = new Date();
         const timestampStr = now.toISOString();
 
@@ -47,22 +47,19 @@ const repairAttendanceIntegrity = async (req, res) => {
             hours: parseFloat(corrected_hours)
         });
 
-        // 2. Update and Re-seal the record
-        // We append a "REPAIRED" tag to the remarks for forensics
-        const repairTag = ` REPAIRED: Verified via Paper Log [Ref: ${paper_log_ref}]`;
+        // 🎯 FIX: Tinanggal ang COALESCE at || para hindi mag-duplicate ang text
+        const repairTag = `REPAIRED: Verified via Paper Log [Ref: ${paper_log_ref}]`;
 
-        const result = await client.query(
+        await client.query(
             `UPDATE attendance_tbl 
              SET hours_attended = $1, 
                  timestamp_in = $2, 
                  row_hash = $3,
-                 remarks = COALESCE(remarks, '') || $4
-             WHERE session_id = $5 AND pdl_id = $6
-             RETURNING *`,
+                 remarks = $4  -- 👈 Direkta nang o-overwrite dito
+             WHERE session_id = $5 AND pdl_id = $6`,
             [parseFloat(corrected_hours), now, recoveryHash, repairTag, session_id, pdl_id]
         );
 
-        // 3. Log the High-Priority Security Action
         await logAction(client, {
             userId: currentUserId,
             action: 'INTEGRITY_REPAIR',
@@ -79,10 +76,20 @@ const repairAttendanceIntegrity = async (req, res) => {
         });
 
         await client.query('COMMIT');
+
+        console.log(`
+            --- 🛡️ INTEGRITY REPAIR SUCCESS ---
+            PDL ID: ${pdl_id}
+            Session ID: ${session_id}
+            Remarks Overwritten: "${repairTag}"
+            -----------------------------------
+        `);
+
         res.status(200).json({ success: true, message: "Record successfully re-sealed." });
 
     } catch (err) {
         await client.query('ROLLBACK');
+        console.error("❌ INTEGRITY REPAIR FAILED:", err.message);
         res.status(500).json({ error: "Failed to repair record integrity." });
     } finally {
         client.release();
@@ -1231,9 +1238,301 @@ const reenablePdlMonthly = async (req, res) => {
         client.release(); 
     }
 };
+const getTamperedRecords = async (req, res) => {
+    const { type } = req.query; 
+    
+    try {
+        let query = "";
+        let tamperedRecords = [];
+
+        if (type === 'attendance') {
+            query = `
+                SELECT 
+                    a.attendance_id, a.session_id, a.pdl_id, a.hours_attended, a.row_hash, a.timestamp_in,
+                    p.first_name, p.last_name, s.session_name
+                FROM attendance_tbl a
+                JOIN pdl_tbl p ON a.pdl_id = p.pdl_id
+                JOIN session_tbl s ON a.session_id = s.session_id
+                WHERE a.status = 'Active'
+            `;
+            const result = await pool.query(query);
+
+            for (let row of result.rows) {
+                const dataToVerify = {
+                    pdl_id: row.pdl_id,
+                    timestamp: row.timestamp_in ? new Date(row.timestamp_in).toISOString() : "",
+                    hours: row.hours_attended
+                };
+
+                const isIntegral = row.row_hash ? verifyIntegrity('ATTENDANCE', row.row_hash, dataToVerify) : false;
+                
+                if (!isIntegral) {
+                    tamperedRecords.push(row);
+                }
+            }
+
+        } else if (type === 'tastm' || type === 'gcta') {
+    const tableName = type === 'tastm' ? 'tastm_days_log' : 'gcta_days_log';
+    const idColumn = `${type}_log_id`;
+
+    // 🎯 FIX 1: Choose columns based on the table schema
+    // TASTM needs total_hours_accumulated, GCTA does not.
+    const extraColumns = type === 'tastm' ? 'l.total_hours_accumulated,' : '';
+
+    const filterCondition = type === 'tastm' 
+        ? "l.status = 'Active' AND l.days_earned > 0" 
+        : "l.status = 'Active'";
+
+    query = `
+        SELECT 
+            l.${idColumn} AS log_id, 
+            l.pdl_id, 
+            l.days_earned, 
+            ${extraColumns} -- 👈 This only injects the column if it exists!
+            l.month_year,               
+            l.row_hash, 
+            l.date_granted,
+            p.first_name, p.last_name
+        FROM ${tableName} l
+        JOIN pdl_tbl p ON l.pdl_id = p.pdl_id
+        WHERE ${filterCondition}
+    `;
+    
+    const result = await pool.query(query);
+
+    for (let row of result.rows) {
+        // 🎯 FIX 2: Replicate the Sync's UTC Date shift
+        const dbDate = new Date(row.month_year);
+        const syncMirrorDate = new Date(dbDate.getFullYear(), dbDate.getMonth(), 1);
+        const monthStr = syncMirrorDate.toISOString().slice(0, 7); 
+
+        // 🎯 FIX 3: Context-Specific Hashing Recipes
+        let dataToVerify = {};
+
+        if (type === 'tastm') {
+            // TASTM Recipe: ID + Month + Hours + Days
+            dataToVerify = {
+                pdl_id: row.pdl_id,
+                month: monthStr,
+                hours: Number(row.total_hours_accumulated), 
+                days: Number(row.days_earned)
+            };
+        } else {
+            // GCTA Recipe: ID + Month + Days (No Hours!)
+            dataToVerify = {
+                pdl_id: row.pdl_id,
+                month: monthStr,
+                days: Number(row.days_earned)
+            };
+        }
+
+        // 🛡️ Perform the forensic check
+        const isIntegral = row.row_hash 
+            ? verifyIntegrity(type.toUpperCase(), row.row_hash, dataToVerify) 
+            : false;
+        
+        if (!isIntegral) {
+            tamperedRecords.push({
+                ...row,
+                type: type,
+                display_date: row.month_year
+            });
+        }
+    }
+}
+
+        res.status(200).json(tamperedRecords);
+
+    } catch (err) {
+        console.error("❌ Audit Scan Error:", err.message);
+        res.status(500).json({ error: "Failed to perform integrity audit scan." });
+    }
+};
 
 
+const repairCreditIntegrity = async (req, res) => {
+    // 🎯 Match the payload from your handleRepair frontend
+    const { record_id, pdl_id, corrected_value, paper_log_ref, credit_type } = req.body;
+    const client = await pool.connect();
+
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const currentUserId = req.user ? req.user.id : 1;
+
+    try {
+        await client.query('BEGIN');
+
+        // 1. Fetch the existing record to get the month_year
+        const tableName = credit_type === 'tastm' ? 'tastm_days_log' : 'gcta_days_log';
+        const idColumn = `${credit_type}_log_id`;
+        
+        const recordRes = await client.query(
+            `SELECT month_year, days_earned FROM ${tableName} WHERE ${idColumn} = $1`, 
+            [record_id]
+        );
+
+        if (recordRes.rows.length === 0) {
+            throw new Error("Record not found.");
+        }
+
+        const dbRow = recordRes.rows[0];
+
+        // 2. Mirror the Sync's Date Logic (UTC Normalization)
+        // This ensures the hash month matches what was generated during Sync
+        const dbDate = new Date(dbRow.month_year);
+        const syncMirrorDate = new Date(dbDate.getFullYear(), dbDate.getMonth(), 1);
+        const monthStr = syncMirrorDate.toISOString().slice(0, 7); // e.g. "2026-04"
+
+       let daysToGrant = 0;
+        let finalHash = "";
+        let updateQuery = "";
+        let queryParams = [];
+        let repairTag = ""; // 🎯 Define the tag here
+
+        // 3. Business Logic Enforcement
+        if (credit_type === 'tastm') {
+            const hours = Number(corrected_value);
+            daysToGrant = hours >= 60 ? 15 : 0;
+            
+            // 🎯 KEEP THE ANCHOR: Sync looks for "Automated TASTM"
+            repairTag = `Automated TASTM (REPAIRED: Ref [${paper_log_ref}])`;
+
+            finalHash = generateHash('TASTM', {
+                pdl_id: pdl_id,
+                month: monthStr,
+                hours: hours,
+                days: daysToGrant
+            });
+
+            updateQuery = `
+                UPDATE tastm_days_log SET 
+                    total_hours_accumulated = $1, 
+                    days_earned = $2, 
+                    row_hash = $3, 
+                    remarks = $4,
+                    date_granted = NOW() 
+                WHERE tastm_log_id = $5`;
+            queryParams = [hours, daysToGrant, finalHash, repairTag, record_id];
+
+        } else if (credit_type === 'gcta') {
+            daysToGrant = 20;
+            
+            // 🎯 KEEP THE ANCHOR: Consistent naming for GCTA
+            repairTag = `Automated GCTA (REPAIRED: Ref [${paper_log_ref}])`;
+
+            finalHash = generateHash('GCTA', {
+                pdl_id: pdl_id,
+                month: monthStr,
+                days: daysToGrant
+            });
+
+            updateQuery = `
+                UPDATE gcta_days_log SET 
+                    days_earned = $1, 
+                    row_hash = $2, 
+                    remarks = $3,
+                    date_granted = NOW() 
+                WHERE gcta_log_id = $4`;
+            queryParams = [daysToGrant, finalHash, repairTag, record_id];
+        }
+        // 4. Apply the Repair
+        await client.query(updateQuery, queryParams);
+
+        // 5. Log the High-Priority Security Action
+        await logAction(client, {
+            userId: currentUserId,
+            action: 'CREDIT_INTEGRITY_REPAIR',
+            tableName: tableName,
+            recordId: record_id,
+            pdlId: pdl_id,
+            details: {
+                message: `Manual re-seal for ${credit_type.toUpperCase()}`,
+                correction: `${dbRow.days_earned} -> ${daysToGrant} days`,
+                reference: paper_log_ref,
+                new_hash: finalHash.slice(0, 10) + "..."
+            },
+            ipAddress: clientIp
+        });
+
+        await client.query('COMMIT');
+
+        // 🎯 Success Log for Terminal
+        console.log(`
+            --- 🛡️ ${credit_type.toUpperCase()} REPAIR SUCCESS ---
+            PDL ID: ${pdl_id}
+            Period: ${monthStr}
+            Result: ${daysToGrant} Days
+            Hash: ${finalHash.slice(0, 15)}...
+            ---------------------------------------
+        `);
+
+        res.status(200).json({ success: true, message: "Integrity restored and record re-sealed." });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("❌ REPAIR ERROR:", err.message);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+};
+
+
+const getRestoredRecords = async (req, res) => {
+    const { type } = req.query; 
+    
+    try {
+        const tableName = type === 'attendance' ? 'attendance_tbl' : 
+                         type === 'tastm' ? 'tastm_days_log' : 'gcta_days_log';
+        
+        const idColumn = type === 'attendance' ? 'attendance_id' : 
+                        type === 'tastm' ? 'tastm_log_id' : 'gcta_log_id';
+        
+        const repairAction = type === 'attendance' ? 'INTEGRITY_REPAIR' : 'CREDIT_INTEGRITY_REPAIR';
+
+        const query = `
+            SELECT 
+                t.*, 
+                p.first_name, p.last_name,
+                -- 🎯 Focus on the Full Name of the officer
+                COALESCE(u.fullname, u.username, 'System Admin') AS restored_by_name, 
+                al.timestamp AS restoration_date,
+                -- 🎯 Dynamic Session Name logic
+                ${type === 'attendance' ? 's.session_name' : "t.month_year::TEXT AS session_name"} 
+            FROM ${tableName} t
+            JOIN pdl_tbl p ON t.pdl_id = p.pdl_id
+            -- 🕵️ Conditionally JOIN session_tbl for Attendance
+            ${type === 'attendance' ? 'LEFT JOIN session_tbl s ON t.session_id = s.session_id' : ''}
+            -- 🛡️ THE FIX: Switch to INNER JOIN. No log = No entry in this list. No more 1970!
+            JOIN (
+                SELECT DISTINCT ON (record_id) record_id, user_id, timestamp 
+                FROM audit_log_tbl 
+                WHERE action_type = $1 AND table_name = $2
+                ORDER BY record_id, timestamp DESC
+            ) al ON al.record_id::TEXT = t.${idColumn}::TEXT 
+            -- 🕵️ JOIN with usetbl
+            LEFT JOIN usertbl u ON al.user_id = u.userid
+            WHERE t.remarks ILIKE '%REPAIRED%'
+            ORDER BY al.timestamp DESC
+        `;
+
+        const result = await pool.query(query, [repairAction, tableName]);
+        
+        const formatted = result.rows.map(row => ({
+            ...row,
+            id: row[idColumn],
+            // Formatting for the frontend date cell
+            display_date: type === 'attendance' ? row.timestamp_in : row.date_granted
+        }));
+
+        res.status(200).json(formatted);
+    } catch (err) {
+        console.error("❌ Restoration Fetch Error:", err.message);
+        res.status(500).json({ error: "Failed to fetch repair history." });
+    }
+};
 
 module.exports = { startSession, logAttendance, finalizeSession, cancelSession , 
     getSessionHistory, searchPdls, updateAttendanceHours, getSessionDetails, removeAttendance, 
-    reloadSession, silentGctaSync, silentTastmSync, getMonthlyEvaluation, disqualifyPdlMonthly, reenablePdlMonthly,repairAttendanceIntegrity};
+    reloadSession, silentGctaSync, silentTastmSync, getMonthlyEvaluation, disqualifyPdlMonthly, 
+    reenablePdlMonthly,repairAttendanceIntegrity, getTamperedRecords, repairCreditIntegrity,
+    getRestoredRecords};

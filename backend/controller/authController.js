@@ -99,4 +99,70 @@ const loginUser = async (req, res) => {
   }
 };
 
-module.exports = { loginUser };
+const verifySessionPassword = async (req, res) => {
+    const client = await pool.connect();
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+    try {
+        const userId = req.user.id; 
+        // 🎯 We now expect 'module' from the frontend (e.g., "INTEGRITY_AUDIT" or "SYSTEM_LOGS")
+        const { password, module } = req.body; 
+
+        if (!password) {
+            return res.status(400).json({ error: "Password is required for authorization." });
+        }
+
+        const userQuery = `SELECT password, fullname, username FROM usertbl WHERE userid = $1`;
+        const userResult = await client.query(userQuery, [userId]);
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: "User context lost." });
+        }
+
+        const user = userResult.rows[0];
+        const isValid = await bcrypt.compare(password, user.password);
+
+        // 🏷️ Create dynamic action names based on the module
+        const prefix = module ? module.toUpperCase() : "GENERAL_SECURITY";
+
+        if (!isValid) {
+            // 🚩 DYNAMIC LOG: FAILED
+            await logAction(client, {
+                userId: userId,
+                action: `${prefix}_ACCESS_FAILED`, 
+                tableName: 'audit_log_tbl',
+                recordId: userId,
+                details: { 
+                    message: `Failed verification for ${prefix} access.`,
+                    attempted_by: user.fullname 
+                },
+                ipAddress: clientIp
+            });
+
+            return res.status(401).json({ error: "Invalid administrative password." });
+        }
+
+        // ✅ DYNAMIC LOG: SUCCESS
+        await logAction(client, {
+            userId: userId,
+            action: `${prefix}_ACCESS_GRANTED`,
+            tableName: 'audit_log_tbl',
+            recordId: userId,
+            details: { 
+                message: `${prefix} module successfully unlocked.`,
+                authorized_user: user.fullname 
+            },
+            ipAddress: clientIp
+        });
+
+        res.status(200).json({ message: "Access Authorized." });
+
+    } catch (error) {
+        console.error("🔥 Security Gate Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        client.release();
+    }
+};
+
+module.exports = { loginUser, verifySessionPassword };

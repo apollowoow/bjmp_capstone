@@ -1,9 +1,14 @@
 // backend/routes/authRoutes.js
 const express = require('express');
 const router = express.Router();
-const { loginUser } = require('../controller/authController');
+const { loginUser, verifySessionPassword } = require('../controller/authController');
 
-// This creates the endpoint: POST /api/auth/login
+// 🎯 FIX: Match the name with your middleware file
+const { authenticateToken } = require('../middleware/authMiddleware'); 
+
 router.post('/login', loginUser);
+
+// 🛡️ Gamitin ang tamang pangalan dito
+router.post('/verify-session-password', authenticateToken, verifySessionPassword);
 
 module.exports = router;
