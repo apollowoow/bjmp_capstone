@@ -13,7 +13,8 @@ import {
   LogOut,
   UserCog,
   AlertCircle,
-  ShieldAlert
+  ShieldAlert,
+  Database
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -135,6 +136,14 @@ const Sidebar = () => {
             <UserPlus size={18} /> Add System User
           </Link>
         )}
+
+
+        {canDo("User Management", "canview") && (
+            <Link to="/maintenance" className="nav-link" style={{ ...iconLinkStyle}}>
+              <Database size={18} /> System Maintenance
+            </Link>
+        )}
+      
       </nav>
       
       <div style={{ marginTop: 'auto', paddingBottom: '20px' }}>

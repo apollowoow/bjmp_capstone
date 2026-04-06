@@ -29,7 +29,8 @@ const userRoutes = require("./routes/userRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const sessionRoutes = require('./routes/sessionRoutes'); 
 const reportRoutes = require("./routes/reportRoutes");
-const incidentRoutes = require("./routes/incidentRoutes"); // 🎯 1. IMPORT INCIDENT ROUTES
+const incidentRoutes = require("./routes/incidentRoutes");
+const maintenanceRoutes = require("./routes/maintenanceRoutes"); // 🎯 1. IMPORT INCIDENT ROUTES
 
 // ==========================
 // USE ROUTES
@@ -40,7 +41,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/dashboard", dashboardRoutes); 
 app.use("/api/sessions", sessionRoutes);   
 app.use("/api/reports", reportRoutes);     
-app.use("/api/incidents", incidentRoutes); // 🎯 2. REGISTER INCIDENT ROUTE
+app.use("/api/incidents", incidentRoutes); 
+app.use("/api/maintenance", maintenanceRoutes); // 🎯 2. REGISTER INCIDENT ROUTE
 
 // ==========================
 // ROOT & SERVER

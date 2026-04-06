@@ -16,4 +16,9 @@ const pool = new Pool({
   port: config.db.port,
 });
 
+pool.on('error', (err, client) => {
+    console.error('⚠️ Unexpected error on idle client', err.message);
+  
+});
+
 module.exports = pool;

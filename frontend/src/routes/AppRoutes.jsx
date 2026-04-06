@@ -18,6 +18,7 @@ import AuditLogs from "../pages/AuditLogs";
 import SessionDetails from "../pages/SessionDetails";
 import ProtectedRoute from "../components/ProtectedRoute";
 import IntegrityAudit from "../pages/IntegrityAudit";
+import Maintenance from "../pages/Maintenance";
 
 const AppRoutes = () => {
   return (
@@ -85,6 +86,7 @@ const AppRoutes = () => {
           <Route element={<ProtectedRoute moduleName="User Management" action="canview" />}>
             <Route path="/users" element={<UserManagement />} />
             <Route path="/audit-logs" element={<AuditLogs />} />
+            <Route path="/maintenance" element={<Maintenance />} />
           </Route>
 
           {/* 🛡️ 2. THE CREATORS: Only those with 'cancreate' can reach the Add User form */}
