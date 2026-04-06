@@ -3,7 +3,9 @@ import API_BASE_URL from "../apiConfig";
 import "./education.css";
 import { useNavigate, useBlocker } from 'react-router-dom';
 import { usePermissions } from "../hooks/usePermission";
-
+import { Gavel, Keyboard, Activity, X, 
+    ShieldCheck, AlertCircle , GraduationCap,  
+    Play, ScrollText, RotateCw} from 'lucide-react';
 const Education = () => {
     const navigate = useNavigate();
     const { canDo } = usePermissions();
@@ -145,12 +147,13 @@ useEffect(() => {
         const data = await response.json();
         
         if (response.status === 409) {
-            return triggerAlert("Double Entry", "This PDL is already on the list.", "warning");
+            setShowManualModal(false);
+            return triggerAlert("Double Entry", "This PDL is already on the list.");
         }
 
         if (response.status === 403) {
             setShowManualModal(false);
-                return triggerAlert("Access Denied: This PDL is currently barred from earning credits due to a disciplinary record.", "warning");
+                return triggerAlert("Access Denied: This PDL is currently barred from earning credits due to a disciplinary record.");
             }
 
         if (response.status === 403) {
@@ -474,31 +477,41 @@ return (
         <div className="education-scope">
             <div className="education-container">
                 <header className="page-header">
-                    <div className="header-text">
-                        <h1>🎓 W&D Programs & Attendance</h1>
-                        <p>Manage Program Attendance (TASTM) and Automated Monthly Credits (GCTA).</p>
-                    </div>
-                    <div className="header-actions">
-                      {/* ⚖️ MSEC: Restricted to Admin/Warden ('canapprove') */}
-                        {canDo("Time Allowance Computation (GCTA/TASTM)", "canapprove") && (
-                            <button className="btn-primary" onClick={() => navigate("/msec")}>
-                                ⚖️ MSEC Final Screening
-                            </button>
-                        )}
+    <div className="header-text">
+        <h1>
+            <GraduationCap size={28} /> 
+            W&D Programs & Attendance
+        </h1>
+        <p>Manage Program Attendance (TASTM) and Automated Monthly Credits (GCTA).</p>
+    </div>
 
-                        {/* 🚀 START SESSION: Restricted to those who can create attendance logs */}
-                        {canDo("Attendance & Sessions", "cancreate") && (
-                            <button className="btn-primary" onClick={() => setShowSessionModal(true)}>
-                                🚀 Start Attendance Session
-                            </button>
-                        )}
-                    </div>
-                </header>
+    <div className="header-actions">
+        {/* ⚖️ MSEC: Restricted to Admin/Warden ('canapprove') */}
+        {canDo("Time Allowance Computation (GCTA/TASTM)", "canapprove") && (
+            <button className="btn-primary" onClick={() => navigate("/msec")}>
+                <Gavel size={18} /> MSEC Final Screening
+            </button>
+        )}
+
+        {/* 🚀 START SESSION: Restricted to those who can create attendance logs */}
+        {canDo("Attendance & Sessions", "cancreate") && (
+            <button className="btn-primary" onClick={() => setShowSessionModal(true)}>
+                <Play size={18} /> Start Attendance Session
+            </button>
+        )}
+    </div>
+</header>
 
                <div className="section card">
                     <div className="card-header">
-                        <h2>📜 Judicial Ledger: Past Sessions</h2>
-                        <button className="btn-refresh" onClick={fetchPastSessions}>🔄 Refresh</button>
+                        <h2>
+                            <ScrollText size={24} className="ledger-icon" /> 
+                            Judicial Ledger: Past Sessions
+                        </h2>
+                        <button className="btn-refresh" onClick={fetchPastSessions}>
+                            <RotateCw size={16} className="refresh-icon" /> 
+                            Refresh
+                        </button>
                     </div>
 
                     <div className="ledger-filters" style={{ 
@@ -569,7 +582,7 @@ return (
                                                         navigate(`/education/session/${session.session_id}`);
                                                     }}
                                                 >
-                                                    ⚙️ Manage
+                                                    Manage
                                                 </button>
                                             </td>
                                         </tr>
@@ -612,41 +625,79 @@ return (
 
             {showSessionModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content session-modal">
-                        <div className="modal-header">
-                            <h3>📡 Initialize Attendance Session</h3>
-                            <p>Capture session metadata for the Judicial Ledger before scanning.</p>
+                    <div className="attendance-init-overlay">
+        <div className="attendance-init-modal">
+            <div className="attendance-init-header">
+                <h3>
+                    <Activity size={22} className="init-icon" /> 
+                    Initialize Attendance Session
+                </h3>
+                <p>Capture session metadata for the Judicial Ledger before scanning.</p>
+            </div>
+            
+            <form onSubmit={handleLaunchScanner}>
+                <div className="init-modal-body">
+                    <div className="init-form-grid">
+                        <div className="init-field">
+                            <label>Activity Category</label>
+                            <select name="program_name" value={sessionForm.program_name} onChange={handleInputChange}>
+                                <option value="Education">Education (ALS)</option>
+                                <option value="Vocational">TESDA / Vocational</option>
+                                <option value="Livelihood">Livelihood Training</option>
+                                <option value="Religious">Religious / Values Formation</option>
+                                <option value="Sports">Sports & Recreation</option>
+                            </select>
                         </div>
-                        <form onSubmit={handleLaunchScanner}>
-                            <div className="modal-body">
-                                <div className="form-grid">
-                                    <div className="field">
-                                        <label>Activity Category</label>
-                                        <select name="program_name" value={sessionForm.program_name} onChange={handleInputChange}>
-                                            <option value="Education">Education (ALS)</option>
-                                            <option value="Vocational">TESDA / Vocational</option>
-                                            <option value="Livelihood">Livelihood Training</option>
-                                            <option value="Religious">Religious / Values Formation</option>
-                                            <option value="Sports">Sports & Recreation</option>
-                                        </select>
-                                    </div>
-                                    <div className="field">
-                                        <label>Specific Session Name</label>
-                                        <input type="text" name="session_name" placeholder="e.g., Sunday Worship" onChange={handleInputChange} required />
-                                    </div>
-                                    <div className="form-row-dual">
-                                        <div className="field"><label>Credit Hours</label><input type="number" name="hours_to_earn" placeholder="Hours" step="0.1" onChange={handleInputChange} required /></div>
-                                        <div className="field"><label>Date</label><input type="date" name="session_date" value={sessionForm.session_date} readOnly /></div>
-                                    </div>
-                                    <div className="field"><label>Officer in Charge</label><input type="text" name="officer_in_charge" placeholder="Full Name / Rank" onChange={handleInputChange} required /></div>
-                                </div>
+                        
+                        <div className="init-field">
+                            <label>Specific Session Name</label>
+                            <input type="text" name="session_name" placeholder="e.g., Sunday Worship" onChange={handleInputChange} required />
+                        </div>
+                        
+                        <div className="init-form-row-dual">
+                            <div className="init-field">
+                                <label>Credit Hours</label>
+                                                        <input 
+                                    type="number" 
+                                    name="hours_to_earn" 
+                                    placeholder="Hours" 
+                                    step="0.1" 
+                                    min="1" // 🎯 HTML5 Level Check
+                                    value={sessionForm.hours_to_earn}
+                                    onChange={handleInputChange} 
+                                    required 
+                                    className={sessionForm.hours_to_earn <= 0 ? 'init-input-error' : ''}
+                                />
+                                
+                                {/* 🎯 Visual Warning if 0 or negative */}
+                                {sessionForm.hours_to_earn <= 0 && sessionForm.hours_to_earn !== "" && (
+                                    <p className="init-error-text">
+                                        <AlertCircle size={12} /> Hours must be greater than 0.
+                                    </p>
+                                )}
                             </div>
-                            <div className="modal-actions">
-                                <button type="button" className="btn-modal-cancel" onClick={() => setShowSessionModal(false)}>Cancel</button>
-                                <button type="submit" className="btn-modal-confirm">Confirm & Open RFID Scanner</button>
+                            <div className="init-field">
+                                <label>Date</label>
+                                <input type="date" className="init-read-only" name="session_date" value={sessionForm.session_date} readOnly />
                             </div>
-                        </form>
+                        </div>
+                        
+                        <div className="init-field">
+                            <label>Officer in Charge</label>
+                            <input type="text" name="officer_in_charge" placeholder="Full Name / Rank" onChange={handleInputChange} required />
+                        </div>
                     </div>
+                </div>
+
+                <div className="init-modal-actions">
+                    <button type="button" className="init-btn-cancel" onClick={() => setShowSessionModal(false)}>Cancel</button>
+                    <button type="submit" className="init-btn-confirm">
+                        <ShieldCheck size={18} /> Confirm & Open RFID Scanner
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
                 </div>
             )}
 
@@ -789,7 +840,7 @@ return (
             {alertModal.show && (
               <div className="modal-overlay alert-z-index">
                   <div className={`modal-content alert-modal ${alertModal.type}-border`}>
-                      <div className="modal-header">
+                      <div className="education-scope modal-header">
                           <h3>{alertModal.title}</h3>
                       </div>
                       <div className="modal-body">
@@ -833,9 +884,12 @@ return (
 
                     {showManualModal && (
                     <div className="modal-overlay alert-z-index">
-                        <div className="modal-content manual-entry-modal">
-                            <div className="modal-header">
-                                <h3>⌨️ Manual Attendance Entry</h3>
+                        <div className="manual-modal-content manual-entry-modal">
+                            <div className="manual-modal-header">
+                               <h3 className="ia-manual-title">
+                                    <Keyboard size={24} className="ia-modal-icon" /> 
+                                    Manual Attendance Entry
+                                </h3>
                                 <p>Search by Last Name or Jail ID to log attendance without RFID.</p>
                             </div>
                             <div className="modal-body">

@@ -1,16 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { 
-  History, Search, RotateCcw, Eye, 
+  Search, RotateCcw, Eye, 
   Calendar, ShieldAlert, ChevronLeft, ChevronRight,
-  User, Activity, Info
+  User, AlertCircle,  Loader2,  History, 
 } from "lucide-react";
 import API_BASE_URL from "../apiConfig";
 import "./audit.css";
+import { useNavigate } from 'react-router-dom';
 
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const navigate = useNavigate();
+
+  const [isAuthorized, setIsAuthorized] = useState(false);
+      const [authPassword, setAuthPassword] = useState("");
+      const [authError, setAuthError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
   // 🔍 Filtering & Pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
@@ -50,6 +56,37 @@ const [availableActions, setAvailableActions] = useState([]);
     fetchActions();
 }, []);
   
+
+const handleVerifyAccess = async (e) => {
+    if (e) e.preventDefault();
+    setIsVerifying(true);
+    setAuthError("");
+
+    try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_BASE_URL}/api/auth/verify-session-password`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ password: authPassword, 
+            module: "SYSTEM_LOGS_AUDIT" })
+        });
+
+        if (res.ok) {
+            setIsAuthorized(true); // 🔓 UNLOCK THE GATE
+            fetchLogs();
+        } else {
+            setAuthError("Invalid administrative password. Unauthorized access attempt logged.");
+        }
+    } catch (err) {
+        setAuthError("Security server unreachable.");
+    } finally {
+        setIsVerifying(false);
+    }
+};
+
 const formatActionLabel = (text) => {
     if (!text) return "";
     const acronyms = ["MSEC", "GCTA", "TASTM", "PDL", "RFID", "PNP", "BJMP"];
@@ -318,7 +355,47 @@ const categorizeActions = (actions) => {
           </div>
         </div>
       )}
+
+      {!isAuthorized && (
+            <div className="ia-security-overlay">
+                <div className="ia-auth-card">
+                    <div className="ia-lock-header">
+                        <ShieldAlert size={48} className="ia-lock-icon" />
+                        <h2>Restricted Access</h2>
+                        <p>Authorization required to view System Audit Logs.</p>
+                    </div>
+
+                    <form onSubmit={handleVerifyAccess}>
+                        <div className="ia-auth-field">
+                            <label>Confirm Admin Password</label>
+                            <input 
+                                type="password" 
+                                placeholder="••••••••"
+                                value={authPassword}
+                                onChange={(e) => setAuthPassword(e.target.value)}
+                                autoFocus
+                                required
+                            />
+                            {authError && <span className="ia-auth-error"><AlertCircle size={14} /> {authError}</span>}
+                        </div>
+
+                        <button type="submit" className="ia-btn-unlock" disabled={isVerifying}>
+                            {isVerifying ? <Loader2 size={18} className="ia-spin" /> : "Unlock Forensic Ledger"}
+                        </button>
+                    </form>
+                    
+                    <button 
+                        className="ia-btn-exit" 
+                        onClick={() => navigate("/dashboard")} // 🚀 Direct navigation to the dashboard route
+                    >
+                        Return to Dashboard
+                    </button>
+                </div>
+            </div>
+        )}
     </div>
+
+    
   );
 };
 

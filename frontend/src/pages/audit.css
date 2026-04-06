@@ -1,4 +1,4 @@
-.al-container { padding: 25px; background: #f8fafc; min-height: 100vh; font-family: 'Inter', sans-serif; }
+.al-container { padding: 25px; background: #f8fafc; min-height: 100vh; font-family: 'Inter', sans-serif;  position:relative }
 
 .al-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; border-bottom: 2px solid #cbd5e1; padding-bottom: 20px; }
 .al-title-area h1 { display: flex; align-items: center; gap: 12px; color: #0f172a; margin: 0; font-size: 1.8rem; }

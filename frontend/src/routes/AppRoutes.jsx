@@ -17,6 +17,7 @@ import UserManagement from "../pages/UserManagement"; // 🎯 NEW
 import AuditLogs from "../pages/AuditLogs";
 import SessionDetails from "../pages/SessionDetails";
 import ProtectedRoute from "../components/ProtectedRoute";
+import IntegrityAudit from "../pages/IntegrityAudit";
 
 const AppRoutes = () => {
   return (
@@ -74,6 +75,7 @@ const AppRoutes = () => {
           }>
             <Route path="/reports" element={<Reports />} />
             <Route path="/msec" element={<Msec />} />
+            <Route path="/integrity-audit" element={<IntegrityAudit />} />
           </Route>
 
           {/* 👤 USER MANAGEMENT: Super Admin Only */}

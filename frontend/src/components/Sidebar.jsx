@@ -12,7 +12,8 @@ import {
   Activity, 
   LogOut,
   UserCog,
-  AlertCircle
+  AlertCircle,
+  ShieldAlert
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -88,10 +89,18 @@ const Sidebar = () => {
 
         {/* REPORTS */}
         {canDo("Time Allowance Computation (GCTA/TASTM)", "canapprove") && (
-          <Link to="/reports" className="nav-link" style={iconLinkStyle}>
-            <FileText size={18} /> Reports
-          </Link>
+          <>
+            <Link to="/reports" className="nav-link" style={iconLinkStyle}>
+              <FileText size={18} /> Reports
+            </Link>
+
+            {/* 🛡️ NEW: INTEGRITY AUDIT LINK */}
+            {/* Matches the permission in your AppRoutes.jsx */}
+        
+          </>
         )}
+
+        
 
         <hr style={{ margin: '15px 0', borderColor: '#334155', borderStyle: 'solid', borderWidth: '1px 0 0 0' }} />
         
@@ -108,7 +117,11 @@ const Sidebar = () => {
             <UserCog size={18} /> User Management
           </Link>
         )}
-
+        {canDo("User Management", "canview") && (
+            <Link to="/integrity-audit" className="nav-link" style={iconLinkStyle}>
+              <ShieldAlert size={18} /> Integrity Audit
+            </Link>
+          )}
         {/* AUDIT TRAIL */}
         {canDo("User Management", "canview") && (
           <Link to="/audit-logs" className="nav-link" style={{ ...iconLinkStyle }}>

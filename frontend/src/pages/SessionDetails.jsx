@@ -159,7 +159,7 @@ const SessionDetails = () => {
                 <div className="page-header">
                     <div className="header-text">
                         
-                        <h1>📜 Attendance Records</h1>
+                        <h1>Attendance Records</h1>
                         <p>Topic: <strong>{sessionInfo?.session_name || 'N/A'}</strong> | Date: {sessionInfo ? new Date(sessionInfo.session_date).toLocaleDateString() : ''}</p>
                     </div>
                     <div className="header-actions">
@@ -170,7 +170,7 @@ const SessionDetails = () => {
                 {/* 🛠️ Management Card */}
                 <div className="section card">
                     <div className="card-header" style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '15px' }}>
-                        <h2>👥 Attendees List</h2>
+                        <h2>Attendees List</h2>
                         
                         {/* 🔍 Search Input */}
                         <div style={{ position: 'relative' }}>
