@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom"; // Import navigation hook
 import API_BASE_URL from "../apiConfig";
+import { ShieldCheck } from 'lucide-react';
 import "./login.css";
 
 const Login = () => {
@@ -58,7 +59,9 @@ const Login = () => {
         <div className="login-container">
             <div className="login-box">
                 {/* Logo or Icon */}
-                <div style={{ fontSize: "3rem", marginBottom: "10px" }}>⚖️</div>
+                <div >
+            <ShieldCheck size={60} color="#3b82f6" strokeWidth={1.5} />
+        </div>
                 
                 <h2 className="login-title">BJMP SYSTEM</h2>
                 <p style={{color: '#64748b', marginBottom: '20px'}}>Secure Information Management</p>
