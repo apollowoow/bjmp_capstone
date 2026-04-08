@@ -49,17 +49,27 @@ const Maintenance = () => {
 
     // 🔍 SEARCH & FILTER LOGIC
     const filteredBackups = useMemo(() => {
-        return backups.filter(file => {
+    return backups
+        .filter(file => {
             const matchesSearch = file.toLowerCase().includes(searchQuery.toLowerCase());
             
             // Extract month from filename: MCJ_Name_YYYY-MM-DD...
-            const datePart = file.split('_').pop(); // Get timestamp part
-            const month = datePart.split('-')[1]; // Get 'MM'
+            const datePart = file.split('_').pop(); // Kunin yung timestamp (e.g., 2026-04-06...)
+            const month = datePart.split('-')[1]; // Kunin yung MM part
             const matchesMonth = monthFilter === "all" || month === monthFilter;
 
             return matchesSearch && matchesMonth;
+        })
+        .sort((a, b) => {
+            // Kunin uli yung timestamp part para sa sorting
+            const timeA = a.split('_').pop();
+            const timeB = b.split('_').pop();
+
+            // 💡 DESCENDING ORDER (Latest first)
+            // Ibabalik natin ang comparison ng B to A para ang pinakamalaking date ay nasa index 0
+            return timeB.localeCompare(timeA);
         });
-    }, [backups, searchQuery, monthFilter]);
+}, [backups, searchQuery, monthFilter]);
 
     // 🔢 PAGINATION LOGIC
     const indexOfLastItem = currentPage * itemsPerPage;

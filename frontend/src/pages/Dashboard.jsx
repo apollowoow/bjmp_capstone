@@ -2,31 +2,35 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,  
 } from 'recharts';
 // 🎯 NEW: Professional Icons
 import { 
   Users, AlertTriangle, ShieldAlert, Calendar, 
   Plus, ClipboardList, BarChart3, Zap, 
-  History, UserPlus, FileEdit, Activity, ChevronRight
+  History, UserPlus, FileEdit, Activity, ChevronRight, Play, FileText, UserCog,
+  Database,
 } from "lucide-react";
 import API_BASE_URL from "../apiConfig";
 import "./dashboard.css"; 
+import { usePermissions } from "../hooks/usePermission";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+ const { user,isAdmin, isWarden, isOfficer } = usePermissions();
   const [stats, setStats] = useState({
     totalPdl: 0,
     detained: 0,
     sentenced: 0,
     lockedCount: 0,
     frequentViolators: 0,
-    recentIncidents: []
+    recentIncidents: [],
+    nearReleaseList: []
   });
   const [recentLogs, setRecentLogs] = useState([]); // 🕵️‍♂️ Audit Log State
   const [loading, setLoading] = useState(true);
 
-  const user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : { fullname: "Officer" };
+
   const IDEAL_CAPACITY = 41;
   const hasSynced = useRef(false);
 
@@ -68,15 +72,31 @@ const Dashboard = () => {
         // 1. Fetch Stats
         const statRes = await fetch(`${API_BASE_URL}/api/dashboard/stats`, { headers });
         const statData = await statRes.json();
-        if (statRes.ok) setStats(statData);
+        
+        
+        if (statRes.ok) {
+          // 🔍 DEBUG LOGS HERE
+          console.log("📊 FULL STAT DATA:", statData);
+          
+          if (statData.nearReleaseList && statData.nearReleaseList.length > 0) {
+            console.log("🕊️ SAMPLE RELEASE ITEM:", statData.nearReleaseList[0]);
+            // Dito mo makikita kung pdl.releaseDate ba o pdl.expected_release_date ang key!
+          }
+          
+          setStats(statData);
+        }
 
-        // 2. Fetch Recent Audit Logs (Limit to 5)
+        // 2. Fetch Recent Audit Logs
         const auditRes = await fetch(`${API_BASE_URL}/api/users/audit`, { headers });
         const auditData = await auditRes.json();
-        if (auditRes.ok) setRecentLogs(auditData.slice(0, 5));
+        if (auditRes.ok) setRecentLogs(auditData.slice(0, 4));
+        
 
-      } catch (error) { console.error("Data Fetch Error", error); }
-      finally { setLoading(false); }
+      } catch (error) { 
+        console.error("🔥 Data Fetch Error:", error); 
+      } finally { 
+        setLoading(false); 
+      }
     };
     fetchData();
   }, [navigate]);
@@ -98,7 +118,7 @@ const Dashboard = () => {
       <div className="dashboard-header">
         <div>
           <h1>Welcome, {user.fullname}</h1>
-          <p>Meycauayan City Jail - GCTA Monitoring System</p>
+          <p>Meycauayan City Jail - Time Allowance Monitoring System</p>
         </div>
         <div className="date-badge">
           <Calendar size={18} /> {new Date().toLocaleDateString()}
@@ -162,9 +182,35 @@ const Dashboard = () => {
       <div className="dashboard-main-content">
         <div className="left-column">
           {/* 🚨 RECENT DISCIPLINARY ACTIONS */}
-          <div className="content-box table-section">
+        
+
+          {/* 🕵️‍♂️ NEW: RECENT AUDIT LOGS PREVIEW */}
+          <div className="content-box audit-preview-section">
             <div className="box-header">
-              <h3 className="rpt-h3"><AlertTriangle size={20} className="header-icon" /> Recent Disciplinary Actions</h3>
+              <h3 className="rpt-h3"><History size={20} className="header-icon" /> Recent System Activities</h3>
+              <button className="rpt-btn-view" onClick={() => navigate('/audit-logs')}>
+                View Full Trail <ChevronRight size={16} />
+              </button>
+            </div>
+            <div className="audit-list">
+              {recentLogs.map((log, i) => (
+                <div className="audit-item" key={i}>
+                  <div className="audit-meta">
+                    <span className="audit-op">{log.operator_name || "System"}</span>
+                    <span className="audit-time">{new Date(log.created_at).toLocaleTimeString()}</span>
+                  </div>
+                 <div className="audit-action">
+                    <Activity size={14} /> 
+                    {log.action.replace(/_/g, ' ').charAt(0).toUpperCase() + log.action.replace(/_/g, ' ').slice(1)} 
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+          </div>
+            <div className="content-box table-section">
+            <div className="box-header">
+              <h3 className="rpt-h3"><AlertTriangle size={20} className="header-icon" /> Recent Disciplinary Records</h3>
               <button className="rpt-btn-view" onClick={() => navigate('/incidents')}>
                 <Plus size={16} /> Log New Action
               </button>
@@ -186,47 +232,103 @@ const Dashboard = () => {
               </table>
             )}
           </div>
-
-          {/* 🕵️‍♂️ NEW: RECENT AUDIT LOGS PREVIEW */}
-          <div className="content-box audit-preview-section">
-            <div className="box-header">
-              <h3 className="rpt-h3"><History size={20} className="header-icon" /> Recent System Activities</h3>
-              <button className="rpt-btn-view" onClick={() => navigate('/audit-logs')}>
-                View Full Trail <ChevronRight size={16} />
-              </button>
-            </div>
-            <div className="audit-list">
-              {recentLogs.map((log, i) => (
-                <div className="audit-item" key={i}>
-                  <div className="audit-meta">
-                    <span className="audit-op">{log.operator_name || "System"}</span>
-                    <span className="audit-time">{new Date(log.created_at).toLocaleTimeString()}</span>
-                  </div>
-                  <div className="audit-action">
-                    <Activity size={14} /> {log.action} on <code>{log.table_name}</code>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* ⚡ QUICK ACCESS */}
         <div className="right-column">
           <div className="content-box actions-section">
-            <h3 className="ctb-h3"><Zap size={20} className="header-icon" /> Quick Access</h3>
-            <div className="action-buttons">
+  <h3 className="ctb-h3"><Zap size={20} className="header-icon" /> Quick Access</h3>
+  <div className="action-buttons">
+      
+      {/* 👮‍♂️ JAIL OFFICER TOOLS (Officer and Admin can see) */}
+      {(isOfficer ) && (
+          <>
+              <button className="action-btn" onClick={() => navigate('/education')}>
+                  <Play size={20} color="#60a5fa" /> Start Session
+              </button>
               <button className="action-btn" onClick={() => navigate('/add')}>
-                <UserPlus size={20} /> PDL Profiling
+                  <UserPlus size={20} color="#60a5fa" /> Add New PDL
               </button>
-              <button className="action-btn" onClick={() => navigate('/incidents')}>
-                <FileEdit size={20} /> Record Violation
-              </button>
+          </>
+      )}
+
+      {/* 🦅 WARDEN TOOLS (Warden and Admin can see) */}
+      {(isWarden ) && (
+          <>
               <button className="action-btn" onClick={() => navigate('/reports')}>
-                <BarChart3 size={20} /> Eligibility Report
+                  <FileText size={20}  /> Generate Report
               </button>
+              <button className="action-btn" onClick={() => navigate('/audit-logs')}>
+                  <Activity size={20}  /> Audit Logs
+              </button>
+              <button className="action-btn" onClick={() => navigate('/integrity-audit')}>
+                  <ShieldAlert size={20}  /> Integrity Audit
+              </button>
+          </>
+      )}
+
+      {/* 🛡️ ADMIN ONLY TOOLS */}
+      {isAdmin && (
+          <>
+              <button className="action-btn" onClick={() => navigate('/incidents')}>
+                  <AlertTriangle size={20}/> Record Incident
+              </button>
+              <button className="action-btn" onClick={() => navigate('/addUser')}>
+                  <UserCog size={20} /> Add User
+              </button>
+              <button className="action-btn" onClick={() => navigate('/maintenance')}>
+                  <Database size={20}  /> System Backup
+              </button>
+          </>
+      )}
+  </div>
+</div>
+
+          
+         <div className="content-box compact-section">
+  <div className="box-header">
+    <h3 className="rpt-h3">
+      <Users size={20} className="header-icon" /> 
+      Priority Releases
+    </h3>
+    <button className="rpt-btn-view" onClick={() => navigate('/reports')}>
+      Reports <ChevronRight size={14} />
+    </button>
+  </div>
+
+  <div className="compact-list-container">
+    {stats.nearReleaseList.length === 0 ? (
+      <div className="no-data-compact">
+        <p>No PDLs scheduled for release in the next 30 days.</p>
+      </div>
+    ) : (
+      <div className="compact-scroll-area">
+        {stats.nearReleaseList.map((pdl, i) => (
+          <div className="compact-pdl-card" key={i}>
+            <div className="pdl-main-info">
+              <span className="pdl-name-text">
+                {pdl.lastname}, {pdl.firstname}
+              </span>
+              <span className="pdl-sub-text">Expected Discharge</span>
+            </div>
+            <div className="pdl-date-badge">
+              <Calendar size={12} />
+              {new Date(pdl.releaseDate).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              })}
             </div>
           </div>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
+          
+          
+          
+
+
         </div>
       </div>
     </div>

@@ -120,6 +120,7 @@
   box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .box-header { 
@@ -166,7 +167,89 @@
 .actions-section {
   display: flex;
   flex-direction: column;
-  height: 100%; /* Ensures it matches the height of the table next to it */
+ 
+}
+
+.right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Container for the compact list */
+.compact-list-container {
+  margin-top: 15px;
+  max-height: 400px; /* Limit height para hindi humaba yung dashboard */
+  overflow: hidden;
+}
+
+.compact-scroll-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Individual PDL Card */
+.compact-pdl-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  height: 100%;
+
+  border-radius: 10px;
+  
+  transition: transform 0.2s ease;
+}
+
+.compact-pdl-card:hover {
+  transform: translateX(5px);
+  background: #f1f5f9;
+}
+
+.pdl-main-info {
+  display: flex;
+  flex-direction: column;
+  max-width: 60%; /* Prevent name from hitting the date */
+}
+
+.pdl-name-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Para pag sobrang haba ng pangalan, may '...' */
+}
+
+.pdl-sub-text {
+  font-size: 0.7rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Date Badge Style */
+.pdl-date-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #1e293b;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.no-data-compact {
+  text-align: center;
+  padding: 30px 10px;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
 }
 
 /* --- The Buttons (Tiles) --- */
@@ -284,6 +367,7 @@
   flex-direction: column;
   gap: 2rem;
 }
+
 
 /* Stat Cards Icon Integration */
 .stat-card {

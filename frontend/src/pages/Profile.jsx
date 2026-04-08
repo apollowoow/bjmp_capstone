@@ -7,7 +7,7 @@ import {
   ChevronLeft, Pencil, Lock, Archive, Fingerprint, 
   User, Calendar, ShieldCheck, Scale, Gavel, 
   RotateCcw, History, ClipboardList, BarChart3, 
-  Hourglass, AlertTriangle, CheckCircle2, TrendingDown, Activity, FileText
+  Hourglass, AlertTriangle, CheckCircle2, TrendingDown, Activity, FileText, Clock, Info, Banknote, CalendarDays
 } from 'lucide-react';
 
 const Profile = () => {
@@ -152,6 +152,53 @@ const Profile = () => {
                   <span><Scale size={14} /> Offense</span>
                   <strong>{pdl.crime_name}</strong>
                 </div>
+                <div className="info-row">
+                <span><Scale size={14} /> PDL Conduct Status</span>
+                {/* 🎯 LOGIC: Kung true, ibig sabihin may record (Committed Recently). 
+                    Kung false, ibig sabihin malinis (Good PDL). */}
+                <strong style={{ 
+                    color: (pdl.is_locked_for_gcta === true || pdl.is_locked_for_gcta === 't') ? '#ef4444' : '#10b981',
+                    backgroundColor: (pdl.is_locked_for_gcta === true || pdl.is_locked_for_gcta === 't') ? '#fef2f2' : '#f0fdf4',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem'
+                }}>
+                  {(pdl.is_locked_for_gcta === true || pdl.is_locked_for_gcta === 't') 
+                    ? "Ineligible" 
+                    : "Eligible"}
+                </strong>
+              </div>
+
+                {pdl.is_locked_for_gcta && pdl.active_penalty && (
+                  <div className="pdl-penalty-info-card">
+                    <div className="pdl-penalty-header">
+                      <AlertTriangle size={20} />
+                      <h3>Active Disciplinary Penalty</h3>
+                    </div>
+                    
+                    <div className="pdl-penalty-body">
+                      <div className="pdl-penalty-item">
+                        <strong>{pdl.active_penalty.category}</strong>
+                      </div>
+                      <div className="pdl-penalty-item">
+                        <span>Remarks:</span>
+                        <p>{pdl.active_penalty.remarks}</p>
+                      </div>
+                      <div className="pdl-penalty-dates">
+                        <div className="pdl-date-badge">
+                          <Calendar size={14} /> Start: {pdl.active_penalty.incident_date}
+                        </div>
+                        <div className="pdl-date-badge-end">
+                          <Clock size={14} /> End: {pdl.active_penalty.penalty_end_date}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="pdl-penalty-footer">
+                      <Info size={14} /> GCTA computation is suspended until the end date.
+                    </div>
+                  </div>
+                  )}
               </div>
 
               {pdl.pdl_status === "Released" && (
@@ -174,37 +221,7 @@ const Profile = () => {
             </div>
 
             {/* ⚖️ SUBSIDIARY PENALTY BOX */}
-            {pdl.subsidiary && (() => {
-              const fine = Number(pdl.subsidiary.total_fine_amount) || 0;
-              const paid = Number(pdl.subsidiary.amount_paid) || 0;
-              const rate = Number(pdl.subsidiary.daily_rate) || 0;
-              const cap = pdl.subsidiary.max_subsidiary_days || 0;
-              const balance = fine - paid;
-              const addedDays = rate > 0 ? Math.min(Math.floor(balance / rate), cap) : 0;
-
-              return (
-                <div className="subsidiary-penalty-box">
-                  <div className="sub-penalty-header">
-                    <h4><Gavel size={16} /> Subsidiary Penalty</h4>
-                    <span className="penalty-tag">Art. 39 RPC</span>
-                  </div>
-
-                  <div className="penalty-details">
-                    <div className="penalty-info">
-                      <span>Current Balance:</span>
-                      <strong>₱{balance.toLocaleString()}</strong>
-                    </div>
-                    <div className="penalty-days">
-                      <span>Added Jail Time:</span>
-                      <strong className="text-danger">+{addedDays} Days</strong>
-                    </div>
-                  </div>
-                  <p className="penalty-note">
-                    Rate: ₱{rate}/day | Cap: {cap} days.
-                  </p>
-                </div>
-              );
-            })()}  
+         
           </div>
 
           {/* 3. ANALYTICS CARD */}
@@ -234,7 +251,18 @@ const Profile = () => {
               )}
 
               {/* 📈 SECTION: TIME ALLOWANCE LEDGER */}
+               <div className="timeline-card-box">
+                  <div className="timeline-row">
+                    <p><Calendar size={14} /> Admission Date (BJMP)</p>
+                    <strong>{pdl.date_admitted_bjmp ? new Date(pdl.date_admitted_bjmp).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "---"}</strong>
+                  </div>
+                  <div className="timeline-row">
+                    <p><History size={14} /> Committal Date (PNP)</p>
+                    <strong>{pdl.date_commited_pnp ? new Date(pdl.date_commited_pnp).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "---"}</strong>
+                  </div>
+                </div>
               <div className="allowance-ledger">
+                
                 <h4><Hourglass size={14} /> Time Allowance Credits</h4>
                 <div className="ledger-grid">
                   {pdl.pdl_status === "Released" ? (
@@ -270,46 +298,88 @@ const Profile = () => {
 
               {/* 🎯 PREDICTION RESULTS */}
               <div className="prediction-results">
-                <div className="timeline-card-box">
-                  <div className="timeline-row">
-                    <p><Calendar size={14} /> Admission Date (BJMP)</p>
-                    <strong>{pdl.date_admitted_bjmp ? new Date(pdl.date_admitted_bjmp).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "---"}</strong>
-                  </div>
-                  <div className="timeline-row">
-                    <p><History size={14} /> Committal Date (PNP)</p>
-                    <strong>{pdl.date_commited_pnp ? new Date(pdl.date_commited_pnp).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "---"}</strong>
-                  </div>
-                </div>
+               
 
                 {pdl.pdl_status === "Released" ? (
                   <div className="release-highlight success-theme">
-                    <p>Actual Date of Release</p>
-                    <h2 className="release-text">
-                      <CheckCircle2 size={32} /> {pdl.actual_release_date ? new Date(pdl.actual_release_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "Archive Recorded"}
-                    </h2>
-                    {pdl.date_admitted_bjmp && pdl.actual_release_date && (
-                      <div className="stay-duration">
-                        <span>Total Stay: </span>
-                        <strong>{Math.ceil((new Date(pdl.actual_release_date) - new Date(pdl.date_admitted_bjmp)) / (1000 * 60 * 60 * 24))} Days</strong>
-                      </div>
-                    )}
-                    <span className="algo-tag">Status: Legally Discharged</span>
-                  </div>
+    <p>Actual Date of Release</p>
+    
+    <h2 className="release-text">
+      <CheckCircle2 size={32} /> 
+      {pdl.actual_release_date 
+        ? new Date(pdl.actual_release_date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) 
+        : "Archive Recorded"}
+    </h2>
+
+    {pdl.date_admitted_bjmp && pdl.actual_release_date && (
+      <div className="stay-duration">
+        <span>Total Stay: </span>
+        <strong>{Math.ceil((new Date(pdl.actual_release_date) - new Date(pdl.date_admitted_bjmp)) / (1000 * 60 * 60 * 24))} Days</strong>
+      </div>
+    )}
+
+    {/* 🎯 Success Banner to match the others */}
+    <div className="status-banner success-banner" style={{ marginTop: '15px' }}>
+       <ShieldCheck size={18} /> Legally Discharged
+    </div>
+
+    <span className="algo-tag">Status: Final Discharge Confirmed</span>
+  </div>
                 ) : pdl.pdl_status === "Sentenced" && (pdl.sentence_years > 0 || pdl.sentence_months > 0 || pdl.sentence_days > 0) && pdl.date_commited_pnp ? (
-                  <div className="release-highlight">
-                    <p>Projected Release Date</p>
-                    <h2 className="release-text">
-                      {pdl.expected_releasedate ? new Date(pdl.expected_releasedate).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "Calculating..."}
-                    </h2>
-                    <div className="judgment-info">
-                      <span className="judgment-label"><Scale size={14} /> Final Judgment: </span>
-                      <span className="judgment-value">{pdl.date_of_final_judgment ? new Date(pdl.date_of_final_judgment).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "Pending"}</span>
-                    </div>
-                    <h3 className={`status-banner ${pdl.is_legally_disqualified ? 'text-danger' : 'text-success'}`}>
-                      {pdl.is_legally_disqualified ? <><AlertTriangle size={18} /> Disqualified (RA 10592)</> : <><CheckCircle2 size={18} /> Qualified Offender</>}
-                    </h3>
-                    <span className="algo-tag">Method: Automated Sentence Analytics (TCIS)</span>
-                  </div>
+                  
+                 <div className="main-card-release">
+  {/* ⚖️ LEFT CARD: SUBSIDIARY PENALTY */}
+  {pdl.subsidiary && (() => {
+    const fine = Number(pdl.subsidiary.total_fine_amount) || 0;
+    const paid = Number(pdl.subsidiary.amount_paid) || 0;
+    const rate = Number(pdl.subsidiary.daily_rate) || 0;
+    const cap = pdl.subsidiary.max_subsidiary_days || 0;
+    const balance = fine - paid;
+    const addedDays = rate > 0 ? Math.min(Math.floor(balance / rate), cap) : 0;
+
+    return (
+      <div className="release-highlight subsidiary-red-theme">
+        <p className="card-sub-label">Subsidiary Imprisonment</p>
+        <h2 className="release-text">
+          <Clock size={28} className="text-red-icon" /> +{addedDays} Days
+        </h2>
+        
+        <div className="judgment-info">
+          <span className="judgment-label"><Banknote size={14} /> Unpaid Balance: </span>
+          <span className="judgment-value">₱{balance.toLocaleString()}</span>
+        </div>
+
+        <div className="status-banner danger-banner">
+          <AlertTriangle size={18} /> Extension of Sentence
+        </div>
+        
+        <span className="algo-tag">Legal Basis: Art. 39 Revised Penal Code</span>
+      </div>
+    );
+  })()}
+
+  {/* 📈 RIGHT CARD: PROJECTED RELEASE DATE */}
+  <div className="release-highlight primary-theme">
+    <p className="card-sub-label">Projected Release Date</p>
+    <h2 className="release-text">
+      <CalendarDays size={28} className="text-blue-icon" />
+      {pdl.expected_releasedate ? new Date(pdl.expected_releasedate).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "Calculating..."}
+    </h2>
+    
+    <div className="judgment-info">
+      <span className="judgment-label"><Scale size={14} /> Final Judgment: </span>
+      <span className="judgment-value">{pdl.date_of_final_judgment ? new Date(pdl.date_of_final_judgment).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : "Pending"}</span>
+    </div>
+
+    <div className={`status-banner ${pdl.is_legally_disqualified ? 'danger-banner' : 'success-banner'}`}>
+      {pdl.is_legally_disqualified ? <><AlertTriangle size={18} /> Disqualified (RA 10592)</> : <><CheckCircle2 size={18} /> Qualified Offender</>}
+    </div>
+    
+    <span className="algo-tag">Method: Automated Sentence Analytics (TCIS)</span>
+  </div>
+</div>
+                  
+                  
                 ) : (
                   <div className="detained-notice pending-docs">
                     <div className="notice-icon"><Hourglass size={32} /></div>

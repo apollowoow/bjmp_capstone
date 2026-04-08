@@ -6,7 +6,7 @@ const pool = require("../db/pool");
 
 const getDashboardStats = async (req, res) => {
   try {
-    const [total, detained, sentenced, locked, frequent, recent] = await Promise.all([
+    const [total, detained, sentenced, locked, frequent, recent, release] = await Promise.all([
       pool.query("SELECT COUNT(*) FROM pdl_tbl"),
       pool.query("SELECT COUNT(*) FROM pdl_tbl WHERE pdl_status = 'Detained'"),
       pool.query("SELECT COUNT(*) FROM pdl_tbl WHERE pdl_status = 'Sentenced'"),
@@ -20,10 +20,18 @@ const getDashboardStats = async (req, res) => {
         ) AS repeat_violators
       `),
       pool.query(`
-        SELECT p.first_name, p.last_name, i.category, i.incident_date 
+        SELECT p.first_name, p.last_name, i.category, i.penalty_end_date 
         FROM incident_tbl i 
         JOIN pdl_tbl p ON i.pdl_id = p.pdl_id 
-        ORDER BY i.incident_id DESC LIMIT 5
+        ORDER BY i.incident_id DESC LIMIT 4
+      `),
+      pool.query(`
+        SELECT first_name, last_name, expected_releasedate 
+        FROM pdl_tbl 
+        WHERE expected_releasedate >= CURRENT_DATE 
+        AND expected_releasedate <= (CURRENT_DATE + INTERVAL '30 days')
+        ORDER BY expected_releasedate ASC
+        LIMIT 4
       `)
     ]);
 
@@ -37,8 +45,14 @@ const getDashboardStats = async (req, res) => {
         firstname: row.first_name,
         lastname: row.last_name,
         incidenttype: row.category,
-        dateoccurred: row.incident_date
+        dateoccurred: row.penalty_end_date
+      })),
+      nearReleaseList: release.rows.map(row => ({
+        firstname: row.first_name,
+        lastname: row.last_name,
+        releaseDate: row.expected_releasedate
       }))
+      
     });
   } catch (err) {
     console.error(err.message);

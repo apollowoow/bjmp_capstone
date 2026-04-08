@@ -3,8 +3,8 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 50vw;
+  height: 150vh;
   background: rgba(15, 23, 42, 0.9); /* Darker backdrop for security feel */
   display: flex;
   align-items: center;
@@ -76,8 +76,109 @@
 .sb-btn-cancel:hover {
   background: #e2e8f0;
 }
+/* Para maging manipis at hindi distracting ang scrollbar sa nav */
+.custom-sidebar-nav::-webkit-scrollbar {
+    width: 5px;
+}
+
+.custom-sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-sidebar-nav::-webkit-scrollbar-thumb {
+    background: #334155; /* Slate color para tago */
+    border-radius: 10px;
+}
+
+.custom-sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: #60a5fa; /* Blue accent pag hinawakan */
+}
+
+/* 🎯 MEDIA QUERY: Pag maliit na talaga ang screen (Small Laptops) */
+@media (max-height: 700px) {
+    .sidebar-header h2 { font-size: 1.1rem; }
+    .sidebar-header p { marginBottom: 15px; }
+    .nav-link { padding: 8px 12px; font-size: 0.9rem; }
+}
 
 @keyframes sbFadeIn {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* 🔄 SYNC SPIN ANIMATION */
+.sidebar-spin {
+  animation: sidebar-rotate 2s linear infinite;
+}
+
+@keyframes sidebar-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 🎯 Transition for the box appearing */
+.sidebar-sync-box {
+    transition: all 0.3s ease-in-out;
+}
+
+/* 🍞 SIDEBAR SYNC TOAST */
+.sb-sync-toast {
+  position: absolute;
+  bottom: 80px; /* Above logout button */
+  left: 15px;
+  right: 15px;
+  background: #0f172a; /* Dark match for sidebar */
+  border: 1px solid #22c55e;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.2);
+  z-index: 1000;
+  animation: sb-toast-slide-in 0.4s ease-out;
+  overflow: hidden;
+}
+
+.sb-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sb-toast-text strong {
+  display: block;
+  font-size: 0.85rem;
+  color: #f8fafc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sb-toast-text p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* ⏳ PROGRESS BAR ANIMATION */
+.sb-toast-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: #22c55e;
+  width: 100%;
+  animation: sb-toast-progress 4s linear forwards;
+}
+
+@keyframes sb-toast-slide-in {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes sb-toast-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* 🔄 Reuse spin for the sidebar icon if needed */
+.sidebar-spin {
+  animation: sidebar-rotate 2s linear infinite;
 }

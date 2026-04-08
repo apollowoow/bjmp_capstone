@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 import { Link, useNavigate } from 'react-router-dom';
 import "./sidebar.css";// 🎯 Import the specific icons from Lucide
 import { 
@@ -14,14 +15,27 @@ import {
   UserCog,
   AlertCircle,
   ShieldAlert,
-  Database
+  Database, CloudOff, RefreshCw, CheckCircle2
 } from 'lucide-react';
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const { isSyncing, pendingCount } = useOfflineSync();
   const userString = localStorage.getItem("user");
   const user = userString ? JSON.parse(userString) : { permissions: [], rolename: 'User' };
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [lastCount, setLastCount] = useState(0);
+
+  // 🎯 Monitor sync completion
+  useEffect(() => {
+    // Kung dati may pending (>0) at ngayon ay zero na (0) at hindi na nag-si-sync
+    if (lastCount > 0 && pendingCount === 0 && !isSyncing) {
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 4000); // Hide after 4s
+    }
+    setLastCount(pendingCount);
+  }, [pendingCount, isSyncing, lastCount]);
 
   const canDo = (moduleName, action) => {
     if (!user.permissions) return false;
@@ -48,7 +62,12 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="sidebar" style={{ backgroundColor: '#0f172a', height: '100vh', padding: '20px' ,}}>
+    <div className="sidebar" style={{ backgroundColor: '#0f172a', 
+    height: '100vh', 
+    padding: '20px', 
+    display: 'flex',           // 🎯 Siguradong flexbox
+    flexDirection: 'column',    // 🎯 Stack top to bottom
+    overflow: 'hidden'}}>
       <div className="sidebar-header" >
         <h2 style={{ color: '#fff', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
           <ShieldCheck size={28} color="#60a5fa" /> PDL IMS
@@ -61,7 +80,14 @@ const Sidebar = () => {
         </p>
       </div>
       
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+      <nav className="custom-sidebar-nav" style={{ 
+      display: 'flex', 
+        flexDirection: 'column', 
+        gap: '5px',
+        flex: 1,               // 🎯 Eto ang kakain ng extra space
+        overflowY: 'auto',      // 🎯 Dito lalabas ang scrollbar pag puno na
+        overflowX: 'hidden',
+        paddingRight: '5px'}}>
         {/* DASHBOARD */}
         <Link to="/dashboard" className="nav-link" style={iconLinkStyle}>
           <LayoutDashboard size={18} /> Dashboard
@@ -97,7 +123,6 @@ const Sidebar = () => {
 
             {/* 🛡️ NEW: INTEGRITY AUDIT LINK */}
             {/* Matches the permission in your AppRoutes.jsx */}
-        
           </>
         )}
 
@@ -113,7 +138,7 @@ const Sidebar = () => {
         )}
 
         {/* USER MANAGEMENT */}
-        {canDo("User Management", "canview") && (
+        {canDo("User Management", "cancreate") && (
           <Link to="/users" className="nav-link" style={iconLinkStyle}>
             <UserCog size={18} /> User Management
           </Link>
@@ -138,15 +163,58 @@ const Sidebar = () => {
         )}
 
 
-        {canDo("User Management", "canview") && (
+        {canDo("User Management", "cancreate") && (
             <Link to="/maintenance" className="nav-link" style={{ ...iconLinkStyle}}>
               <Database size={18} /> System Maintenance
             </Link>
         )}
+        
       
       </nav>
+
       
-      <div style={{ marginTop: 'auto', paddingBottom: '20px' }}>
+      
+      <div style={{ marginTop: 'auto', borderTop: '1px solid #334155', paddingTop: '10px' }}>
+
+        {pendingCount > 0 && (
+          <div style={{
+            background: isSyncing ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+            border: isSyncing ? '1px solid #3b82f6' : '1px solid #f59e0b',
+            borderRadius: '8px',
+            padding: '10px',
+            marginBottom: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            {isSyncing ? (
+              <RefreshCw size={18} color="#60a5fa" className="sidebar-spin" />
+            ) : (
+              <CloudOff size={18} color="#f59e0b" />
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: isSyncing ? '#60a5fa' : '#f59e0b', textTransform: 'uppercase' }}>
+                {isSyncing ? "Syncing Data..." : "Offline Queue"}
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                {pendingCount} sessions pending
+              </span>
+            </div>
+          </div>
+        )}
+
+        {showSuccessToast && (
+          <div className="sb-sync-toast sb-toast-success">
+            <div className="sb-toast-content">
+              <CheckCircle2 size={24} color="#22c55e" />
+              <div className="sb-toast-text">
+                <strong>Sync Successful</strong>
+                <p>Offline logs uploaded to server.</p>
+              </div>
+            </div>
+            <div className="sb-toast-progress-bar"></div>
+          </div>
+        )}
         <button 
           onClick={() => setShowLogoutModal(true)}
           style={{

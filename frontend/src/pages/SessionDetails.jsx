@@ -255,18 +255,7 @@ const SessionDetails = () => {
                                                             <ShieldAlert size={14} />
                                                             <span>TAMPERED</span>
                                                         </div>
-                                                        
-                                                        {/* 🛡️ Repair Trigger (Admin Only) */}
-                                                        {user?.role === 'Admin' && (
-                                                            <button 
-                                                                className="btn-repair-trigger"
-                                                                onClick={() => handleOpenRepairModal(pdl)}
-                                                                title="Authorized Repair"
-                                                            >
-                                                                <Wrench size={14} />
-                                                                Repair
-                                                            </button>
-                                                        )}
+                                                    
                                                     </div>
                                                 ) : (
                                                     /* ✅ The Verified Badge */

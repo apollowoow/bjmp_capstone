@@ -551,6 +551,8 @@ const handleCloseModal = () => {
 
 const confirmRelease = async () => {
     const releaseDateValue = formData.actual_release_date;
+    const pnpCommittal = formData.date_commited_pnp;
+    const bjmpAdmission = formData.date_admitted_bjmp;
 
     // 1. Validation Logic
     if (!releaseDateValue) {
@@ -561,11 +563,27 @@ const confirmRelease = async () => {
     }
 
     const now = new Date();
-    // Using locale-based formatting to ensure the string matches YYYY-MM-DD in PH time
-    const todayStr = now.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
+    const todayStr = now.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
+    // 🛑 CHECK A: Future Date (Already exists)
     if (releaseDateValue > todayStr) {
-        setValidationMessage(`Invalid Date: You cannot release a PDL on a future date (${releaseDateValue}). Today is ${todayStr}.`);
+        setValidationMessage(`Invalid Date: Release cannot be in the future (${releaseDateValue}).`);
+        setShowValidationError(true);
+        setShowModal(false);
+        return;
+    }
+
+    // 🛑 CHECK B: PNP Committal Date
+    if (pnpCommittal && releaseDateValue < pnpCommittal) {
+        setValidationMessage(`Invalid Date: Release date (${releaseDateValue}) cannot be earlier than PNP Committal Date (${pnpCommittal}).`);
+        setShowValidationError(true);
+        setShowModal(false);
+        return;
+    }
+
+    // 🛑 CHECK C: BJMP Admission Date
+    if (bjmpAdmission && releaseDateValue < bjmpAdmission) {
+        setValidationMessage(`Invalid Date: Release date (${releaseDateValue}) cannot be earlier than BJMP Admission Date (${bjmpAdmission}).`);
         setShowValidationError(true);
         setShowModal(false);
         return;
@@ -863,9 +881,12 @@ return (
                       </div>
                       <label>Court-Ordered Sentence Duration</label>
                       <div className="triple-input">
-                        <div className="unit-input"><input type="number" name="sentence_years" value={formData.sentence_years} onChange={handleChange} disabled={!isJudicialUnlocked} /><span>Yrs</span></div>
-                        <div className="unit-input"><input type="number" name="sentence_months" value={formData.sentence_months} onChange={handleChange} disabled={!isJudicialUnlocked} /><span>Mos</span></div>
-                        <div className="unit-input"><input type="number" name="sentence_days" value={formData.sentence_days} onChange={handleChange} disabled={!isJudicialUnlocked} /><span>Days</span></div>
+                        <div className="unit-input"><input type="number" name="sentence_years" value={formData.sentence_years} onChange={handleChange} disabled={!isJudicialUnlocked} min="0"
+        max="3"/><span>Yrs</span></div>
+                        <div className="unit-input"><input type="number" name="sentence_months" value={formData.sentence_months} onChange={handleChange} disabled={!isJudicialUnlocked} min="0"
+        max="11"/><span>Mos</span></div>
+                        <div className="unit-input"><input type="number" name="sentence_days" value={formData.sentence_days} onChange={handleChange} disabled={!isJudicialUnlocked} min="0"
+        max="30"/><span>Days</span></div>
                       </div>
                       <div className="field disqualification-toggle">
                         <div className="toggle-container">

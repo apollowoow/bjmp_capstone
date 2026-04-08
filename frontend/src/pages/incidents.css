@@ -14,6 +14,7 @@
     margin: 0 auto;
 }
 
+
 /* ============================================================
     🔝 PAGE HEADER (Matches Education/MSEC)
    ============================================================ */
@@ -375,3 +376,167 @@
 }
 
 .inc-btn-yes:hover { background: #dc2626; }
+
+/* 📂 1. THE RESULTS CONTAINER */
+.inc-results-list {
+    margin-top: 20px;
+    max-height: 450px; /* 🎯 Limit height para mag-scroll pag maraming Dela Cruz */
+    overflow-y: auto;
+    padding-right: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* 🎨 2. THE PDL CARD (Default State) */
+.inc-pdl-info-card.selectable {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+/* ✨ 3. HOVER EFFECT */
+.inc-pdl-info-card.selectable:hover {
+    border-color: #60a5fa;
+    background: #f8fafc;
+    transform: translateX(5px); /* Konting slide pakanan */
+}
+
+/* ✅ 4. ACTIVE SELECTION STATE (The "Chosen One") */
+.inc-pdl-info-card.active-selection {
+    border-color: #2563eb;
+    background: #eff6ff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.inc-pdl-info-card.active-selection::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: #2563eb;
+    border-radius: 12px 0 0 12px;
+}
+
+/* 📍 5. SELECTION BADGE (The Checkmark) */
+.inc-selection-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #2563eb;
+    color: white;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    animation: mt-pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* 👤 6. AVATAR CONTAINER FIX */
+.inc-avatar-container {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    overflow: visible; /* Para makita yung badge sa labas */
+    flex-shrink: 0;
+}
+
+.inc-avatar-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid #e2e8f0;
+}
+
+/* 📊 7. STATUS BADGES */
+.inc-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-top: 5px;
+}
+
+.inc-status.good { background: #dcfce7; color: #166534; }
+.inc-status.locked { background: #fee2e2; color: #991b1b; }
+
+/* 🕹️ ANIMATIONS */
+@keyframes mt-pop-in {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}
+
+/* 🎚️ CUSTOM SCROLLBAR (Para sa results list) */
+.inc-results-list::-webkit-scrollbar {
+    width: 6px;
+}
+.inc-results-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+.inc-results-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+/* 📢 BASE STATUS MESSAGE */
+.inc-msg {
+    margin-top: 15px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: inc-fade-in-up 0.3s ease-out;
+    line-height: 1.4;
+}
+
+/* ✅ SUCCESS STATE (Green) */
+.inc-msg.success {
+    background-color: #f0fdf4; /* Very light green */
+    color: #15803d; /* Emerald Green */
+    border: 1px solid #bbf7d0;
+}
+
+/* ❌ ERROR STATE (Red) */
+.inc-msg.error {
+    background-color: #fef2f2; /* Very light red */
+    color: #b91c1c; /* Critical Red */
+    border: 1px solid #fecdd3;
+}
+
+/* 🔄 ICON SPACING FIX (If you used icons in the status state) */
+.inc-msg svg {
+    flex-shrink: 0;
+}
+
+/* 📽️ SMOOTH ENTRANCE ANIMATION */
+@keyframes inc-fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

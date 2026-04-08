@@ -15,6 +15,16 @@ const Education = () => {
   
     const [isScanning, setIsScanning] = useState(false);
     const [activeSession, setActiveSession] = useState(null); 
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    useEffect(() => {
+    const updateStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+    return () => {
+        window.removeEventListener('online', updateStatus);
+        window.removeEventListener('offline', updateStatus);
+    };
+}, []);
 
     const [searchTerm, setSearchTerm] = useState("");
     const [filterProgram, setFilterProgram] = useState("All");
@@ -184,6 +194,19 @@ const triggerAlert = (title, message, type = "info", onConfirm = null) => {
 const closeAlert = () => {
     setAlertModal(prev => ({ ...prev, show: false }));
 };
+useEffect(() => {
+    const handleSyncComplete = () => {
+        console.log("🔄 [Education Page] Sync detected! Refreshing ledger...");
+        fetchPastSessions(); // 🎯 Ito yung function mo na nagfe-fetch ng table data
+    };
+
+    // Pakikinggan natin yung "sigaw" mula sa hook
+    window.addEventListener('sync-complete', handleSyncComplete);
+
+    return () => {
+        window.removeEventListener('sync-complete', handleSyncComplete);
+    };
+}, []); // Empty dependency para isang beses lang i-setup
 
   // Reset to page 1 whenever a new attendee is added so the officer sees the latest scan
   useEffect(() => {
@@ -351,13 +374,31 @@ const handleAutoDecline = async (pdlId) => {
     };
 
     // 🔴 FINALIZE SESSION (Save & Sync)
-    const handleFinishSession = async () => {
-    // 🛡️ Use custom modal for confirmation
+ const handleFinishSession = async () => {
+    // 💡 Helper function para hindi paulit-ulit ang code
+    const saveOffline = () => {
+        const offlineQueue = JSON.parse(localStorage.getItem("pending_finalize_sessions") || "[]");
+        if (!offlineQueue.includes(activeSession.session_id)) {
+            offlineQueue.push(activeSession.session_id);
+            localStorage.setItem("pending_finalize_sessions", JSON.stringify(offlineQueue));
+        }
+        closeAlert();
+        triggerAlert("Offline Save", "Server unreachable. Session saved locally and will auto-sync later.", "warning");
+        setIsScanning(false);
+        setActiveSession(null);
+        setCurrentAttendees([]);
+    };
+
     triggerAlert(
         "Finalize Session?", 
-        "End this session and sync attendance logs? Credits will be queued for monthly TASTM calculation.", 
+        "End this session and sync attendance logs?", 
         "info", 
         async () => {
+            // 🛑 1st Guard: Browser is actually offline
+            if (!navigator.onLine) {
+                return saveOffline();
+            }
+
             try {
                 const token = localStorage.getItem("token");
                 const response = await fetch(`${API_BASE_URL}/api/sessions/finalize/${activeSession.session_id}`, {
@@ -366,24 +407,20 @@ const handleAutoDecline = async (pdlId) => {
                 });
 
                 if (response.ok) {
-                    // Close the confirmation modal first
                     closeAlert();
-                    
-                    // 🚀 Trigger a Success Alert (No onConfirm needed, just info)
                     triggerAlert("Success", "Attendance synced. The session is now closed.", "info");
-
-                    // Reset scanner state
                     setIsScanning(false);
                     setActiveSession(null);
                     setCurrentAttendees([]);
                     fetchPastSessions();
                 } else {
                     const data = await response.json();
-                    triggerAlert("Sync Failed", data.error || "Could not finalize session.", "danger");
+                    triggerAlert("Sync Failed", data.error || "Error finalizing.", "danger");
                 }
             } catch (err) { 
-                console.error("Finalization Error:", err);
-                triggerAlert("Server Error", "Connection lost during sync.", "danger");
+                // 🛑 2nd Guard: Server is dead (This is where your test failed)
+                console.error("Server down, switching to offline save...");
+                saveOffline(); 
             }
         }
     );
@@ -401,25 +438,44 @@ const handleAutoDecline = async (pdlId) => {
 };
 
 const executeCancelSession = async () => {
+    const forceResetUI = () => {
+        setIsScanning(false);
+        setActiveSession(null);
+        setCurrentAttendees([]);
+        closeAlert();
+    };
+
+    // 🛑 OFFLINE DELETE: Queue it!
+    if (!navigator.onLine) {
+        const cancelQueue = JSON.parse(localStorage.getItem("pending_cancel_sessions") || "[]");
+        if (!cancelQueue.includes(activeSession.session_id)) {
+            cancelQueue.push(activeSession.session_id);
+            localStorage.setItem("pending_cancel_sessions", JSON.stringify(cancelQueue));
+        }
+        forceResetUI();
+        triggerAlert("Offline Discard", "Session cleared. Record will be deleted from server once online.", "info");
+        return;
+    }
+
+    // 🟢 ONLINE DELETE: (Same original logic...)
     try {
         const token = localStorage.getItem("token");
         const response = await fetch(`${API_BASE_URL}/api/sessions/cancel/${activeSession.session_id}`, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` }
         });
-
+        forceResetUI();
         if (response.ok) {
-            setIsScanning(false);
-            setActiveSession(null);
-            setCurrentAttendees([]);
-            triggerAlert("Session Cancelled", "The session and all associated logs have been successfully discarded.", "info");
-            if (typeof fetchPastSessions === "function") fetchPastSessions();
-        } else {
-            triggerAlert("Error", "Could not discard the session. Please try again.", "danger");
+            triggerAlert("Success", "The session and all associated logs have been successfully discarded.", "info");
+            fetchPastSessions();
         }
     } catch (err) {
-        console.error("Discard Error:", err);
-        triggerAlert("Server Error", "Connection lost. The session may not have been deleted.", "danger");
+        // 🛑 SERVER DOWN: Queue it anyway!
+        const cancelQueue = JSON.parse(localStorage.getItem("pending_cancel_sessions") || "[]");
+        cancelQueue.push(activeSession.session_id);
+        localStorage.setItem("pending_cancel_sessions", JSON.stringify(cancelQueue));
+        forceResetUI();
+        triggerAlert("Server Error", "Could not reach server. Cancellation queued for sync.", "warning");
     }
 };
 
@@ -656,26 +712,35 @@ return (
                         
                         <div className="init-form-row-dual">
                             <div className="init-field">
-                                <label>Credit Hours</label>
-                                                        <input 
-                                    type="number" 
-                                    name="hours_to_earn" 
-                                    placeholder="Hours" 
-                                    step="0.1" 
-                                    min="1" // 🎯 HTML5 Level Check
-                                    value={sessionForm.hours_to_earn}
-                                    onChange={handleInputChange} 
-                                    required 
-                                    className={sessionForm.hours_to_earn <= 0 ? 'init-input-error' : ''}
-                                />
-                                
-                                {/* 🎯 Visual Warning if 0 or negative */}
-                                {sessionForm.hours_to_earn <= 0 && sessionForm.hours_to_earn !== "" && (
-                                    <p className="init-error-text">
-                                        <AlertCircle size={12} /> Hours must be greater than 0.
-                                    </p>
-                                )}
-                            </div>
+    <label>Credit Hours</label>
+    <input 
+        type="number" 
+        name="hours_to_earn" 
+        placeholder="Hours" 
+        step="0.1" 
+        min="1"
+        max="8" 
+        value={sessionForm.hours_to_earn}
+        onChange={handleInputChange} 
+        required 
+        // 🎯 Magiging pula ang border pag 0 pababa O 8 pataas
+        className={(sessionForm.hours_to_earn <= 0 || sessionForm.hours_to_earn > 8) ? 'init-input-error' : ''}
+    />
+    
+    {/* 🎯 Visual Warning for Minimum */}
+    {sessionForm.hours_to_earn <= 0 && sessionForm.hours_to_earn !== "" && (
+        <p className="init-error-text">
+            <AlertCircle size={12} /> Hours must be greater than 0.
+        </p>
+    )}
+
+    {/* 🎯 NEW: Visual Warning for Maximum */}
+    {sessionForm.hours_to_earn > 8 && (
+        <p className="init-error-text">
+            <AlertCircle size={12} /> Max limit is 8 hours per session.
+        </p>
+    )}
+</div>
                             <div className="init-field">
                                 <label>Date</label>
                                 <input type="date" className="init-read-only" name="session_date" value={sessionForm.session_date} readOnly />
@@ -708,7 +773,9 @@ return (
                     <div className="scanner-layout">
                         <div className="scanner-sidebar">
                             <div className="active-session-info">
-                                <span className="live-indicator">● LIVE SCANNING MODE</span>
+                                <span className={`live-indicator ${!isOnline ? 'offline' : ''}`}>
+                                    {isOnline ? "LIVE SCANNING MODE" : "OFFLINE MODE (BUFFERED)"}
+                                </span>
                                 <h2>{sessionForm.session_name}</h2>
                                 <p>{sessionForm.program_name} • {sessionForm.hours_to_earn} hrs</p>
                             </div>

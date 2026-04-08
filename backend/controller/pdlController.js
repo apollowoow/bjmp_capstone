@@ -293,6 +293,15 @@ const getPdlById = async (req, res) => {
     const client = await pool.connect();
 
     try {
+
+        const incidentQuery = `
+            SELECT incident_date, penalty_end_date, category, remarks 
+            FROM incident_tbl 
+            WHERE pdl_id = $1 
+            ORDER BY penalty_end_date DESC LIMIT 1
+        `;
+        const incidentResult = await client.query(incidentQuery, [id]);
+        const latestIncident = incidentResult.rows[0] || null;
         const profileQuery = `SELECT * FROM pdl_tbl WHERE pdl_id = $1`;
         const profileResult = await client.query(profileQuery, [id]);
 
@@ -339,6 +348,7 @@ const getPdlById = async (req, res) => {
             gcta_history: gctaLogs.rows,
             subsidiary: subsidiaryRecord,
             tastm_history: tastmLogs.rows,
+            active_penalty: latestIncident,
             hasMigrated: gctaMigrated || tastmMigrated, 
             is_recommitted: !!pdl.date_admitted_bjmp 
         });

@@ -204,15 +204,34 @@
 /* ============================================================
    🎯 PREDICTION RESULTS
    ============================================================ */
-.profile-scope .release-highlight { 
-  background: #f0f9ff; 
-  border: 1px solid #bae6fd; 
-  border-left: 6px solid #0ea5e9;
-  padding: 25px; 
-  border-radius: 16px; 
+
+
+
+.profile-scope .release-text {
+    /* 💡 Ginamitan natin ng clamp para mag-auto-scale sa screen size */
+    font-size: clamp(1.4rem, 2.5vw, 1.75rem); 
+    color: #0369a1;
+    font-weight: 850; /* Medyo binawasan ang 900 para hindi masyadong 'makapal' tignan */
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    letter-spacing: -0.5px; /* Ginagawa nating 'compact' tignan yung letters */
+    line-height: 1.2;
 }
 
-.profile-scope .release-text { font-size: 2.2rem; color: #0369a1; font-weight: 900; margin: 5px 0; }
+/* 🔴 Para sa Subsidiary version (Specific override) */
+.subsidiary-red-theme .release-text {
+    color: #b91c1c; /* Crimson Red para sa penalty */
+}
+
+/* 🖼️ Icon scaling fix */
+.profile-scope .release-text svg {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
 .profile-scope .algo-tag { font-size: 0.7rem; font-weight: 700; color: #0ea5e9; opacity: 0.8; }
 
 /* 📦 The Main Outer Container (The Soft Box) */
@@ -558,13 +577,7 @@
 }
 
 /* Prediction Results */
-.profile-scope .release-highlight {
-  background: #eff6ff;
-  border-radius: 16px;
-  padding: 25px;
-  border: 1px solid #dbeafe;
-  border-left: 6px solid #2563eb;
-}
+
 
 .profile-scope .release-text {
   display: flex;
@@ -587,4 +600,279 @@
 .profile-scope .text-success { color: #16a34a; }
 .profile-scope .text-danger { color: #dc2626; }
 .profile-scope .text-primary { color: #2563eb; display: flex; align-items: center; gap: 8px; }
+/* 🚨 PENALTY INFO CARD */
+.pdl-penalty-info-card {
+    background: #fffcf0; /* Light parchment/warning yellow */
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 50px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    animation: pdl-slide-in 0.4s ease-out;
+}
 
+.pdl-penalty-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #b45309; /* Amber/Brown */
+    margin-bottom: 15px;
+    border-bottom: 1px solid #fef3c7;
+    padding-bottom: 10px;
+}
+
+.pdl-penalty-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* 📝 BODY DETAILS */
+.pdl-penalty-item {
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.pdl-penalty-item span {
+    font-size: 0.75rem;
+    color: #92400e;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.pdl-penalty-item strong {
+    font-size: 1rem;
+    color: #1e293b;
+}
+
+.pdl-penalty-item p {
+    font-size: 0.9rem;
+    color: #475569;
+    margin: 4px 0 0;
+    font-style: italic;
+}
+
+/* 📅 DATE BADGES */
+.pdl-penalty-dates {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.pdl-date-badge, .pdl-date-badge-end {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.pdl-date-badge {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.pdl-date-badge-end {
+    background: #fee2e2; /* Red background for the end date */
+    color: #991b1b;
+    border: 1px solid #fecdd3;
+}
+
+/* ℹ️ FOOTER NOTE */
+.pdl-penalty-footer {
+    margin-top: 15px;
+    font-size: 0.75rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 📽️ ANIMATION */
+@keyframes pdl-slide-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.main-card-release {
+    display: flex;
+    gap: 20px;             /* 🎯 Space between the two cards */
+    width: 100%;
+    align-items: stretch;  /* 🎯 ETO ANG SECRET: Pinapantay niya ang height ng mga anak niya */
+    margin-bottom: 20px;
+}
+
+/* ⚖️ SUBSIDIARY CARD */
+.subsidiary-penalty-box {
+    flex: 1;               /* 🎯 Equal width share */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Para pantay ang spacing sa loob */
+    margin-bottom: 0 !important;    /* Override any existing margin */
+}
+
+/* 📈 RELEASE HIGHLIGHT CARD */
+.release-highlight {
+    flex: 1;               /* 🎯 ETO ANG FIX: Pag mag-isa lang siya, kakainin niya ang 100% width */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Pinapagitna yung laya date vertically */
+    margin: 0 !important;
+}
+
+/* 📱 Responsive: Pag maliit ang screen, mag-stack sila */
+@media (max-width: 1024px) {
+    .main-card-release {
+        flex-direction: column;
+    }
+}/* 🎯 THE FLEX CONTAINER */
+.main-card-release {
+  display: flex;
+  gap: 20px;
+  align-items: stretch; /* Eto ang magpapantay ng height nila! */
+  margin-top: 20px;
+  width: 100%;
+}
+
+/* 🧱 BASE CARD STYLE */
+.release-highlight {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between; /* Spread content top-to-bottom */
+  text-align: center;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+}
+
+/* 🔴 SUBSIDIARY RED THEME */
+.subsidiary-red-theme {
+  background: #fff5f5; /* Light red background */
+  border-top: 5px solid #ef4444; /* The red "shadow"/accent at the top */
+  border-bottom: 1px solid #fee2e2;
+}
+
+/* 🔵 PRIMARY THEME (Release Date) */
+.primary-theme {
+  border-top: 5px solid #3b82f6; /* Blue accent for contrast */
+}
+
+/* 📝 TEXT STYLES */
+.card-sub-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.release-text {
+  font-size: 1.75rem;
+  font-weight: 850;
+  margin: 15px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #0f172a;
+}
+
+.subsidiary-red-theme .release-text {
+  color: #991b1b; /* Darker red for value */
+}
+
+/* 🚩 STATUS BANNERS */
+.status-banner {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 750;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.danger-banner { background: #fee2e2; color: #b91c1c; border: 1px solid #fecdd3; }
+.success-banner { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+
+/* 🏷️ ALGO TAG */
+.algo-tag {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* 🎯 THE CONTAINER */
+.main-card-release {
+    display: flex;
+    gap: 16px;
+    align-items: stretch; /* Eto ang mag-uunat sa kanila para magpantay height */
+    width: 100%;
+}
+
+/* 🧱 UNIVERSAL CARD STYLE */
+.release-highlight {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between; /* Pinupuno yung space top-to-bottom */
+    padding: 24px;
+    border-radius: 12px;
+    text-align: center;
+    min-height: 300px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* 🔵 BLUE THEME (Projected) */
+.release-highlight.primary-theme { border-top: 5px solid #3b82f6;background: #f0f7ff; }
+.primary-theme .release-text { color: #1e40af; }
+
+/* 🔴 RED THEME (Subsidiary) */
+.release-highlight.subsidiary-theme { border-top: 5px solid #ef4444; background: #fffafb; }
+.subsidiary-theme .release-text { color: #b91c1c; }
+
+/* 🟢 SUCCESS THEME (Released) */
+.release-highlight.success-theme { 
+    border-top: 5px solid #22c55e; 
+    background: #f0fdf4; /* Light Green */
+}
+.success-theme .release-text { color: #166534; }
+.success-theme .stay-duration { 
+    background: #dcfce7; 
+    color: #15803d; 
+    padding: 4px 12px; 
+    border-radius: 20px; 
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+/* 📝 SHARED TEXT SCALING */
+.release-highlight p:first-child { 
+    font-size: 0.8rem; 
+    text-transform: uppercase; 
+    font-weight: 800; 
+    color: #64748b; 
+    letter-spacing: 0.5px;
+}
+
+.release-text {
+    font-size: 1.75rem; /* Standardized size from before */
+    font-weight: 900;
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.algo-tag { margin-top: auto; padding-top: 15px; } /* Push to bottom */
