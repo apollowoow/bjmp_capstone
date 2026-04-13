@@ -31,6 +31,8 @@ const getSessionHistory = async (req, res) => {
 const repairAttendanceIntegrity = async (req, res) => {
     const { session_id, pdl_id, corrected_hours, paper_log_ref } = req.body;
     const client = await pool.connect();
+
+    
     
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const currentUserId = req.user ? req.user.id : 1; 
@@ -56,7 +58,7 @@ const repairAttendanceIntegrity = async (req, res) => {
                  timestamp_in = $2, 
                  row_hash = $3,
                  remarks = $4  -- 👈 Direkta nang o-overwrite dito
-             WHERE session_id = $5 AND pdl_id = $6`,
+             WHERE attendance_id = $5 AND pdl_id = $6`,
             [parseFloat(corrected_hours), now, recoveryHash, repairTag, session_id, pdl_id]
         );
 
@@ -587,7 +589,7 @@ const silentGctaSync = async (req, res) => {
         await client.query('BEGIN');
         
         // 🕒 Temporal Normalization
-        const now = new Date(2026, 6); // June 2026 (based on your test code)
+        const now = new Date(); // June 2026 (based on your test code)
         const monthYear = new Date(now.getFullYear(), now.getMonth(), 1);
         const monthYearStr = monthYear.toISOString().slice(0, 7); // "2026-06"
 
@@ -1240,7 +1242,7 @@ const reenablePdlMonthly = async (req, res) => {
 };
 const getTamperedRecords = async (req, res) => {
     const { type } = req.query; 
-    
+    console.log(`\n--- 🛡️ AUDIT SCAN START: [${type?.toUpperCase()}] ---`);
     try {
         let query = "";
         let tamperedRecords = [];
@@ -1256,6 +1258,7 @@ const getTamperedRecords = async (req, res) => {
                 WHERE a.status = 'Active'
             `;
             const result = await pool.query(query);
+            console.log(`🔍 Found ${result.rows.length} attendance records. Verifying hashes...`);
 
             for (let row of result.rows) {
                 const dataToVerify = {
@@ -1267,6 +1270,10 @@ const getTamperedRecords = async (req, res) => {
                 const isIntegral = row.row_hash ? verifyIntegrity('ATTENDANCE', row.row_hash, dataToVerify) : false;
                 
                 if (!isIntegral) {
+                    // ⚠️ LOG 3: Forensic Detail on Failure
+                    console.warn(`❌ TAMPERED: Attendance ID ${row.attendance_id} (PDL: ${row.pdl_id})`);
+                    console.log(`   - Expected Hash for:`, JSON.stringify(dataToVerify));
+                    console.log(`   - Current DB Hash: ${row.row_hash?.slice(0, 15)}...`);
                     tamperedRecords.push(row);
                 }
             }
@@ -1516,6 +1523,8 @@ const getRestoredRecords = async (req, res) => {
         `;
 
         const result = await pool.query(query, [repairAction, tableName]);
+
+        
         
         const formatted = result.rows.map(row => ({
             ...row,
