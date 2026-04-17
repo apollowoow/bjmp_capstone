@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API_BASE_URL from "../apiConfig";
 import "./education.css";
-import { X, Wrench, ShieldCheck, ArrowRight, ArrowLeft, Loader2, AlertCircle,  ShieldAlert, CheckCircle2} from 'lucide-react';
+import { X, Wrench, ShieldCheck, ArrowRight, ArrowLeft, Loader2, AlertCircle,  ShieldAlert, CheckCircle2, FileText} from 'lucide-react';
 import { usePermissions } from "../hooks/usePermission";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable'; // 🎯 Kunin natin yung function mismo
 
 const SessionDetails = () => {
     const { id } = useParams();
@@ -21,7 +23,8 @@ const SessionDetails = () => {
     const [repairStep, setRepairStep] = useState(1);
     const [status, setStatus] = useState({ type: null, message: "" }); // { type: 'error' | 'success' | 'loading', message: '' }
     const [isAgreed, setIsAgreed] = useState(false);
-        
+        const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23cbd5e1'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
+
     // --- Pagination States ---
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5; // Shows 8 PDLs per page
@@ -43,6 +46,98 @@ const SessionDetails = () => {
         if (!repairData.ref) return alert("🚨 Reference Required!");
         setRepairStep(2);
     };
+
+ const generateAttendancePDF = () => {
+    const doc = new jsPDF();
+    
+    // 🎨 Layout Settings
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const tableColumn = ["No.", "PDL Name", "ID Number", "Time In", "Signature"];
+    const tableRows = [];
+
+    // 🎯 Mapping Attendees (Make sure 'attendees' state has these fields)
+    attendees.forEach((pdl, index) => {
+        const pdlData = [
+            index + 1,
+            `${pdl.last_name?.toUpperCase()}, ${pdl.first_name}`, // Standard format: LASTNAME, First
+            pdl.pdl_id,
+            pdl.timestamp_in ? new Date(pdl.timestamp_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---',
+            "____________________" 
+        ];
+        tableRows.push(pdlData);
+    });
+
+    // 🏛️ Header Section
+    doc.setFontSize(10);
+    doc.text("Republic of the Philippines", pageWidth / 2, 10, { align: "center" });
+    doc.setFontSize(11);
+    doc.text("BUREAU OF JAIL MANAGEMENT AND PENOLOGY", pageWidth / 2, 15, { align: "center" });
+    doc.setFontSize(13);
+    doc.setFont(undefined, 'bold');
+    doc.text("MEYCAUAYAN CITY JAIL - ATTENDANCE SHEET", pageWidth / 2, 22, { align: "center" });
+    
+    // ℹ️ Session Details (Using your log variables)
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.text(`Program: ${sessionInfo?.program_name || 'N/A'}`, 14, 32);
+    doc.text(`Session Name: ${sessionInfo?.session_name || 'N/A'}`, 14, 37);
+    doc.text(`Date: ${sessionInfo?.session_date || new Date().toLocaleDateString()}`, 14, 42);
+    doc.text(`Target Credits: ${sessionInfo?.hours_to_earn || '0'} hours`, 14, 47);
+
+    // 📊 Attendance Table
+    autoTable(doc, {
+    startY: 52,
+    head: [tableColumn],
+    body: tableRows,
+    theme: 'grid',
+    // 🎯 HeadStyles: Siguraduhin nating pantay ang padding at alignment
+    headStyles: { 
+        fillColor: [15, 23, 42], 
+        textColor: [255, 255, 255], 
+        halign: 'center', // Center lahat ng text sa header
+        fontSize: 10,
+        fontStyle: 'bold',
+        cellPadding: 3
+    },
+    columnStyles: {
+        // 🎯 FIX: Ginawa nating 15 ang width para hindi sakal ang "No."
+        0: { cellWidth: 15, halign: 'center' }, 
+        1: { cellWidth: 'auto' }, // Hayaan ang pangalan na kumuha ng space
+        2: { cellWidth: 30, halign: 'center' }, // PDL ID
+        3: { cellWidth: 30, halign: 'center' }, // Time In
+        4: { cellWidth: 45, halign: 'center' }, // Signature area
+    },
+    styles: { 
+        fontSize: 9, 
+        cellPadding: 4, 
+        valign: 'middle',
+        overflow: 'linebreak' // Para kung mahaba ang pangalan, mag-wrap siya
+    },
+    didDrawPage: (data) => {
+        // Page numbers footer (Optional)
+        const str = "Page " + doc.internal.getNumberOfPages();
+        doc.setFontSize(8);
+        doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 10);
+    }
+});
+
+    // 🖋️ Footer / Signatories
+    const finalY = doc.lastAutoTable.finalY + 20;
+    doc.setFontSize(10);
+    doc.text("Prepared By:", 14, finalY);
+    doc.setFont(undefined, 'bold');
+    doc.text(`${sessionInfo?.officer_in_charge?.toUpperCase() || '____________________'}`, 14, finalY + 10);
+    doc.setFont(undefined, 'normal');
+    doc.text("Officer-in-Charge / Facilitator", 14, finalY + 15);
+
+    doc.text("Noted By:", 140, finalY);
+    doc.text("____________________", 140, finalY + 10);
+    doc.text("Jail Warden", 140, finalY + 15);
+
+    // 📁 Save File
+    const fileName = `Attendance_${sessionInfo?.session_name || 'Session'}_${sessionInfo?.session_date || 'Date'}.pdf`;
+    doc.save(fileName.replace(/\s+/g, '_')); // Replace spaces with underscores for safety
+};
 
     const submitRepair = async () => {
         if (!repairData.ref) {
@@ -170,19 +265,37 @@ const SessionDetails = () => {
                 {/* 🛠️ Management Card */}
                 <div className="section card">
                     <div className="card-header" style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '15px' }}>
-                        <h2>Attendees List</h2>
+           
                         
                         {/* 🔍 Search Input */}
-                        <div style={{ position: 'relative' }}>
+                  
                             <input 
-                                type="text"
-                                placeholder="Search Name or ID..."
+                               placeholder="Search Name or ID..."
                                 className="manual-search-input"
-                                style={{ width: '250px', marginBottom: 0 }}
+                                style={{ width: '100%', marginBottom: 0 }}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
-                        </div>
+                            
+               
+                         <button 
+                                onClick={generateAttendancePDF}
+                                style={{
+                                    backgroundColor: '#0f172a',
+                                    color: 'white',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    fontSize: '0.9rem'
+                                }}
+                            >
+                            <FileText size={18} /> Generate Sheet
+                        </button>
+                       
                     </div>
 
                     <div className="table-responsive">
@@ -206,11 +319,11 @@ const SessionDetails = () => {
                                         >
                                             <td>
                                                 <img 
-                                                    src={`${API_BASE_URL}/public/uploads/${pdl.pdl_picture}`} 
-                                                    alt="PDL" 
-                                                    className="mini-pdl-photo" 
-                                                    style={pdl.is_tampered ? { border: '2px solid #ef4444' } : {}}
-                                                />
+    src={pdl.pdl_picture ? `${API_BASE_URL}/public/uploads/${pdl.pdl_picture}` : DEFAULT_AVATAR} 
+    alt="PDL" 
+    className="mini-pdl-photo" 
+    style={pdl.is_tampered ? { border: '2px solid #ef4444' } : {}}
+/>
                                             </td>
                                             <td>
                                                 <strong style={pdl.is_tampered ? { color: '#991b1b' } : {}}>
@@ -222,7 +335,7 @@ const SessionDetails = () => {
                                                 {canDo("Attendance & Sessions", "canedit") ? (
                                                     <input 
     type="number" 
-    step="0.5"
+    step="1"
     min="0" // 🛡️ Bawal ang negative
     max="8" // 🎯 Eto yung limit mo
     className={`manual-search-input ${pdl.is_tampered ? 'input-locked' : ''}`}
