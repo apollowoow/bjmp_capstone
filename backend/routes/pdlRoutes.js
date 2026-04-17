@@ -11,7 +11,7 @@ const pool = require("../db/pool");
 const { 
     addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord, 
      recalculatePdlSentence, releasePdl, getReleasedPdls, 
-    getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary 
+    getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary, checkRfidExists 
 } = require("../controller/pdlController");
 
 // ==========================
@@ -73,11 +73,19 @@ const validateRFID = async (req, res, next) => {
 // ==========================
 
 // Get all PDLs
+router.get("/check-rfid/:rfid", 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "cancreate"), 
+    checkRfidExists
+);
+
 router.get("/getall", 
     authenticateToken, 
     authorize("PDL & RFID Management", "canview"), 
     getAllPDL
 );
+
+
 
 router.get('/get/:id', 
     authenticateToken, 

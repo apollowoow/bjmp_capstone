@@ -819,15 +819,19 @@
 
 /* 📘 Header */
 .edit-modal-header {
-  background: #1e3a8a; 
-  color: white;
+
+  color: rgb(0, 0, 0);
   padding: 15px 20px;
+  display: flex;
+  justify-content: center; /* 🎯 Ito ang mag-ce-center sa h3 horizontally */
+  align-items: center;     /* Ginagawa nitong pantay sa gitna vertically */
 }
 
 .edit-modal-header h3 {
   margin: 0;
   font-size: 1.2rem;
   display: flex;
+  justify-content: center; /* 🎯 Ito naman para sa icon at text sa loob ng h3 */
   align-items: center;
   gap: 10px;
 }

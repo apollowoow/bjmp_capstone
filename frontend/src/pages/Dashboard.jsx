@@ -185,7 +185,9 @@ const Dashboard = () => {
         
 
           {/* 🕵️‍♂️ NEW: RECENT AUDIT LOGS PREVIEW */}
-          <div className="content-box audit-preview-section">
+
+          {(isAdmin || isWarden) && (
+               <div className="content-box audit-preview-section">
             <div className="box-header">
               <h3 className="rpt-h3"><History size={20} className="header-icon" /> Recent System Activities</h3>
               <button className="rpt-btn-view" onClick={() => navigate('/audit-logs')}>
@@ -208,15 +210,20 @@ const Dashboard = () => {
             </div>
             
           </div>
+          )}
+        
             <div className="content-box table-section">
             <div className="box-header">
               <h3 className="rpt-h3"><AlertTriangle size={20} className="header-icon" /> Recent Disciplinary Records</h3>
-              <button className="rpt-btn-view" onClick={() => navigate('/incidents')}>
-                <Plus size={16} /> Log New Action
-              </button>
+                {(isAdmin) && (
+                  <button className="rpt-btn-view" onClick={() => navigate('/incidents')}>
+                      <Plus size={16} /> Log New Action
+                    </button>
+                )}
+              
             </div>
             {stats.recentIncidents.length === 0 ? (
-              <div className="no-data"><p>✅ All PDLs are currently in good standing.</p></div>
+              <div className="no-data"><p>All PDLs are currently in good standing.</p></div>
             ) : (
               <table className="dashboard-table">
                 <thead><tr><th>PDL Name</th><th>Offense</th><th>Date</th></tr></thead>
@@ -291,9 +298,13 @@ const Dashboard = () => {
       <Users size={20} className="header-icon" /> 
       Priority Releases
     </h3>
-    <button className="rpt-btn-view" onClick={() => navigate('/reports')}>
-      Reports <ChevronRight size={14} />
-    </button>
+
+    {(isAdmin || isWarden) && (
+      <button className="rpt-btn-view" onClick={() => navigate('/reports')}>
+          Reports <ChevronRight size={14} />
+        </button>
+    )}
+ 
   </div>
 
   <div className="compact-list-container">

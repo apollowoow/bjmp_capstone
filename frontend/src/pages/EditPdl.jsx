@@ -860,7 +860,7 @@ return (
             <div className={`judicial-input-group ${(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked ? 'disabled' : ''}`}>
               <div className="field status-field">
                 <label>Current Judicial Status</label>
-                <select name="pdl_status" value={formData.pdl_status} onChange={handleChange} disabled={(formData.date_commited_pnp || formData.sentence_years > 0) && !isJudicialUnlocked}>
+                <select name="pdl_status" value={formData.pdl_status} onChange={handleChange} disabled={!isJudicialUnlocked}>
                   {getAllowedStatuses(formData.originalStatus).map((status) => (
                     <option key={status} value={status}>{status}</option>
                   ))}
@@ -903,6 +903,8 @@ return (
                   <div className="field">
                     <label>PNP Committal Date</label>
                     <input type="date" name="date_commited_pnp" value={formData.date_commited_pnp || ""} disabled />
+                    <label>BJMP Admission Date</label>
+                    <input type="date" name="date_commited_pnp" value={formData.date_admitted_bjmp || ""} disabled />
                   </div>
                   <div className="field highlight-field">
                     <label>Actual Release Date</label>

@@ -279,18 +279,18 @@ const Profile = () => {
                       <div className="ledger-item">
                         <div className="ledger-info"><strong>GCTA</strong><span>Good Conduct</span></div>
                         <div className="ledger-value positive">
-                          -{pdl.gcta_history?.reduce((acc, log) => log.status === 'Active' ? acc + (parseInt(log.days_earned) || 0) : acc, 0) || 0} Days
+                          {pdl.gcta_history?.reduce((acc, log) => log.status === 'Active' ? acc + (parseInt(log.days_earned) || 0) : acc, 0) || ""} Days
                         </div>
                       </div>
                       <div className="ledger-item">
                         <div className="ledger-info"><strong>TASTM</strong><span>Study & Teaching</span></div>
                         <div className="ledger-value positive">
-                          -{pdl.tastm_history?.reduce((acc, log) => (log.status === 'Active' || log.status === 'Inactive') ? acc + (parseInt(log.days_earned) || 0) : acc, 0) || 0} Days
+                          {pdl.tastm_history?.reduce((acc, log) => (log.status === 'Active' || log.status === 'Inactive') ? acc + (parseInt(log.days_earned) || 0) : acc, 0) || ""} Days
                         </div>
                       </div>
                       <div className="ledger-total">
                         <span>Total Days Deducted:</span>
-                        <strong className="text-primary"><TrendingDown size={18} /> {pdl.total_timeallowance_earned || 0} Days</strong>
+                        <strong className="text-primary"><TrendingDown size={18} /> {pdl.total_timeallowance_earned || ""} Days</strong>
                       </div>
                     </>
                   )}

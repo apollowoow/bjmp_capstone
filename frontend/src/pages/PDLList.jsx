@@ -7,6 +7,7 @@ import {
   User, Database, Fingerprint
 } from "lucide-react";
 import "./pdlList.css"; 
+  import { usePermissions } from "../hooks/usePermission";
 
 const PdlList = () => {
   const navigate = useNavigate();
@@ -14,6 +15,9 @@ const PdlList = () => {
   const [releasedList, setReleasedList] = useState([]);
   const [filteredList, setFilteredList] = useState([]);
   const [loading, setLoading] = useState(true);
+
+
+ const { user,isAdmin, isWarden, isOfficer } = usePermissions();
   
   // Search and Filter States
   const [searchTerm, setSearchTerm] = useState("");
@@ -104,9 +108,14 @@ return (
               <p><Database size={12} /> Managing {filteredList.length} Active Records</p>
             </div>
           </div>
-          <button className="btn-add" onClick={() => navigate("/add")}>
-            <UserPlus size={18} /> Register New PDL
-          </button>
+          
+
+          {(isAdmin || isOfficer) && (
+    <button className="btn-add" onClick={() => navigate("/add")}>
+        <UserPlus size={18} /> Register New PDL
+    </button>
+)}
+          
         </div>
 
         {/* Search & Filter Bar */}
