@@ -221,26 +221,33 @@ const SessionDetails = () => {
                                             <td>
                                                 {canDo("Attendance & Sessions", "canedit") ? (
                                                     <input 
-                                                        type="number" 
-                                                        step="0.5"
-                                                        className={`manual-search-input ${pdl.is_tampered ? 'input-locked' : ''}`}
-                                                        style={{ 
-                                                            width: '80px', 
-                                                            margin: 0, 
-                                                            textAlign: 'center', 
-                                                            padding: '8px',
-                                                            // 🎨 Visual Feedback for Lockdown
-                                                            backgroundColor: pdl.is_tampered ? '#f1f5f9' : 'white',
-                                                            cursor: pdl.is_tampered ? 'not-allowed' : 'text',
-                                                            borderColor: pdl.is_tampered ? '#ef4444' : '#e2e8f0',
-                                                            color: pdl.is_tampered ? '#94a3b8' : '#1e293b'
-                                                        }}
-                                                        defaultValue={pdl.hours_attended}
-                                                        // 🔒 THE CRITICAL LINE: Disable if tampered
-                                                        disabled={pdl.is_tampered} 
-                                                        onBlur={(e) => handleUpdateHours(pdl.pdl_id, e.target.value)}
-                                                        title={pdl.is_tampered ? "This record is locked due to an integrity mismatch." : ""}
-                                                    />
+    type="number" 
+    step="0.5"
+    min="0" // 🛡️ Bawal ang negative
+    max="8" // 🎯 Eto yung limit mo
+    className={`manual-search-input ${pdl.is_tampered ? 'input-locked' : ''}`}
+    style={{ 
+        width: '80px', 
+        margin: 0, 
+        textAlign: 'center', 
+        padding: '8px',
+        backgroundColor: pdl.is_tampered ? '#f1f5f9' : 'white',
+        cursor: pdl.is_tampered ? 'not-allowed' : 'text',
+        borderColor: pdl.is_tampered ? '#ef4444' : '#e2e8f0',
+        color: pdl.is_tampered ? '#94a3b8' : '#1e293b'
+    }}
+    defaultValue={pdl.hours_attended}
+    disabled={pdl.is_tampered} 
+    onBlur={(e) => {
+        let value = parseFloat(e.target.value);
+        // 🛡️ Client-side guard: Pag lumampas, i-force natin sa 8
+        if (value > 8) value = 8;
+        if (value < 0 || isNaN(value)) value = 0;
+        
+        handleUpdateHours(pdl.pdl_id, value);
+    }}
+    title={pdl.is_tampered ? "This record is locked due to an integrity mismatch." : "Maximum allowed is 8"}
+/>
                                                 ) : (
                                                     <span style={{ fontWeight: 'bold', color: '#64748b' }}>
                                                         {pdl.hours_attended} hrs

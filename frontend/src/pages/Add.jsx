@@ -24,7 +24,7 @@ const Add = () => {
     lastName: "",
     middleName: "",
     birthday: "",
-    gender: "",
+    gender: "Male",
     cellBlock: "",
     caseStatus: "Detained",
     caseNumber: "",
@@ -53,6 +53,36 @@ const Add = () => {
    
     }
   }, [recommitId]);
+
+  const handleDuplicateCheck = async (rfid) => {
+  if (rfid.length !== 10) return;
+ 
+  try {
+    
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${API_BASE_URL}/api/pdl/check-rfid/${rfid}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.exists) {
+        // 🛡️ RECOMMIT EXEMPTION: Huwag i-block kung siya rin ang may-ari (para sa recommit mode)
+        if (recommitId && String(data.pdl.pdl_id) === String(recommitId)) return;
+
+        showAlert(
+          "RFID Already Assigned",
+          `This tag belongs to: ${data.pdl.first_name} ${data.pdl.last_name}. Please use a new tag.`,
+          "error"
+        );
+        // 🎯 RESET: Linisin ang field para hindi makalusot
+        setFormData(prev => ({ ...prev, rfidNumber: "" }));
+      }
+    }
+  } catch (error) {
+    console.error("RFID Check Error:", error);
+  }
+};
 
 
   const fetchPdlForRecommit = async (id) => {
@@ -94,13 +124,17 @@ const Add = () => {
   const currentTime = Date.now();
 
   if (name === "rfidNumber") {
-    // 🛡️ NO-OP: handleyRfidKeyDown handles the security logic
-    // We just handle the data update here.
+    // 🛡️ NO-OP logic remains, but we add the trigger
     const cleanedRFID = value.trim().slice(0, 10);
+    
+    // 🎯 DIRECT TRIGGER: Pag umabot ng 10, check agad sa DB!
+    if (cleanedRFID.length === 10) {
+      handleDuplicateCheck(cleanedRFID);
+    }
+
     setFormData((prev) => ({ ...prev, [name]: cleanedRFID }));
   } else {
     // 🔥 CRITICAL: Update timer for all other fields 
-    // to prevent carry-over lag when entering the RFID box.
     lastKeyTime.current = currentTime;
     setFormData((prev) => ({ ...prev, [name]: value }));
   }
@@ -119,8 +153,14 @@ const handleRfidKeyDown = (e) => {
   
   if (formData.rfidNumber.length >= 10 && !["Backspace", "Tab"].includes(e.key)) {
 
-    if (e.key === "Enter") e.preventDefault(); 
-    return; 
+   if (e.key === "Enter") {
+    e.preventDefault(); // Iwasan ang form submission
+    // 🎯 backup trigger kung sakaling mabilis ang Enter suffix
+    if (formData.rfidNumber.length === 10) {
+      handleDuplicateCheck(formData.rfidNumber);
+    }
+    return;
+  }
   }
 
 

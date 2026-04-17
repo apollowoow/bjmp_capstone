@@ -54,7 +54,33 @@ const getAllPDL = async (req, res) => {
     });
   }
 };
+// Controller logic para sa /api/pdl/check-rfid/:rfid
+const checkRfidExists = async (req, res) => {
+    const { rfid } = req.params;
+    console.log("🔍 Checking RFID in DB:", rfid); // Check if this prints in terminal
 
+    try {
+        // 🎯 DEBUG: Siguraduhin nating tama ang table at column names
+        const result = await pool.query(
+            `SELECT pdl_id, first_name, last_name, case_number 
+             FROM pdl_tbl 
+             WHERE TRIM(rfid_number) = $1 
+             `, // Mas safe na check kesa saktong 'Active'
+            [rfid.trim()]
+        );
+
+        if (result.rows.length > 0) {
+            console.log("⚠️ RFID Taken by:", result.rows[0].last_name);
+            return res.status(200).json({ exists: true, pdl: result.rows[0] });
+        }
+
+        res.status(200).json({ exists: false });
+    } catch (err) {
+        // 🚨 CRITICAL: I-log ang actual error para makita natin kung bakit 500
+        console.error("❌ SQL Error in checkRfidExists:", err.message);
+        res.status(500).json({ error: "Database error", details: err.message });
+    }
+};
 
 const getReleasedPdls = async (req, res) => {
     try {
@@ -1231,4 +1257,4 @@ const upsertSubsidiary = async (req, res) => {
 };
 
 module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord, recalculatePdlSentence, releasePdl, 
-    getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary};
+    getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary, checkRfidExists};
