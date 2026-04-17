@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOfflineSync } from '../hooks/useOfflineSync';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import "./sidebar.css";// 🎯 Import the specific icons from Lucide
 import { 
   LayoutDashboard, 
@@ -20,6 +20,7 @@ import {
 
 const Sidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const { isSyncing, pendingCount } = useOfflineSync();
   const userString = localStorage.getItem("user");
@@ -43,6 +44,8 @@ const Sidebar = () => {
     return modulePerm ? !!modulePerm[action] : false;
   };
 
+  
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -50,16 +53,27 @@ const Sidebar = () => {
   };
 
   // Helper style for icon alignment
-  const iconLinkStyle = {
+  const iconLinkStyle = (path) => {
+  // 🎯 Check if current path matches or starts with the link path
+  const isActive = location.pathname === path || location.pathname.startsWith(`${path}/`);
+
+  return {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
     padding: '10px 15px',
     textDecoration: 'none',
-    color: '#cbd5e1',
     borderRadius: '8px',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    // 🎨 Active vs Normal Colors
+    color: isActive ? '#60a5fa' : '#cbd5e1',
+    backgroundColor: isActive ? 'rgba(96, 165, 250, 0.12)' : 'transparent',
+    fontWeight: isActive ? '600' : '500',
+    borderLeft: isActive ? '4px solid #60a5fa' : '4px solid transparent',
+    // 💡 Optional: subtle glow effect
+    boxShadow: isActive ? '0 4px 12px rgba(0, 0, 0, 0.1)' : 'none'
   };
+};
 
   return (
     <div className="sidebar" style={{ backgroundColor: '#0f172a', 
@@ -89,27 +103,27 @@ const Sidebar = () => {
         overflowX: 'hidden',
         paddingRight: '5px'}}>
         {/* DASHBOARD */}
-        <Link to="/dashboard" className="nav-link" style={iconLinkStyle}>
+        <Link to="/dashboard" className="nav-link" style={iconLinkStyle('/dashboard')}>
           <LayoutDashboard size={18} /> Dashboard
         </Link>
 
         {/* PDL PROFILING */}
         {canDo("PDL & RFID Management", "canview") && (
-          <Link to="/pdl" className="nav-link" style={iconLinkStyle}>
+          <Link to="/pdl" className="nav-link"  style={iconLinkStyle('/pdl')}>
             <Users size={18} /> PDL Profiling
           </Link>
         )}
 
         {/* PROGRAMS & CREDITS */}
         {canDo("Attendance & Sessions", "canview") && (
-          <Link to="/education" className="nav-link" style={iconLinkStyle}>
+          <Link to="/education" className="nav-link" style={iconLinkStyle('/education')}>
             <Clock size={18} /> Programs & Credits
           </Link>
         )}
 
         {/* INCIDENTS */}
         {canDo("Conduct & Penalties", "canapprove") && (
-          <Link to="/incidents" className="nav-link" style={iconLinkStyle}>
+          <Link to="/incidents" className="nav-link" style={iconLinkStyle('/incidents')}>
             <AlertTriangle size={18} /> Incidents
           </Link>
         )}
@@ -117,7 +131,7 @@ const Sidebar = () => {
         {/* REPORTS */}
         {canDo("Time Allowance Computation (GCTA/TASTM)", "canapprove") && (
           <>
-            <Link to="/reports" className="nav-link" style={iconLinkStyle}>
+            <Link to="/reports" className="nav-link" style={iconLinkStyle('/reports')}>
               <FileText size={18} /> Reports
             </Link>
 
@@ -132,39 +146,39 @@ const Sidebar = () => {
         
         {/* ADD NEW PDL */}
         {canDo("PDL & RFID Management", "cancreate") && (
-          <Link to="/add" className="nav-link" style={iconLinkStyle}>
+          <Link to="/add" className="nav-link" style={iconLinkStyle('/add')}>
             <UserPlus size={18} /> Add New PDL
           </Link>
         )}
 
         {/* USER MANAGEMENT */}
         {canDo("User Management", "cancreate") && (
-          <Link to="/users" className="nav-link" style={iconLinkStyle}>
+          <Link to="/users" className="nav-link" style={iconLinkStyle('/users')}>
             <UserCog size={18} /> User Management
           </Link>
         )}
         {canDo("User Management", "canview") && (
-            <Link to="/integrity-audit" className="nav-link" style={iconLinkStyle}>
+            <Link to="/integrity-audit" className="nav-link" style={iconLinkStyle('/integrity-audit')}>
               <ShieldAlert size={18} /> Integrity Audit
             </Link>
           )}
         {/* AUDIT TRAIL */}
         {canDo("User Management", "canview") && (
-          <Link to="/audit-logs" className="nav-link" style={{ ...iconLinkStyle }}>
+          <Link to="/audit-logs" className="nav-link" style={{ ...iconLinkStyle('/audit-logs')}}>
             <Activity size={18} /> Audit Trail
           </Link>
         )}
 
         {/* ADD SYSTEM USER */}
         {canDo("User Management", "cancreate") && (
-          <Link to="/addUser" className="nav-link" style={iconLinkStyle}>
+          <Link to="/addUser" className="nav-link" style={iconLinkStyle('/addUser')}>
             <UserPlus size={18} /> Add System User
           </Link>
         )}
 
 
         {canDo("User Management", "cancreate") && (
-            <Link to="/maintenance" className="nav-link" style={{ ...iconLinkStyle}}>
+            <Link to="/maintenance" className="nav-link" style={{ ...iconLinkStyle('/maintenance')}}>
               <Database size={18} /> System Maintenance
             </Link>
         )}
