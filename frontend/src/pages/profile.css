@@ -876,3 +876,19 @@
 }
 
 .algo-tag { margin-top: auto; padding-top: 15px; } /* Push to bottom */
+.btn-print {
+  background-color: #334155; /* Slate/Dark Gray */
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-print:hover {
+  background-color: #1e293b;
+}

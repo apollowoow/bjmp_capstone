@@ -25,7 +25,7 @@ const getGeneralSummary = async (req, res) => {
   console.log(`[REPORTS] 📥 Request received for Audit Month: ${month}`);
 
   try {
-    const query = `
+     const query = `
         SELECT 
           p.pdl_id, p.last_name, p.first_name, 
           p.is_locked_for_gcta, 
@@ -134,7 +134,53 @@ const auditReportExport = async (req, res) => {
     }
 };
 
+const getAttendanceReport = async (req, res) => {
+  const { month } = req.query;
+
+  try {
+    console.log(`[ATTENDANCE] 📥 Fetching separated data for Month: ${month}`);
+
+    const query = `
+      SELECT 
+        p.pdl_id, 
+        p.last_name, 
+        p.first_name,
+        
+        -- 🎯 Eto ang nagbago: Kinuha natin ang direct program name
+        s.program_name as program_category,
+
+        -- 🕒 Isu-sum na lang niya ang hours base sa PDL ID at Program Name
+        COALESCE(SUM(a.hours_attended), 0) as total_hours_this_month
+
+      FROM pdl_tbl p
+      INNER JOIN attendance_tbl a ON p.pdl_id = a.pdl_id
+      INNER JOIN session_tbl s ON a.session_id = s.session_id
+
+      WHERE 
+        TO_CHAR(s.session_date, 'YYYY-MM') = $1
+        AND a.status = 'Active'
+
+      -- 🎯 CRITICAL CHANGE: Group by program_name din para hindi sila mag-sum up as one row
+      GROUP BY p.pdl_id, p.last_name, p.first_name, s.program_name
+      
+      ORDER BY p.last_name ASC, s.program_name ASC;
+    `;
+
+    const result = await pool.query(query, [month]);
+
+    console.log(`[ATTENDANCE] ✅ Success: ${result.rows.length} program-entry records found.`);
+    res.status(200).json(result.rows);
+
+  } catch (err) {
+    console.error("[ATTENDANCE] ❌ ERROR:", err.message);
+    res.status(500).json({ error: "Failed to fetch separated attendance data." });
+  }
+};
+
+// Huwag kalimutang i-export!
+
+
 // Don't forget to export it!
 
 
-module.exports = { getReportStats, getGeneralSummary, getPredictiveReport, auditReportExport };
+module.exports = { getReportStats, getGeneralSummary, getPredictiveReport, auditReportExport, getAttendanceReport };

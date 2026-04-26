@@ -20,6 +20,7 @@ app.use(express.json());
 // Serving static files for PDL Photos
 app.use("/public/uploads", express.static(path.join(__dirname, "public/uploads")));
 
+
 // ==========================
 // ROUTE IMPORTS
 // ==========================

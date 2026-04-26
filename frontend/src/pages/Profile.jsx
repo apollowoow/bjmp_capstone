@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import API_BASE_URL from "../apiConfig";
 import "./profile.css";
 import { usePermissions } from "../hooks/usePermission";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { 
   ChevronLeft, Pencil, Lock, Archive, Fingerprint, 
   User, Calendar, ShieldCheck, Scale, Gavel, 
@@ -15,7 +17,8 @@ const Profile = () => {
   const navigate = useNavigate();
   const [pdl, setPdl] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { canDo } = usePermissions();
+  const { canDo, user } = usePermissions();
+  const [historyData, setHistoryData] = useState([]);
  
 
   const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23cbd5e1'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
@@ -71,9 +74,181 @@ const Profile = () => {
         setLoading(false);
     }
 };
+
+const exportProfileToPDF = async () => {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const centerX = pageWidth / 2;
+
+  try {
+    // 1. LETTERHEAD
+    doc.setFont("helvetica", "normal").setFontSize(10);
+    doc.text("REPUBLIC OF THE PHILIPPINES", centerX, 15, { align: "center" });
+    doc.setFont("helvetica", "bold").text("BUREAU OF JAIL MANAGEMENT AND PENOLOGY", centerX, 20, { align: "center" });
+    doc.setFont("helvetica", "normal").text("Meycauayan City Jail, Bulacan", centerX, 25, { align: "center" });
+    doc.line(14, 30, pageWidth - 14, 30); // Horizontal Line
+
+    // 📸 2. PROFILE PICTURE (Base64 Logic)
+    if (pdl.pdl_picture) {
+      const imgUrl = pdl.pdl_picture;
+      console.log(imgUrl);
+      try {
+        const base64Img = await getBase64ImageFromURL(imgUrl);
+        doc.addImage(base64Img, 'JPEG', 15, 35, 40, 40);
+        doc.rect(15, 35, 40, 40); // Border for photo
+      } catch (e) {
+        doc.rect(15, 35, 40, 40);
+        doc.text("No Image", 35, 55, { align: "center" });
+      }
+    }
+
+    // 📄 3. BASIC DETAILS (Beside Photo)
+    doc.setFontSize(18).setFont("helvetica", "bold");
+    doc.text(`${pdl.last_name}, ${pdl.first_name} ${pdl.middle_name || ""}`, 60, 45);
+    
+    doc.setFontSize(10).setFont("helvetica", "normal");
+    doc.text(`PDL ID Number: #${pdl.pdl_id}`, 60, 52);
+    doc.text(`Status: ${pdl.pdl_status.toUpperCase()}`, 60, 57);
+    doc.text(`Admission Date: ${new Date(pdl.date_admitted_bjmp).toLocaleDateString()}`, 60, 62);
+    doc.text(`Case Number: ${pdl.case_number}`, 60, 67);
+    doc.text(`Crime: ${pdl.crime_name}`, 60, 72);
+
+    // 📊 4. CURRENT STATS (GCTA / TASTM Cards)
+    doc.setDrawColor(200);
+    doc.setFillColor(245, 245, 245);
+    doc.rect(14, 80, pageWidth - 28, 25, 'F'); // Stats Background
+    
+    doc.setFont("helvetica", "bold").setFontSize(11);
+    doc.text("CURRENT TIME ALLOWANCE STATS", 20, 87);
+    
+    doc.setFont("helvetica", "normal").setFontSize(10);
+    doc.text(`Active GCTA: ${pdl.active_gcta || 0} Days`, 20, 95);
+    doc.text(`Active TASTM: ${pdl.active_tastm || 0} Days`, 80, 95);
+    doc.text(`Total Earned Credits: ${pdl.total_timeallowance_earned || 0} Days`, 140, 95);
+
+    // 📜 5. HISTORY TABLE (Past Records)
+    doc.setFont("helvetica", "bold").setFontSize(12);
+    doc.text("LEGAL HISTORY & PREVIOUS RECORDS", 14, 115);
+    
+    autoTable(doc, {
+  startY: 125, // Adjusted for the profile section above
+  head: [[
+    "Offense/Crime", 
+    "Sentence Duration", 
+    "Admission Date", 
+    "Actual Release", 
+    "GCTA Earned"
+  ]],
+ body: historyData.map(h => [
+    h.crime_name || 'N/A',
+    // 🎯 Dito natin gagamitin ang bagong formatter
+    formatSentenceReadable(h.sentence_years, h.sentence_months, h.sentence_days),
+    h.date_admitted_bjmp ? new Date(h.date_admitted_bjmp).toLocaleDateString() : 'N/A',
+    h.actual_release_date ? new Date(h.actual_release_date).toLocaleDateString() : 'N/A',
+    `${h.total_timeallowance_earned || 0} Days`
+  ]),
+  theme: 'grid',
+  headStyles: { 
+    fillColor: [15, 23, 42], // Slate blue theme
+    fontSize: 9,
+    halign: 'center' 
+  },
+  columnStyles: {
+    0: { cellWidth: 45 }, // Crime (wider)
+    1: { cellWidth: 35 }, // Sentence
+    2: { cellWidth: 35 }, // Admission
+    3: { cellWidth: 35 }, // Release
+    4: { cellWidth: 30, halign: 'center' } // GCTA
+  },
+  styles: { fontSize: 8, cellPadding: 3 },
+  margin: { left: 14, right: 14 }
+});
+
+    // 🖋️ 6. SIGNATORIES
+    const finalY = doc.lastAutoTable.finalY + 30;
+    doc.text("Prepared By:", 14, finalY);
+    doc.text(user.fullname || "Records Officer", 14, finalY + 15);
+    doc.line(14, finalY + 10, 60, finalY + 10);
+
+    doc.text("Noted By:", 140, finalY);
+    doc.text("Jail Warden", 140, finalY + 15);
+    doc.line(140, finalY + 10, 190, finalY + 10);
+
+    doc.save(`Dossier_${pdl.last_name}.pdf`);
+
+  } catch (error) {
+    console.error("PDF Generation Error:", error);
+    alert("Failed to generate PDF. Check if image is accessible.");
+  }
+};
+
+const formatSentenceReadable = (y, m, d) => {
+    const parts = [];
+    
+    // Convert to numbers to be sure
+    const years = parseInt(y) || 0;
+    const months = parseInt(m) || 0;
+    const days = parseInt(d) || 0;
+
+    if (years > 0) parts.push(`${years} ${years === 1 ? 'Year' : 'Years'}`);
+    if (months > 0) parts.push(`${months} ${months === 1 ? 'Month' : 'Months'}`);
+    if (days > 0) parts.push(`${days} ${days === 1 ? 'Day' : 'Days'}`);
+
+    // Kung lahat zero, ibig sabihin walang sentence (e.g., dismissed)
+    return parts.length > 0 ? parts.join(', ') : "None / Served";
+};
+
+    const getBase64ImageFromURL = (url) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.setAttribute("crossOrigin", "anonymous"); // 🛡️ Important for CORS!
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const dataURL = canvas.toDataURL("image/jpeg");
+      resolve(dataURL);
+    };
+    img.onerror = (error) => reject(error);
+    img.src = url;
+  });
+};
+
   useEffect(() => {
     fetchPdlDetails();
   }, [id]);
+
+useEffect(() => {
+    const fetchHistory = async () => {
+        try {
+            // 🎯 1. Kunin ang token mula sa localStorage
+            const token = localStorage.getItem("token"); 
+
+            const response = await fetch(`${API_BASE_URL}/api/pdl/history/${id}`, {
+                method: "GET",
+                headers: {
+                    // 🎯 2. Isama ang Token sa Headers
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (response.status === 401) {
+                console.error("Session expired or token missing");
+                return;
+            }
+
+            const data = await response.json();
+            setHistoryData(data.history || []); // Siguraduhin na array ang makuha
+        } catch (error) {
+            console.error("Error fetching history:", error);
+        }
+    };
+    
+    if (id) fetchHistory();
+}, [id]);
 
 
   if (loading) return <div className="loading-state">Syncing Analytics Data...</div>;
@@ -89,16 +264,22 @@ const Profile = () => {
             <ChevronLeft size={18} /> Back to List
           </button>
           <div className="header-actions">
-            {/* 🔒 HIDE EDIT BUTTON IF RELEASED */}
+            {/* 🔒 HIDE EDIT BUTTON IF RELEASED */}{canDo("PDL & RFID Management", "canview") && (
+              <button className="btn-action btn-edit" onClick={exportProfileToPDF}>
+                <FileText size={16} /> Generate Dossier
+              </button>
+            )}
             {pdl.pdl_status !== "Released" && canDo("PDL & RFID Management", "canedit") && (
               <button className="btn-action btn-edit" onClick={() => navigate(`/edit/${id}`)}>
                 <Pencil size={16} /> Edit Record
               </button>
             )}
+            
             {pdl.pdl_status === "Released" && (
               <span className="archive-badge">
                 <Lock size={14} /> Locked Archive
               </span>
+              
             )}
           </div>
         </div>

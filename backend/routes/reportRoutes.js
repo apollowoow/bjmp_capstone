@@ -7,7 +7,7 @@ const router = express.Router();
 const { 
     getReportStats, 
     getGeneralSummary, 
-    getPredictiveReport, auditReportExport 
+    getPredictiveReport, auditReportExport, getAttendanceReport 
 } = require("../controller/reportController");
 
 // ==========================
@@ -42,6 +42,15 @@ router.get('/predictive',
     authenticateToken, 
     authorize("Time Allowance Computation (GCTA/TASTM)", "canapprove"), 
     getPredictiveReport
+);
+
+// Siguraduhin na naka-import yung bagong function sa taas
+
+
+router.get('/attendance', 
+    authenticateToken, 
+    authorize("Time Allowance Computation (GCTA/TASTM)", "canapprove"), 
+    getAttendanceReport
 );
 
 

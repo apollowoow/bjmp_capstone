@@ -11,7 +11,7 @@ const pool = require("../db/pool");
 const { 
     addPDL, getAllPDL, getPdlById, updatePDL, updatePdlJudicialRecord, 
      recalculatePdlSentence, releasePdl, getReleasedPdls, 
-    getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary, checkRfidExists 
+    getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary, checkRfidExists, getPDLFullDossier 
 } = require("../controller/pdlController");
 
 // ==========================
@@ -85,6 +85,11 @@ router.get("/getall",
     getAllPDL
 );
 
+router.get("/history/:id", 
+    authenticateToken, 
+    authorize("PDL & RFID Management", "canview"), 
+    getPDLFullDossier
+);
 
 
 router.get('/get/:id', 

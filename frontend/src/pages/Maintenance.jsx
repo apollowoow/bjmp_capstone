@@ -102,6 +102,9 @@ const Maintenance = () => {
             } else { setAuthError("Invalid Admin Password."); }
         } catch (err) { setAuthError("Auth Server Unreachable."); } 
         finally { setLoading(false); }
+
+        setAuthPassword("")
+        setSnapshotName("")
     };
 
     const executeBackup = async (name) => {

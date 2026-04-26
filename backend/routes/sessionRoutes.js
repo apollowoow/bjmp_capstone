@@ -39,13 +39,13 @@ router.put('/update-attendance-hours',
 
 router.delete('/remove-attendance/:session_id/:pdl_id', 
     authenticateToken, 
-    authorize("Attendance & Sessions", "candelete"), 
+    authorize("Attendance & Sessions", "cancreate"), 
     sessionCtrl.removeAttendance
 );//done
 
 router.delete('/cancel/:session_id', 
     authenticateToken, 
-    authorize("Attendance & Sessions", "candelete"), 
+    authorize("Attendance & Sessions", "cancreate"),
     sessionCtrl.cancelSession
 );//auditdone
 

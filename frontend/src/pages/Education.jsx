@@ -8,6 +8,7 @@ import { Gavel, Keyboard, Activity, X,
     Play, ScrollText, RotateCw} from 'lucide-react';
 const Education = () => {
     const navigate = useNavigate();
+    const { user } = usePermissions();
     const { canDo } = usePermissions();
     // --- State Management ---
     const [showSessionModal, setShowSessionModal] = useState(false);
@@ -211,6 +212,7 @@ useEffect(() => {
   // Reset to page 1 whenever a new attendee is added so the officer sees the latest scan
   useEffect(() => {
       setCurrentPage(1);
+      console.log(user);
   }, [currentAttendees.length]);
 
     const [sessionForm, setSessionForm] = useState({
@@ -221,6 +223,8 @@ useEffect(() => {
         officer_in_charge: ""
     });
 
+    
+
     useEffect(() => {
     if (isScanning && !isTypingMode) {
         setTimeout(() => {
@@ -229,6 +233,17 @@ useEffect(() => {
         }, 10);
     }
 }, [isScanning, isTypingMode]);
+
+useEffect(() => {
+    // 🎯 Check 1: Siguraduhin na may user.fullname
+    // 🎯 Check 2: I-set lang ang state kung MAGKAIBA sila (Safety net)
+    if (user?.fullname && sessionForm.officer_in_charge !== user.fullname) {
+        setSessionForm(prev => ({
+            ...prev,
+            officer_in_charge: user.fullname
+        }));
+    }
+}, [user?.fullname]);
 
     // --- Form Handlers ---
     const handleInputChange = (e) => {
@@ -749,7 +764,22 @@ return (
                         
                         <div className="init-field">
                             <label>Officer in Charge</label>
-                            <input type="text" name="officer_in_charge" placeholder="Full Name / Rank" onChange={handleInputChange} required />
+                            <input 
+                                type="text" 
+                                name="officer_in_charge" 
+                                // 🎯 Binds the input to our sessionForm state
+                                value={sessionForm.officer_in_charge || ""}
+                                placeholder="Fetching officer name..." 
+                                // 🎯 Disabled means the user cannot change it manually
+                                disabled 
+                                required 
+                                style={{ 
+                                    backgroundColor: "#e9ecef", // Light gray background
+                                    cursor: "not-allowed",
+                                    fontWeight: "500",
+                                    color: "#495057"
+                                }}
+                            />
                         </div>
                     </div>
                 </div>

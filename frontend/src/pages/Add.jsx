@@ -317,9 +317,9 @@ const handleRfidKeyDown = (e) => {
         setTimeout(() => navigate(recommitId ? `/profile/${recommitId}` : "/pdl"), 2000);
       } else {
         const err = await response.json();
-        setMessage(`❌ Error: ${err.error}`);
+        setMessage(` Error: ${err.error}`);
       }
-    } catch (error) { setMessage("❌ Connection failed."); }
+    } catch (error) { setMessage(" Connection failed."); }
   };
 
  return (
@@ -453,11 +453,17 @@ const handleRfidKeyDown = (e) => {
             {recommitId ? <><RefreshCw size={18} /> Finalize Recommitment</> : <><FilePlus size={18} /> Register New PDL Record</>}
           </button>
           
-          {message && (
-            <div className={`pdl-add__status ${message.includes('❌') ? 'error' : ''}`}>
-                {message.includes('❌') ? <XCircle size={16} /> : <CheckCircle2 size={16} />} {message}
-            </div>
-          )}
+         {message && (
+    <div className={`pdl-add__status ${message.toLowerCase().includes('error') ? 'error' : ''}`}>
+        {/* 🎯 Tinitignan kung may salitang 'error' sa message para sa Icon at Class */}
+        {message.toLowerCase().includes('error') ? (
+            <XCircle size={16} /> 
+        ) : (
+            <CheckCircle2 size={16} />
+        )} 
+        {message}
+    </div>
+)}
         </form>
       </div>
 
