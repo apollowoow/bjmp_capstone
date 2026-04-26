@@ -1012,6 +1012,27 @@ const recommitPDL = async (req, res) => {
             return res.status(404).json({ error: "Record not found." });
         }
 
+        // 🎯 Kunin ang pinakabagong release record
+        const fetchReleased = await client.query(
+            "SELECT * FROM released_tbl WHERE pdl_id = $1 ORDER BY actual_release_date DESC LIMIT 1", 
+            [id]
+        );
+        const oldreleased = fetchReleased.rows[0];
+
+        // 🛡️ Logic Guard: I-check lang ang date kung MAY existing release record
+        // Gamit tayo ng 'actual_release_date' (ito yung nasa SQL mo kanina)
+        if (oldreleased && oldreleased.actual_release_date && admissionDate) {
+            const lastRelease = new Date(oldreleased.actual_release_date);
+            const newAdmission = new Date(admissionDate);
+
+            // 🕒 Time-travel check
+            if (newAdmission < lastRelease) {
+                return res.status(400).json({ 
+                    error: `Invalid Admission Date. The PDL was last released on ${lastRelease.toDateString()}. You cannot recommit them on an earlier date.` 
+                });
+            }
+        }
+
         // --- 🛡️ STEP 2: THE RESET QUERY ---
         const newPhotoPath = req.file ? `${req.file.filename}` : null;
 
@@ -1256,5 +1277,42 @@ const upsertSubsidiary = async (req, res) => {
     }
 };
 
+const getPDLFullDossier = async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+
+    try {
+        // 1. Fetch Current Profile
+        const pdlRes = await client.query("SELECT * FROM pdl_tbl WHERE pdl_id = $1", [id]);
+        const pdl = pdlRes.rows[0];
+        if (!pdl) return res.status(404).json({ error: "PDL not found" });
+
+        // 2. Fetch Release History (The Past Records part)
+        const historyRes = await client.query(
+            "SELECT * FROM released_tbl WHERE pdl_id = $1 ORDER BY actual_release_date DESC", 
+            [id]
+        );
+
+        // 3. Fetch Incident History
+        const incidentRes = await client.query(
+            "SELECT * FROM incident_tbl WHERE pdl_id = $1 ORDER BY incident_date DESC", 
+            [id]
+        );
+
+        // Return all data to the frontend
+        res.status(200).json({
+            profile: pdl,
+            history: historyRes.rows,
+            incidents: incidentRes.rows,
+            generatedAt: new Date().toLocaleString()
+        });
+
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch dossier data" });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = { getAllPDL, addPDL, getPdlById,  updatePDL, updatePdlJudicialRecord, recalculatePdlSentence, releasePdl, 
-    getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary, checkRfidExists};
+    getReleasedPdls, getReleasedPdlById, updatePersonalInfo, recommitPDL, upsertSubsidiary, checkRfidExists, getPDLFullDossier};

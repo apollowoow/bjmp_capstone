@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict epNHKRS3471UQxkfvMRbDb9JGRA8bUvQ0CFfa2Jyf9eIJYqnbQHAeDjTQItZBLO
+\restrict xPGKcox7Tef1pHrYQN6n3ofMleY9b6BYkO0KEycwRXEHgdBSIh0psGXrOf3RS5Y
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -727,10 +727,9 @@ ALTER TABLE ONLY public.usertbl ALTER COLUMN userid SET DEFAULT nextval('public.
 --
 
 COPY public.attendance_tbl (attendance_id, pdl_id, session_id, hours_attended, timestamp_in, status, row_hash, remarks) FROM stdin;
-1	8	191	2.00	2026-04-09 14:41:37.957	Active	05bca69d66115538984737f1f590acdabe4e504ca9a23d1980d9c3e4b887b883	Original System Log
-2	3	191	2.00	2026-04-09 14:42:03.128	Active	957bf55952ee7caf5599e3d4e31cd0d6e4b8d6a4147b019a988dd1eba6dd9a17	Original System Log
-4	4	191	2.00	2026-04-09 14:42:48.527	Active	46dba8d5df72353a9a97f1b69236bc4975bb91e17fbcad476f3b3962be3991ee	Original System Log
-3	1	191	2.00	2026-04-09 14:45:46.667	Active	bab92675d319e994519bece6c9b2d319d457e88232549280e65dfe81d930832e	Original System Log | MANUALLY ADJUSTED: 4/9/2026 2:45:46 PM
+1	18	199	2.00	2026-04-18 00:41:39.46	Active	fcf861598b4926c5edf2ad6e80f931e864216acfb21052251fa5a5c66946cd4b	Original System Log
+2	17	199	2.00	2026-04-18 00:41:42.625	Active	0dcfaff0bb06c146414a7f80083e491b78f3e4ab86e8b9c6dd57ec5965e52cb9	Original System Log
+3	14	199	2.00	2026-04-18 00:41:48.968	Active	3d7f3070bccdc07bfb1d204c1634f282cb2df5938cdc906c34f2aa7fdbe660aa	Original System Log
 \.
 
 
@@ -739,32 +738,48 @@ COPY public.attendance_tbl (attendance_id, pdl_id, session_id, hours_attended, t
 --
 
 COPY public.audit_log_tbl (log_id, user_id, action_type, table_name, record_id, details, ip_address, "timestamp", pdl_id) FROM stdin;
-1	11	CREATE_PDL	pdl_tbl	1	{"rfid": "1260703026", "status": "Sentenced", "message": "Initial registration and profiling completed.", "fullname": "Juan  Dela Cruz"}	10.203.191.234	2026-04-09 13:10:52.316305	1
-2	11	CREATE_PDL	pdl_tbl	2	{"rfid": "1258930626", "status": "Sentenced", "message": "Initial registration and profiling completed.", "fullname": "Ricardo Ramos"}	10.203.191.234	2026-04-09 13:13:38.052448	2
-3	11	CREATE_PDL	pdl_tbl	3	{"rfid": "1258909026", "status": "Sentenced", "message": "Initial registration and profiling completed.", "fullname": "Maria Clara Ibarra"}	10.203.191.234	2026-04-09 13:16:09.384474	3
-4	11	CREATE_PDL	pdl_tbl	4	{"rfid": "1259272738", "status": "Sentenced", "message": "Initial registration and profiling completed.", "fullname": "Antonio Luna"}	10.203.191.234	2026-04-09 13:18:00.985751	4
-5	11	CREATE_PDL	pdl_tbl	5	{"rfid": "1260818178", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Fernando Poe"}	10.203.191.234	2026-04-09 13:19:10.812412	5
-6	11	CREATE_PDL	pdl_tbl	6	{"rfid": "1258433266", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Elena Adarna"}	10.203.191.234	2026-04-09 13:20:18.308238	6
-7	11	CREATE_PDL	pdl_tbl	7	{"rfid": "1260075634", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Roberto  Gomez"}	10.203.191.234	2026-04-09 13:21:33.708643	7
-8	11	CREATE_PDL	pdl_tbl	8	{"rfid": "1259899170", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Angela Torres"}	10.203.191.234	2026-04-09 13:22:39.414136	8
-9	11	USER_LOGIN	usertbl	11	{"role": "Admin", "message": "User logged in successfully.", "fullname": "Admin Aguigam", "session_expiry": "8h"}	192.168.100.161	2026-04-09 14:33:15.692863	\N
-10	11	SYSTEM_GCTA_SYNC	gcta_days_log	\N	{"message": "Automated GCTA synchronization performed with integrity hashing.", "sync_month": "2026-06", "unlocked_count": 0, "affected_pdl_ids": [1, 2, 3, 4, 5, 6, 7, 8], "credits_granted_to": 8}	192.168.100.161	2026-04-09 14:33:16.03431	\N
-11	11	SYSTEM_LOGS_AUDIT_ACCESS_GRANTED	audit_log_tbl	11	{"message": "SYSTEM_LOGS_AUDIT module successfully unlocked.", "authorized_user": "Admin Aguigam"}	192.168.100.161	2026-04-09 14:33:42.837852	\N
-12	11	MSEC_VOID_CREDITS	multiple_credit_logs	6	{"message": "MSEC officially VOIDED GCTA credits for the period of 2026-07.", "status_change": "Active -> Voided", "target_voided": "GCTA", "month_affected": "2026-07"}	192.168.100.161	2026-04-09 14:36:17.63445	6
-13	11	SYSTEM_LOGS_AUDIT_ACCESS_GRANTED	audit_log_tbl	11	{"message": "SYSTEM_LOGS_AUDIT module successfully unlocked.", "authorized_user": "Admin Aguigam"}	192.168.100.161	2026-04-09 14:36:23.057076	\N
-14	11	INTEGRITY_AUDIT_ACCESS_GRANTED	audit_log_tbl	11	{"message": "INTEGRITY_AUDIT module successfully unlocked.", "authorized_user": "Admin Aguigam"}	192.168.100.161	2026-04-09 14:37:11.121624	\N
-15	11	INTEGRITY_AUDIT_ACCESS_GRANTED	audit_log_tbl	11	{"message": "INTEGRITY_AUDIT module successfully unlocked.", "authorized_user": "Admin Aguigam"}	192.168.100.161	2026-04-09 14:37:17.519593	\N
-16	11	SYSTEM_GCTA_SYNC	gcta_days_log	\N	{"message": "Automated GCTA synchronization performed with integrity hashing.", "sync_month": "2026-03", "unlocked_count": 0, "affected_pdl_ids": [1, 2, 3, 4, 5, 6, 7, 8], "credits_granted_to": 8}	192.168.100.161	2026-04-09 14:38:15.482549	\N
-17	11	INTEGRITY_AUDIT_ACCESS_GRANTED	audit_log_tbl	11	{"message": "INTEGRITY_AUDIT module successfully unlocked.", "authorized_user": "Admin Aguigam"}	192.168.100.161	2026-04-09 14:38:35.623744	\N
-18	11	CREDIT_INTEGRITY_REPAIR	gcta_days_log	16	{"message": "Manual re-seal for GCTA", "new_hash": "940ce6e565...", "reference": "Standard Day for Gcta", "correction": "30 -> 20 days"}	192.168.100.161	2026-04-09 14:39:15.322443	8
-19	11	START_PROGRAM_SESSION	session_tbl	191	{"message": "Initialized new session for Education: ALS Exam", "session_data": {"session_id": 191, "program_name": "Education", "session_date": "2026-04-09", "session_name": "ALS Exam", "hours_to_earn": "2.00", "officer_in_charge": "Mark JO1/ Rod JO1"}, "hours_granted": "2", "officer_assigned": "Mark JO1/ Rod JO1"}	192.168.100.161	2026-04-09 14:41:33.212857	\N
-20	11	USER_LOGIN	usertbl	11	{"role": "Admin", "message": "User logged in successfully.", "fullname": "Admin Aguigam", "session_expiry": "8h"}	192.168.100.161	2026-04-09 14:43:57.425314	\N
-21	11	SYSTEM_TASTM_SYNC	tastm_days_log	\N	{"pdls": [1, 3, 4, 8], "message": "Automated TASTM sync completed.", "affected_count": 4}	192.168.100.161	2026-04-09 14:43:57.827604	\N
-22	11	FINALIZE_PROGRAM_SESSION	session_tbl	191	{"message": "Warden finalized session: ALS Exam", "program_name": "Education", "original_data": {"session_id": 191, "program_name": "Education", "session_date": "2026-04-09", "session_name": "ALS Exam", "hours_to_earn": "2.00", "officer_in_charge": "Mark JO1/ Rod JO1"}, "attendee_count": 4}	192.168.100.161	2026-04-09 14:43:59.172023	\N
-23	11	UPDATE_ATTENDANCE_HOURS	attendance_tbl	191	{"after": {"pdl_id": 1, "status": "Active", "remarks": "Original System Log | MANUALLY ADJUSTED: 4/9/2026 2:45:46 PM", "row_hash": "bab92675d319e994519bece6c9b2d319d457e88232549280e65dfe81d930832e", "session_id": 191, "timestamp_in": "2026-04-09T06:45:46.667Z", "attendance_id": 3, "hours_attended": "2.00"}, "before": {"pdl_id": 1, "status": "Active", "remarks": "Original System Log", "row_hash": "98f3a2f3b3e8cc595071b5d06d4f444229c03e62fe58a88f5ff8a5840ce81bac", "session_id": 191, "timestamp_in": "2026-04-09T06:42:17.652Z", "attendance_id": 3, "hours_attended": "2.00"}, "message": "Attendance hours manually adjusted. New hash generated.", "new_hours": "2.00", "old_hours": "2.00", "remark_added": " | MANUALLY ADJUSTED: 4/9/2026 2:45:46 PM", "integrity_seal": "bab92675..."}	192.168.100.161	2026-04-09 14:45:46.66525	1
-24	11	SYSTEM_MAINTENANCE_ACCESS_FAILED	audit_log_tbl	11	{"message": "Failed verification for SYSTEM_MAINTENANCE access.", "attempted_by": "Admin Aguigam"}	192.168.100.161	2026-04-09 14:46:20.412753	\N
-25	11	SYSTEM_MAINTENANCE_ACCESS_FAILED	audit_log_tbl	11	{"message": "Failed verification for SYSTEM_MAINTENANCE access.", "attempted_by": "Admin Aguigam"}	192.168.100.161	2026-04-09 14:46:23.698696	\N
-26	11	SYSTEM_MAINTENANCE_ACCESS_GRANTED	audit_log_tbl	11	{"message": "SYSTEM_MAINTENANCE module successfully unlocked.", "authorized_user": "Admin Aguigam"}	192.168.100.161	2026-04-09 14:46:29.71514	\N
+1	11	USER_LOGIN	usertbl	11	{"role": "Admin", "message": "User logged in successfully.", "fullname": "Mark Lising", "session_expiry": "8h"}	192.168.1.41	2026-04-17 23:43:17.962248	\N
+2	11	USER_LOGIN	usertbl	11	{"role": "Admin", "message": "User logged in successfully.", "fullname": "Mark Lising", "session_expiry": "8h"}	192.168.1.41	2026-04-17 23:44:23.712216	\N
+3	11	USER_LOGIN	usertbl	11	{"role": "Admin", "message": "User logged in successfully.", "fullname": "Mark Lising", "session_expiry": "8h"}	192.168.1.41	2026-04-17 23:49:55.839259	\N
+4	11	USER_LOGIN	usertbl	11	{"role": "Admin", "message": "User logged in successfully.", "fullname": "Mark Lising", "session_expiry": "8h"}	192.168.1.41	2026-04-17 23:51:08.916978	\N
+5	13	USER_LOGIN	usertbl	13	{"role": "Warden", "message": "User logged in successfully.", "fullname": "Rian Matthew Aguigam", "session_expiry": "8h"}	192.168.1.41	2026-04-17 23:51:27.453771	\N
+6	14	USER_LOGIN	usertbl	14	{"role": "Jail Officer", "message": "User logged in successfully.", "fullname": "Rod Justin Encina", "session_expiry": "8h"}	192.168.1.41	2026-04-17 23:52:31.935135	\N
+7	11	USER_LOGIN	usertbl	11	{"role": "Admin", "message": "User logged in successfully.", "fullname": "Mark Lising", "session_expiry": "8h"}	192.168.1.61	2026-04-18 00:08:42.323116	\N
+8	11	USER_LOGIN	usertbl	11	{"role": "Admin", "message": "User logged in successfully.", "fullname": "Mark Lising", "session_expiry": "8h"}	192.168.1.60	2026-04-18 00:11:16.394541	\N
+9	11	CREATE_PDL	pdl_tbl	10	{"rfid": "1258433266", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Angela Torres"}	192.168.1.60	2026-04-18 00:14:50.423293	10
+10	11	SYSTEM_GCTA_SYNC	gcta_days_log	\N	{"message": "Automated GCTA synchronization performed with integrity hashing.", "sync_month": "2026-03", "unlocked_count": 0, "affected_pdl_ids": [10], "credits_granted_to": 1}	192.168.1.61	2026-04-18 00:14:57.830899	\N
+11	13	USER_LOGIN	usertbl	13	{"role": "Warden", "message": "User logged in successfully.", "fullname": "Rian Matthew Aguigam", "session_expiry": "8h"}	192.168.1.41	2026-04-18 00:15:32.698512	\N
+12	13	USER_LOGIN	usertbl	13	{"role": "Warden", "message": "User logged in successfully.", "fullname": "Rian Matthew Aguigam", "session_expiry": "8h"}	192.168.1.41	2026-04-18 00:15:56.371186	\N
+13	14	USER_LOGIN	usertbl	14	{"role": "Jail Officer", "message": "User logged in successfully.", "fullname": "Rod Justin Encina", "session_expiry": "8h"}	192.168.1.41	2026-04-18 00:16:25.935748	\N
+14	11	CREATE_PDL	pdl_tbl	11	{"rfid": "1259899170", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Jose Manalo"}	192.168.1.60	2026-04-18 00:19:49.886	11
+15	11	CREATE_PDL	pdl_tbl	12	{"rfid": "1258930626", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Maria Ibarra"}	192.168.1.60	2026-04-18 00:21:39.443	12
+16	11	CREATE_PDL	pdl_tbl	13	{"rfid": "1260703026", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Juan Dela Cruz"}	192.168.1.60	2026-04-18 00:23:31.77736	13
+17	11	CREATE_PDL	pdl_tbl	14	{"rfid": "1260818178", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Elen Adarna"}	192.168.1.60	2026-04-18 00:26:01.07086	14
+18	11	CREATE_PDL	pdl_tbl	15	{"rfid": "1259582546", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Fernando Poe"}	192.168.1.60	2026-04-18 00:27:27.737239	15
+19	11	CREATE_PDL	pdl_tbl	16	{"rfid": "1259272738", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Max Gonzales"}	192.168.1.60	2026-04-18 00:28:58.573229	16
+20	11	CREATE_PDL	pdl_tbl	17	{"rfid": "1260075634", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Roberto Gomez"}	192.168.1.60	2026-04-18 00:30:24.744919	17
+21	11	USER_LOGIN	usertbl	11	{"role": "Admin", "message": "User logged in successfully.", "fullname": "Mark Lising", "session_expiry": "8h"}	192.168.1.41	2026-04-18 00:31:37.933184	\N
+22	11	SYSTEM_GCTA_SYNC	gcta_days_log	\N	{"message": "Automated GCTA synchronization performed with integrity hashing.", "sync_month": "2026-03", "unlocked_count": 0, "affected_pdl_ids": [11, 12, 13, 14, 15, 16, 17], "credits_granted_to": 7}	192.168.1.41	2026-04-18 00:31:38.172225	\N
+23	11	INTEGRITY_AUDIT_ACCESS_FAILED	audit_log_tbl	11	{"message": "Failed verification for INTEGRITY_AUDIT access.", "attempted_by": "Mark Lising"}	192.168.1.41	2026-04-18 00:32:03.8501	\N
+24	11	INTEGRITY_AUDIT_ACCESS_GRANTED	audit_log_tbl	11	{"message": "INTEGRITY_AUDIT module successfully unlocked.", "authorized_user": "Mark Lising"}	192.168.1.41	2026-04-18 00:32:06.169635	\N
+25	11	SYSTEM_LOGS_AUDIT_ACCESS_GRANTED	audit_log_tbl	11	{"message": "SYSTEM_LOGS_AUDIT module successfully unlocked.", "authorized_user": "Mark Lising"}	192.168.1.41	2026-04-18 00:32:11.866461	\N
+26	11	USER_LOGIN	usertbl	11	{"role": "Admin", "message": "User logged in successfully.", "fullname": "Mark Lising", "session_expiry": "8h"}	192.168.1.41	2026-04-18 00:34:16.434763	\N
+27	11	CREATE_PDL	pdl_tbl	18	{"rfid": "1258909026", "status": "Detained", "message": "Initial registration and profiling completed.", "fullname": "Daniel Padilla"}	192.168.1.41	2026-04-18 00:37:05.572597	18
+28	11	UPDATE_PERSONAL_INFO	pdl_tbl	18	{"after": {"gender": "Male", "pdl_id": 18, "birthday": "2000-02-02", "last_name": "Padilla", "created_at": "2026-04-17T16:37:05.572Z", "crime_name": "Robbery", "first_name": "Daniel", "pdl_status": "Detained", "updated_at": "2026-04-17T16:39:45.231Z", "case_number": "123", "middle_name": "Garcia", "pdl_picture": "pdl-1776443825567-109419217.jpg", "rfid_number": "1258909026", "sentence_days": 0, "sentence_years": 0, "sentence_months": 0, "date_commited_pnp": null, "date_admitted_bjmp": "2025-08-08", "is_locked_for_gcta": false, "expected_releasedate": null, "original_release_date": null, "date_of_final_judgment": null, "disqualification_reason": null, "is_legally_disqualified": false, "total_timeallowance_earned": 0}, "before": {"gender": "Male", "pdl_id": 18, "birthday": "2000-02-02", "last_name": "Padilla", "created_at": "2026-04-17T16:37:05.572Z", "crime_name": "Theft", "first_name": "Daniel", "pdl_status": "Detained", "updated_at": "2026-04-17T16:37:08.614Z", "case_number": "123", "middle_name": "Garcia", "pdl_picture": "pdl-1776443825567-109419217.jpg", "rfid_number": "1258909026", "sentence_days": 0, "sentence_years": 0, "sentence_months": 0, "date_commited_pnp": null, "date_admitted_bjmp": "2025-08-08", "is_locked_for_gcta": false, "expected_releasedate": null, "original_release_date": null, "date_of_final_judgment": null, "disqualification_reason": null, "is_legally_disqualified": false, "total_timeallowance_earned": 0}, "message": "Updated personal information for Daniel Padilla", "photo_updated": false}	192.168.1.41	2026-04-18 00:39:45.231764	18
+29	11	SYSTEM_GCTA_SYNC	gcta_days_log	\N	{"message": "Automated GCTA synchronization performed with integrity hashing.", "sync_month": "2026-03", "unlocked_count": 0, "affected_pdl_ids": [18], "credits_granted_to": 1}	192.168.1.41	2026-04-18 00:40:05.20066	\N
+30	11	UPDATE_JUDICIAL_RECORD	pdl_tbl	18	{"after": {"gender": "Male", "pdl_id": 18, "birthday": "2000-02-02", "last_name": "Padilla", "created_at": "2026-04-17T16:37:05.572Z", "crime_name": "Robbery", "first_name": "Daniel", "pdl_status": "Sentenced", "updated_at": "2026-04-17T16:40:55.466Z", "case_number": "123", "middle_name": "Garcia", "pdl_picture": "pdl-1776443825567-109419217.jpg", "rfid_number": "1258909026", "sentence_days": 0, "sentence_years": 0, "sentence_months": 8, "date_commited_pnp": "2025-07-07", "date_admitted_bjmp": "2025-08-08", "is_locked_for_gcta": false, "expected_releasedate": "2026-02-14", "original_release_date": "2026-03-06", "date_of_final_judgment": "2026-01-01", "disqualification_reason": null, "is_legally_disqualified": false, "total_timeallowance_earned": 20}, "before": {"gender": "Male", "pdl_id": 18, "birthday": "2000-02-02", "last_name": "Padilla", "created_at": "2026-04-17T16:37:05.572Z", "crime_name": "Robbery", "first_name": "Daniel", "pdl_status": "Detained", "updated_at": "2026-04-17T16:40:09.136Z", "case_number": "123", "middle_name": "Garcia", "pdl_picture": "pdl-1776443825567-109419217.jpg", "rfid_number": "1258909026", "sentence_days": 0, "sentence_years": 0, "sentence_months": 0, "date_commited_pnp": null, "date_admitted_bjmp": "2025-08-08", "is_locked_for_gcta": false, "expected_releasedate": null, "original_release_date": null, "date_of_final_judgment": null, "disqualification_reason": null, "is_legally_disqualified": false, "total_timeallowance_earned": 20}, "message": "Judicial record and credits updated.", "input_received": {"gender": "Male", "pdl_id": 18, "remarks": "", "birthday": "2000-02-02", "gcta_days": 0, "last_name": "Padilla", "created_at": "2026-04-17T16:37:05.572Z", "crime_name": "Robbery", "daily_rate": 1000, "first_name": "Daniel", "pdl_status": "Sentenced", "subsidiary": null, "tastm_days": 0, "updated_at": "2026-04-17T16:40:09.136Z", "amount_paid": 0, "case_number": "123", "hasMigrated": false, "middle_name": "Garcia", "pdl_picture": "http://192.168.1.41:5000/public/uploads/pdl-1776443825567-109419217.jpg", "rfid_number": "1258909026", "tastm_hours": 0, "gcta_history": [{"pdl_id": 18, "status": "Active", "remarks": "Automated GCTA", "row_hash": "f8dc44a27ea7f832e08d7c6eca4becc6a66d6492d9df00e1d93940579df1cfe5", "month_year": "2026-04-01", "days_earned": 20, "gcta_log_id": 9, "date_granted": "2026-04-17T16:40:05.199Z"}], "isGctaLocked": false, "isTastmLocked": false, "sentence_days": 0, "subsidiary_id": null, "tastm_history": [], "active_penalty": null, "is_recommitted": true, "originalStatus": "Detained", "sentence_years": 0, "sentence_months": 8, "isManualOverride": true, "date_commited_pnp": "2025-07-07", "isMigrationLocked": false, "total_fine_amount": "", "date_admitted_bjmp": "2025-08-08", "is_locked_for_gcta": false, "isEditingSubsidiary": false, "expected_releasedate": null, "original_release_date": null, "date_of_final_judgment": "2026-01-01", "disqualification_reason": null, "is_legally_disqualified": false, "subsidiary_judgment_date": "", "total_timeallowance_earned": 20}}	192.168.1.41	2026-04-18 00:40:55.466353	18
+31	11	START_PROGRAM_SESSION	session_tbl	199	{"message": "Initialized new session for Education: ALS Exam", "session_data": {"session_id": 199, "program_name": "Education", "session_date": "2026-04-17", "session_name": "ALS Exam", "hours_to_earn": "2.00", "officer_in_charge": "Mark JO1"}, "hours_granted": "2", "officer_assigned": "Mark JO1"}	192.168.1.41	2026-04-18 00:41:33.762521	\N
+32	11	FINALIZE_PROGRAM_SESSION	session_tbl	199	{"message": "Warden finalized session: ALS Exam", "program_name": "Education", "original_data": {"session_id": 199, "program_name": "Education", "session_date": "2026-04-17", "session_name": "ALS Exam", "hours_to_earn": "2.00", "officer_in_charge": "Mark JO1"}, "attendee_count": 3}	192.168.1.41	2026-04-18 00:41:53.172699	\N
+33	11	RECORD_DISCIPLINARY_INCIDENT	incident_tbl	14	{"message": "Incident recorded: Less Serious. Penalty stacked. New End Date: 2026-07-17", "remarks": "Involved in a fist fight.", "category": "Less Serious", "penalty_ends": "2026-07-17T00:00:00.000Z", "incident_date": "2026-04-17", "system_impact": "GCTA eligibility suspended"}	192.168.1.41	2026-04-18 00:43:36.250805	14
+34	11	SYSTEM_TASTM_SYNC	tastm_days_log	\N	{"pdls": [18, 17], "message": "Automated TASTM sync completed.", "affected_count": 2}	192.168.1.41	2026-04-18 00:43:40.952255	\N
+35	11	GENERATE_REPORT	pdl_tbl	\N	{"format": "PDF", "period": "2026-04", "message": "User exported a PDF report.", "report_type": "conduct", "total_records": 9}	192.168.1.41	2026-04-18 00:44:07.114323	\N
+36	11	GENERATE_REPORT	pdl_tbl	\N	{"format": "CSV", "period": "2026-04", "message": "User exported a CSV report.", "report_type": "conduct", "total_records": 1}	192.168.1.41	2026-04-18 00:44:22.046633	\N
+37	11	ADMIN_RESET_PASSWORD	usertbl	11	{"note": "Security credentials overridden by Admin.", "message": "Administrative password reset for super_admin"}	192.168.1.41	2026-04-18 00:44:52.993076	\N
+38	11	INTEGRITY_AUDIT_ACCESS_GRANTED	audit_log_tbl	11	{"message": "INTEGRITY_AUDIT module successfully unlocked.", "authorized_user": "Mark Lising"}	192.168.1.41	2026-04-18 00:45:53.897139	\N
+39	11	CREDIT_INTEGRITY_REPAIR	gcta_days_log	9	{"message": "Manual re-seal for GCTA", "new_hash": "f8dc44a27e...", "reference": "Page 45", "correction": "25 -> 20 days"}	192.168.1.41	2026-04-18 00:46:06.413013	18
+40	11	SYSTEM_LOGS_AUDIT_ACCESS_GRANTED	audit_log_tbl	11	{"message": "SYSTEM_LOGS_AUDIT module successfully unlocked.", "authorized_user": "Mark Lising"}	192.168.1.41	2026-04-18 00:46:30.425441	\N
+41	11	SYSTEM_MAINTENANCE_ACCESS_FAILED	audit_log_tbl	11	{"message": "Failed verification for SYSTEM_MAINTENANCE access.", "attempted_by": "Mark Lising"}	192.168.1.41	2026-04-18 00:47:55.369626	\N
+42	11	SYSTEM_MAINTENANCE_ACCESS_GRANTED	audit_log_tbl	11	{"message": "SYSTEM_MAINTENANCE module successfully unlocked.", "authorized_user": "Mark Lising"}	192.168.1.41	2026-04-18 00:47:58.584013	\N
 \.
 
 
@@ -773,22 +788,15 @@ COPY public.audit_log_tbl (log_id, user_id, action_type, table_name, record_id, 
 --
 
 COPY public.gcta_days_log (gcta_log_id, pdl_id, month_year, days_earned, date_granted, status, remarks, row_hash) FROM stdin;
-1	1	2026-07-01	20	2026-07-01 00:00:00	Active	Automated GCTA	b869c1ebe9fbc688db3d26c09d9958d66ad5e680dd1e0861f76adfcdc96d2468
-2	2	2026-07-01	20	2026-07-01 00:00:00	Active	Automated GCTA	b895b8234cd04694554fd3b55bf5fbbb522a72f2acf1ec3f72cbd19a197c3d5b
-3	3	2026-07-01	20	2026-07-01 00:00:00	Active	Automated GCTA	8a1913cde909f3913c6a265ccdef413191bbad3f44ebae6e1ab460b51276276f
-4	4	2026-07-01	20	2026-07-01 00:00:00	Active	Automated GCTA	5ac4f438e4fe9e3631418d459a195141637e65c43dfaa8f41ce555803c3e2913
-5	5	2026-07-01	20	2026-07-01 00:00:00	Active	Automated GCTA	b729f69fe3aded7fecb6fa4dad56f84183cfebd00670a3b7b20cb99be4f7a039
-7	7	2026-07-01	20	2026-07-01 00:00:00	Active	Automated GCTA	d4adca0ed69a50239441adb9f9d2efa3e5e98147c2d4b2df4b673e56c08d66b8
-6	6	2026-07-01	20	2026-07-01 00:00:00	Voided	MSEC DQ: GCTA Voided for 2026-07	d32cf8338740061bcd2f150772ad424f403e523ae530885ec3cd0c875b8234d6
-8	8	2026-07-01	30	2026-07-01 00:00:00	Active	Automated GCTA	41a87bb49648ead30ebb499c7f553edb849e331e92b22d8102acceba4131d6d9
-9	1	2026-04-01	20	2026-04-09 14:38:15.482	Active	Automated GCTA	7c01b45cb0c997ac0c1e7836b8ae695fe01e35887658a11e1df9f97fd334c4e8
-10	2	2026-04-01	20	2026-04-09 14:38:15.482	Active	Automated GCTA	d2c146c0ffba33bfbcb4b8aaec3a814df75b868325bf861e2c9480787d13b7b7
-11	3	2026-04-01	20	2026-04-09 14:38:15.482	Active	Automated GCTA	48403004f62a00e8ffc0cf9815fb854c47978b74de366b871c9aceae2259a398
-12	4	2026-04-01	20	2026-04-09 14:38:15.482	Active	Automated GCTA	db5328c83f6f8bd55dab2aec893c4bd2691fcb6d7a9bda0345584e1709d61dc9
-13	5	2026-04-01	20	2026-04-09 14:38:15.482	Active	Automated GCTA	4b3b4bab41057d5f46af21723611a56aa9df2223f2acb68ef86a9754334f9ffa
-14	6	2026-04-01	20	2026-04-09 14:38:15.482	Active	Automated GCTA	a75e99944aa2f081b0760b4be7bf0c5251a872aca2171f6353fac31aef1a69a9
-15	7	2026-04-01	20	2026-04-09 14:38:15.482	Active	Automated GCTA	67d9b7ccf1e8ab31b923be4e9c25fb40ed3f9138798136061a94b1fc32f05957
-16	8	2026-04-01	20	2026-04-09 14:39:15.322443	Active	Automated GCTA (REPAIRED: Ref [Standard Day for Gcta])	940ce6e565ada003d7310753296c3301d96d0abffa3c410753b9320ee26ccfa5
+1	10	2026-04-01	20	2026-04-18 00:14:57.83	Active	Automated GCTA	19599b7dfc8437f2b64e75954615ed1e6326d05bc964ded63c30200460f8735e
+2	11	2026-04-01	20	2026-04-18 00:31:38.175	Active	Automated GCTA	0900c0ce53956fbe3fe8f04d6e4592d65b9762ca716b1cadd39c3865ec0ca371
+3	12	2026-04-01	20	2026-04-18 00:31:38.175	Active	Automated GCTA	0dccda22adc87d5a91809fcde2f8b0fa08f81b7d6d9ab820839199b2ea553baf
+4	13	2026-04-01	20	2026-04-18 00:31:38.175	Active	Automated GCTA	8db75c85b8a907c7a5cb8bfba440e0399ddf770fe9c498626365e7f6a5f59882
+5	14	2026-04-01	20	2026-04-18 00:31:38.175	Active	Automated GCTA	0dd50094c5fcb62ea207b68af6acd2309f877e0c9a32fe05581385ba76ab1457
+6	15	2026-04-01	20	2026-04-18 00:31:38.175	Active	Automated GCTA	e22e1fb5d13cd5378d858712972b1d212eaaf7b710212690c8a3f909c4a647cc
+7	16	2026-04-01	20	2026-04-18 00:31:38.175	Active	Automated GCTA	1434d1908684268c9bfd6c494b8a312d99138bfe6c4cdf39c6cd00dd079d52fd
+8	17	2026-04-01	20	2026-04-18 00:31:38.175	Active	Automated GCTA	902fcf8b49fdc4dbbc67d35151df0585f6479275d7324952ee6fd6bf497626b1
+9	18	2026-04-01	20	2026-04-18 00:46:06.413013	Active	Automated GCTA (REPAIRED: Ref [Page 45])	f8dc44a27ea7f832e08d7c6eca4becc6a66d6492d9df00e1d93940579df1cfe5
 \.
 
 
@@ -797,6 +805,7 @@ COPY public.gcta_days_log (gcta_log_id, pdl_id, month_year, days_earned, date_gr
 --
 
 COPY public.incident_tbl (incident_id, pdl_id, incident_date, category, penalty_end_date, remarks, status) FROM stdin;
+1	14	2026-04-17	Less Serious	2026-07-17	Involved in a fist fight.	Active
 \.
 
 
@@ -826,14 +835,15 @@ COPY public.pdl_subsidiary_tbl (subsidiary_id, pdl_id, total_fine_amount, amount
 --
 
 COPY public.pdl_tbl (pdl_id, first_name, middle_name, last_name, gender, birthday, pdl_status, date_commited_pnp, date_admitted_bjmp, sentence_years, sentence_months, sentence_days, original_release_date, expected_releasedate, rfid_number, pdl_picture, is_locked_for_gcta, total_timeallowance_earned, case_number, crime_name, created_at, updated_at, is_legally_disqualified, disqualification_reason, date_of_final_judgment) FROM stdin;
-1	Juan 	Galang	Dela Cruz		2000-01-12	Sentenced	2026-02-28	2026-03-01	2	1	0	2028-03-28	2028-02-16	1260703026	\N	f	40	123132	Robbery	2026-04-09 13:10:52.316305	2026-04-09 13:10:52.316305	f	\N	\N
-2	Ricardo	Santos	Ramos		1998-05-15	Sentenced	2025-01-15	2025-02-15	1	5	0	2026-06-15	2026-05-05	1258930626	\N	f	40	02	Theft	2026-04-09 13:13:38.052448	2026-04-09 13:13:38.052448	f	\N	\N
-3	Maria Clara	Mercado	Ibarra	Female	1995-08-22	Sentenced	2020-05-04	2020-06-05	2	6	0	2022-11-04	2022-09-24	1258909026	\N	f	40	03	ESTAFA	2026-04-09 13:16:09.384474	2026-04-09 13:16:09.384474	f	\N	\N
-4	Antonio	Novicio	Luna		1982-10-29	Sentenced	2021-06-05	2021-07-13	2	0	0	2023-06-05	2023-04-25	1259272738	\N	f	40	04	Physical Injury	2026-04-09 13:18:00.985751	2026-04-09 13:18:00.985751	f	\N	\N
-5	Fernando	Garcia	Poe		1975-02-15	Detained	\N	2015-04-25	0	0	0	\N	1969-11-21	1260818178	\N	f	40	05	Gambling	2026-04-09 13:19:10.812412	2026-04-09 13:19:10.812412	f	\N	\N
-6	Elena	Cruz	Adarna	Female	1999-11-30	Detained	\N	2016-06-26	0	0	0	\N	1969-12-11	1258433266	\N	f	20	06	Drugs	2026-04-09 13:20:18.308238	2026-04-09 13:20:18.308238	f	\N	\N
-7	Roberto 	Reyes	Gomez		1985-12-12	Detained	\N	2012-05-22	0	0	0	\N	1969-11-21	1260075634	\N	f	40	07	Homicide	2026-04-09 13:21:33.708643	2026-04-09 13:21:33.708643	f	\N	\N
-8	Angela	Dizon	Torres	Female	2001-01-01	Detained	\N	2019-06-26	0	0	0	\N	1969-11-11	1259899170	\N	f	50	08	Shoplifting	2026-04-09 13:22:39.414136	2026-04-09 14:35:40.562928	f	\N	\N
+18	Daniel	Garcia	Padilla	Male	2000-02-02	Sentenced	2025-07-07	2025-08-08	0	8	0	2026-03-06	2026-02-14	1258909026	pdl-1776443825567-109419217.jpg	f	20	123	Robbery	2026-04-18 00:37:05.572597	2026-04-18 00:40:56.063944	f	\N	2026-01-01
+14	Elen	Maria	Adarna	Female	1988-11-15	Detained	\N	2025-08-16	0	0	0	\N	\N	1260818178	pdl-1776443160971-202074157.webp	t	20	123	Theft	2026-04-18 00:26:01.07086	2026-04-18 00:32:40.713433	f	\N	\N
+11	Jose	Ariel	Manalo	Male	1966-07-06	Detained	\N	2025-05-14	0	0	0	\N	\N	1259899170	pdl-1776442789739-949533752.jpg	f	20	123	Theft	2026-04-18 00:19:49.886	2026-04-18 00:45:26.719507	f	\N	\N
+12	Maria	Clara	Ibarra	Female	1998-03-19	Detained	\N	2025-10-22	0	0	0	\N	1969-12-11	1258930626	pdl-1776442899407-291433041.jpg	f	20	1243	Robbery	2026-04-18 00:21:39.443	2026-04-18 00:21:39.443	f	\N	\N
+13	Juan	Coco	Dela Cruz	Male	1997-01-28	Detained	\N	2025-01-28	0	0	0	\N	1969-12-11	1260703026	pdl-1776443011739-615551608.jpg	f	20	123	STAFA	2026-04-18 00:23:31.77736	2026-04-18 00:23:31.77736	f	\N	\N
+17	Roberto	King	Gomez	Male	1962-11-08	Detained	\N	2025-05-06	0	0	0	\N	\N	1260075634	pdl-1776443424705-98770913.jpg	f	20	987	Rape	2026-04-18 00:30:24.744919	2026-04-18 00:32:26.709597	f	\N	\N
+16	Max	Supremo	Gonzales	Male	1996-12-25	Detained	\N	2025-04-04	0	0	0	\N	\N	1259272738	pdl-1776443338376-934279009.webp	f	20	123	STAFA	2026-04-18 00:28:58.573229	2026-04-18 00:32:31.812997	f	\N	\N
+15	Fernando	Lakas	Poe	Male	1946-07-11	Detained	\N	2025-02-05	0	0	0	\N	\N	1259582546	pdl-1776443247683-507393621.jpg	f	20	12345	Robbery	2026-04-18 00:27:27.737239	2026-04-18 00:32:33.967956	f	\N	\N
+10	Angela	Dela Cruz	Torres	Female	1994-07-20	Detained	\N	2025-06-10	0	0	0	\N	\N	1258433266	pdl-1776442490383-188290342.webp	f	20	12345	Theft	2026-04-18 00:14:50.423293	2026-04-18 00:32:46.080347	f	\N	\N
 \.
 
 
@@ -884,56 +894,7 @@ COPY public.roletbl (roleid, rolename, roledescription) FROM stdin;
 --
 
 COPY public.session_tbl (session_id, program_name, session_name, hours_to_earn, session_date, officer_in_charge) FROM stdin;
-113	Alternative Learning System	ALS Workshop - Day 1	8.00	2026-03-16	Warden Tech Support
-114	Alternative Learning System	ALS Workshop - Day 2	8.00	2026-03-17	Warden Tech Support
-115	Alternative Learning System	ALS Workshop - Day 3	8.00	2026-03-18	Warden Tech Support
-116	Alternative Learning System	ALS Workshop - Day 4	8.00	2026-03-19	Warden Tech Support
-117	Alternative Learning System	ALS Workshop - Day 5	8.00	2026-03-20	Warden Tech Support
-118	Education	ALS Exam	3.00	2026-03-23	Mark JO1
-121	Education	12	2.00	2026-04-03	asd
-123	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-124	Education	Test	2.00	2026-04-05	Mark JO1/ Rod JO1
-127	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-128	Education	ALS Exam	2.00	2026-04-05	2
-129	Education	Test	2.00	2026-04-05	2
-130	Education	s	2.00	2026-04-05	s
-131	Education	ssdadsa	2.00	2026-04-05	Mark JO1/ Rod JO1
-133	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-135	Education	Test	2.00	2026-04-05	2
-138	Education	ALS Exam	3.00	2026-04-05	Mark JO1/ Rod JO1
-139	Education	Test	5.00	2026-04-05	Mark JO1/ Rod JO1
-140	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-141	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-142	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-143	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-146	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-147	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-148	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-149	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-150	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-151	Education	ALS Exam	5.00	2026-04-05	Mark JO1/ Rod JO1
-152	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-153	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-154	Education	ALS Exam	2.00	2026-04-05	Mark JO1/ Rod JO1
-156	Education	2	2.00	2026-04-05	2
-157	Education	asda	2.00	2026-04-05	Mark JO1/ Rod JO1
-144	Education	sdasd	2.00	2026-04-05	Mark JO1/ Rod JO1
-160	Education	ALS Exam	2.00	2026-04-06	2
-161	Education	asdasd	2.00	2026-04-06	sda
-164	Education	asdas	1.00	2026-04-06	Mark JO1/ Rod JO1
-168	Education	asda	2.00	2026-04-08	sdasdas
-169	Education	asdas	2.00	2026-04-08	Mark JO1/ Rod JO1
-170	Education	asdas	2.00	2026-04-08	asdasd
-171	Education	asdas	2.00	2026-04-08	Mark JO1/ Rod JO1
-172	Education	asdsad	2.00	2026-04-08	asdasdas
-173	Education	asdas	2.00	2026-04-08	Mark JO1/ Rod JO1
-175	Education	wawawa	2.00	2026-04-08	sadasd
-178	Education	cancel to tol	2.00	2026-04-08	asdas
-181	Education	litaw to tol	2.00	2026-04-08	asd
-186	Education	asdaw112312312	2.00	2026-04-08	asdas
-188	Education	attendance ngayon	2.00	2026-04-08	asdas
-190	Education	sdasdas	2.00	2026-04-09	dasdasd
-191	Education	ALS Exam	2.00	2026-04-09	Mark JO1/ Rod JO1
+199	Education	ALS Exam	2.00	2026-04-17	Mark JO1
 \.
 
 
@@ -942,10 +903,8 @@ COPY public.session_tbl (session_id, program_name, session_name, hours_to_earn, 
 --
 
 COPY public.tastm_days_log (tastm_log_id, pdl_id, month_year, total_hours_accumulated, days_earned, date_granted, remarks, status, row_hash) FROM stdin;
-1	1	2026-04-01	2.00	0	2026-04-09 14:43:57.827604	Automated TASTM	Active	7ff680fd239ca6cf4aafc76785f00f86c7d8ecdca33b0a3fc845f5cd2f306c6f
-2	3	2026-04-01	2.00	0	2026-04-09 14:43:57.827604	Automated TASTM	Active	2b692648c407b4df8ba673e45b5bcd122d546f699bd884b2c2566d345754d338
-3	4	2026-04-01	2.00	0	2026-04-09 14:43:57.827604	Automated TASTM	Active	d111fc08426488184113ba2e9bd48dfef5574cb682929e55ae139ebb9c79484f
-4	8	2026-04-01	2.00	0	2026-04-09 14:43:57.827604	Automated TASTM	Active	0b5c80274b2ba0e904503c2191dfe6de5f0927598b0ed6a6b2786ab48b14a0e1
+8	18	2026-04-01	2.00	0	2026-04-18 00:43:40.952255	Automated TASTM	Active	5d98a8487a1e24a74cf2a944086a5897544644be0cd2f440064f904018f90b0c
+9	17	2026-04-01	2.00	0	2026-04-18 00:43:40.952255	Automated TASTM	Active	a95790f9c037e8ffd9cb0310b64ed68339cd86366a8c9461acc93e4c1a1ea3f5
 \.
 
 
@@ -954,17 +913,9 @@ COPY public.tastm_days_log (tastm_log_id, pdl_id, month_year, total_hours_accumu
 --
 
 COPY public.usertbl (userid, username, password, fullname, roleid, status) FROM stdin;
-12	boygaming17	$2b$10$v1bbI8xuFc6o7/xEHmK6T.rWva5aM6iA8KtJFcZBRBzjA5u28ZT7G	Rod To	3	Active
-15	asd123	$2b$10$72ki4rDK0P8ggkqGwuISculLVpa/x84B6yhuLzj2egtQ9zGf2Sdvy	Rod To1	2	Active
-16	asdaa	$2b$10$Gyvxk7UBAtvtPCz81bq44O/Mn9Z9dzEQqw/CBc7YwzhZkY1onSk4W	aasdas	3	Active
-17	aploloftw	$2b$10$ebcg70UikefKmJnNLm1B3OUyKXFAg3hu/SwQrEVAbKxqDh6LiUSOq	dasdsad	1	Active
-19	q2133	$2b$10$AHf9/aBY1ueI5pD1kZVU5eHznqsBprxjOy4GJOOnsjEj0rAh4dbXm	q2133	1	Active
-18	tttt	$2b$10$RTXn42/Qd3X0l7yRU/.j3.FbBMx0xlMG2GIk9APK/HRcT/55jwH9e	Rod To2	2	Active
-11	super_admin	$2b$10$pa2s/JG8hGMrRAwp1k1Q8O7hOpCXPTOI1QkuRmTUfdOgTNgUhJAP6	Admin Aguigam	1	Active
-10	warden_test	$2b$10$X2uK4YT8t6JNi38rYn/MNeaWjdBw7IwzUcD0vWiTP24Exmj78fa8S	Warden Smith	2	Active
-14	qqqq	$2b$10$T3JmTw60MmiHHFc2NyPAxeqt53gTTxUOROvSDI.zWnjiKSrlJ82X2	Mark Lising	3	Active
-9	jundlcrz	$2b$10$wo6uys90arKc9L9cYFHSEOBcrHUVWvhypkgv87ElWoe3H99bQJOJC	Juan Dela Cruz	3	Active
-13	warden_to	$2b$10$/6FEFwmOp95gldeo8mCW1u9ZZtQJ2R5ICZeuQ3ut2t4H5MbDz7LK2	Rian To	2	Active
+13	warden_to	$2b$10$/6FEFwmOp95gldeo8mCW1u9ZZtQJ2R5ICZeuQ3ut2t4H5MbDz7LK2	Rian Matthew Aguigam	2	Active
+14	qqqq	$2b$10$T3JmTw60MmiHHFc2NyPAxeqt53gTTxUOROvSDI.zWnjiKSrlJ82X2	Rod Justin Encina	3	Active
+11	super_admin	$2b$10$3hru9umAU3bGC1aGunvT9uaC/pJcFm649ljkNibnkgrljGaVcYQAe	Mark Lising	1	Active
 \.
 
 
@@ -972,28 +923,28 @@ COPY public.usertbl (userid, username, password, fullname, roleid, status) FROM 
 -- Name: attendance_tbl_attendance_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.attendance_tbl_attendance_id_seq', 4, true);
+SELECT pg_catalog.setval('public.attendance_tbl_attendance_id_seq', 3, true);
 
 
 --
 -- Name: audit_log_tbl_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.audit_log_tbl_log_id_seq', 26, true);
+SELECT pg_catalog.setval('public.audit_log_tbl_log_id_seq', 42, true);
 
 
 --
 -- Name: gcta_days_log_gcta_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.gcta_days_log_gcta_log_id_seq', 16, true);
+SELECT pg_catalog.setval('public.gcta_days_log_gcta_log_id_seq', 9, true);
 
 
 --
 -- Name: incident_tbl_incident_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.incident_tbl_incident_id_seq', 1, false);
+SELECT pg_catalog.setval('public.incident_tbl_incident_id_seq', 1, true);
 
 
 --
@@ -1014,7 +965,7 @@ SELECT pg_catalog.setval('public.pdl_subsidiary_tbl_subsidiary_id_seq', 1, false
 -- Name: pdl_tbl_pdl_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.pdl_tbl_pdl_id_seq', 8, true);
+SELECT pg_catalog.setval('public.pdl_tbl_pdl_id_seq', 18, true);
 
 
 --
@@ -1042,14 +993,14 @@ SELECT pg_catalog.setval('public.roletbl_roleid_seq', 7, true);
 -- Name: session_tbl_session_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.session_tbl_session_id_seq', 191, true);
+SELECT pg_catalog.setval('public.session_tbl_session_id_seq', 199, true);
 
 
 --
 -- Name: tastm_days_log_tastm_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.tastm_days_log_tastm_log_id_seq', 4, true);
+SELECT pg_catalog.setval('public.tastm_days_log_tastm_log_id_seq', 9, true);
 
 
 --
@@ -1308,5 +1259,5 @@ ALTER TABLE ONLY public.usertbl
 -- PostgreSQL database dump complete
 --
 
-\unrestrict epNHKRS3471UQxkfvMRbDb9JGRA8bUvQ0CFfa2Jyf9eIJYqnbQHAeDjTQItZBLO
+\unrestrict xPGKcox7Tef1pHrYQN6n3ofMleY9b6BYkO0KEycwRXEHgdBSIh0psGXrOf3RS5Y
 
